@@ -20,7 +20,7 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import CHARGE_STAGES, DEVICE_TYPES, DOMAIN, REGISTER_MAP, REST_REASONS
+from .const import CHARGE_STAGES, DEVICE_TYPES, DOMAIN, INTERNAL_STATES, REGISTER_MAP, REST_REASONS
 from . import MidniteAPI
 
 _LOGGER = logging.getLogger(__name__)
@@ -42,6 +42,7 @@ async def async_setup_entry(
         PowerWattsSensor(api, entry),
         RawChargeStateSensor(api, entry),
         ChargeStageSensor(api, entry),
+        InternalStateSensor(api, entry),
         RestReasonSensor(api, entry),
         BatteryTemperatureSensor(api, entry),
         FETTemperatureSensor(api, entry),
@@ -183,20 +184,42 @@ class ChargeStageSensor(MidniteSolarSensor):
         registers = await self._api.read_holding_registers(REGISTER_MAP["COMBO_CHARGE_STAGE"])
         if registers:
             raw_value = registers[0]
-            _LOGGER.info(f"Raw charge state value: {raw_value} (hex: 0x{raw_value:x}, binary: {bin(raw_value)})")
+            _LOGGER.debug(f"Raw charge state value: {raw_value} (hex: 0x{raw_value:x})")
             
-            # Try different interpretations
-            stage_value_msb = (raw_value >> 12) & 0x0F
-            _LOGGER.info(f"Charge stage from bits 12-15 (MSB): {stage_value_msb}")
-            state_value_lsb = raw_value & 0xFFF
-            _LOGGER.info(f"State value from bits 0-11 (LSB): {state_value_lsb}")
+            # Extract MSB (high byte) for charge stage
+            # According to the spec: [addr]MSB = (value >> 8) & 0xFF
+            charge_stage_value = (raw_value >> 8) & 0xFF
+            _LOGGER.debug(f"Charge stage value (MSB): {charge_stage_value}")
             
-            # Also try interpreting the LSB portion differently
-            stage_value_from_lsb = (raw_value >> 8) & 0x0F
-            _LOGGER.info(f"Charge stage from bits 8-11: {stage_value_from_lsb}")
+            # Look up the charge stage description
+            self._attr_native_value = CHARGE_STAGES.get(charge_stage_value, f"Unknown ({charge_stage_value})")
+
+
+class InternalStateSensor(MidniteSolarSensor):
+    """Representation of an internal state sensor."""
+
+    def __init__(self, api: MidniteAPI, entry: Any):
+        """Initialize the sensor."""
+        super().__init__(api, entry)
+        self._attr_name = "Midnite Internal State"
+        self._attr_unique_id = f"{entry.entry_id}_internal_state"
+        self._attr_device_class = SensorDeviceClass.ENUM
+        self._attr_options = list(INTERNAL_STATES.values())
+
+    async def async_update(self) -> None:
+        """Update sensor data from the device."""
+        registers = await self._api.read_holding_registers(REGISTER_MAP["COMBO_CHARGE_STAGE"])
+        if registers:
+            raw_value = registers[0]
+            _LOGGER.debug(f"Raw charge state value: {raw_value} (hex: 0x{raw_value:x})")
             
-            # Use MSB interpretation as per documentation
-            self._attr_native_value = CHARGE_STAGES.get(stage_value_msb, f"Unknown ({stage_value_msb})")
+            # Extract LSB (low byte) for internal state
+            # According to the spec: [addr]LSB = value & 0xFF
+            internal_state_value = raw_value & 0xFF
+            _LOGGER.debug(f"Internal state value (LSB): {internal_state_value}")
+            
+            # Look up the internal state description
+            self._attr_native_value = INTERNAL_STATES.get(internal_state_value, f"Unknown ({internal_state_value})")
 
 
 class RawChargeStateSensor(MidniteSolarSensor):
@@ -215,13 +238,12 @@ class RawChargeStateSensor(MidniteSolarSensor):
             # Store raw value for debugging
             self._attr_native_value = registers[0]
             # Also add extra attributes with decoded bits
-            stage_value = (registers[0] >> 12) & 0x0F
-            state_value = registers[0] & 0xFFF
+            charge_stage_value = (registers[0] >> 8) & 0xFF
+            internal_state_value = registers[0] & 0xFF
             self._attr_extra_state_attributes = {
                 "raw_value": registers[0],
-                "stage_bits": f"{bin(registers[0])}",
-                "charge_stage": stage_value,
-                "state_value": state_value,
+                "charge_stage": charge_stage_value,
+                "internal_state": internal_state_value,
             }
 
 

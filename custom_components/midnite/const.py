@@ -52,16 +52,26 @@ REGISTER_MAP = {
     "FORCE_FLAG_BITS": 4160,
 }
 
-# Charge stage mappings
+# Charge stage mappings (from register 4120 MSB)
 CHARGE_STAGES = {
     0: "Resting",
-    1: "BulkMppt",
-    2: "Absorb",
-    3: "Float",
-    4: "FloatMppt",
-    5: "Equalize",
-    6: "HyperVoc",
-    7: "EqMppt",
+    3: "Absorb",
+    4: "BulkMPPT",
+    5: "Float",
+    6: "FloatMppt",
+    7: "Equalize",
+    10: "HyperVoc",
+    18: "EqMppt",
+}
+
+# Internal state mappings (from register 4120 LSB)
+INTERNAL_STATES = {
+    0: "Resting",
+    1: "Waking/Starting (state 1)",
+    2: "Waking/Starting (state 2)",
+    3: "MPPT / Regulating Voltage (state 3)",
+    4: "MPPT / Regulating Voltage (state 4)",
+    6: "MPPT / Regulating Voltage (state 6)",
 }
 
 # Device types from register 4101

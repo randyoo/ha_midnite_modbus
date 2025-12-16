@@ -1,0 +1,1879 @@
+{
+  "metadata": {
+    "document_version": "Midnite Solar Classic MODBUS Register Map Rev C.4 – Dec 9 2013",
+    "address_offset": -1,
+    "endianness": "16‑bit registers, bits numbered LSB‑0 (little‑endian). Use [addr]MSB and [addr]LSB as shown in the spec.",
+    "byte_order_note": "[addr]MSB = (value >> 8) & 0xFF ; [addr]LSB = value & 0xFF",
+    "32bit_combination": "(high << 16) + low   // high‑word register first, low‑word second in the PDF",
+    "string_registers": "4210‑4213 – four consecutive 16‑bit words hold an ASCII name (8 chars, LSB‑first).",
+    "eeprom_write": "(EE) means the value is stored to EEPROM only after a write to register 4161 bit 2 (ForceEEpromUpdateWriteF)."
+  },
+
+  "registers": [
+    /* -----------------------------------------------------------------
+       Base registers – 4100‑4257 (including the “combined” 32‑bit entries)
+       ----------------------------------------------------------------- */
+    {
+      "address": 4101,
+      "name": "UNIT_ID",
+      "access": "R",
+      "unit": "",
+      "formula": "[4101]MSB → PCB revision (0‑255) ; [4101]LSB → Unit type (see table 4101‑1)",
+      "description": "Hardware revision and voltage category of the Classic."
+    },
+    {
+      "address": 4102,
+      "name": "UNIT_SW_DATE_RO",
+      "access": "R",
+      "unit": "",
+      "formula": "Year = [4102]; Month = [4103]MSB; Day = [4103]LSB",
+      "description": "Software build date."
+    },
+    {
+      "address": 4103,
+      "name": "UNIT_SW_DATE_MONTH_DAY",
+      "access": "R",
+      "unit": "",
+      "formula": "[4103]MSB → month ; [4103]LSB → day",
+      "description": "(see register 4102 for year)."
+    },
+    {
+      "address": 4104,
+      "name": "INFO_FLAGS_BITS3",
+      "access": "R",
+      "unit": "",
+      "bits": [
+        { "bit": 0, "name": "Classic Over Temperature" },
+        { "bit": 1, "name": "EEPROM error" },
+        { "bit": 2, "name": "SerialWriteLock (register change locked)" },
+        { "bit": 3, "name": "Equalize In Progress" },
+        { "bit": 7, "name": "EQ MPPT" },
+        { "bit": 8, "name": "In‑V is lower than Out" },
+        { "bit": 9, "name": "Current Limit active" },
+        { "bit": 10, "name": "HyperVoc (PV > max rating)" },
+        { "bit": 13, "name": "Battery Temp Sensor Installed" },
+        { "bit": 14, "name": "Aux1 State On" },
+        { "bit": 15, "name": "Aux2 State On" },
+        { "bit": 16, "name": "GroundFaultF" },
+        { "bit": 17, "name": "OCP (Over‑Current Protect)" },
+        { "bit": 18, "name": "ArcFaultF" },
+        { "bit": 19, "name": "NegBatCurrentF" },
+        { "bit": 23, "name": "XtraInfo2DsplayF" },
+        { "bit": 24, "name": "PvPartialShadeF" },
+        { "bit": 27, "name": "WatchdogResetF" },
+        { "bit": 28, "name": "LowBatteryVF (Vbatt < 8 V)" },
+        { "bit": 29, "name": "StackumperF (Jumper missing)" }
+      ],
+      "description": "System‑wide status flags."
+    },
+
+    { "address": 4105, "name": "RESERVED_4105", "access": "R/W", "description": "Reserved – do not write." },
+    {
+      "address": 4106,
+      "name": "MAC_ADDR_BYTE3",
+      "access": "R",
+      "unit": "",
+      "formula": "[4108]MSB : [4108]LSB : [4107]MSB : [4107]LSB : [4106]MSB : [4106]LSB",
+      "description": "Six‑byte Ethernet MAC address (big‑endian)."
+    },
+
+    {
+      "address": 4109,
+      "name": "WBJr_AMP_HOUR_NET_LSW",
+      "access": "R/W",
+      "unit": "Ah",
+      "formula": "((([4110] << 16) + [4109]) / 10",
+      "description": "Whizbang Jr. net amp‑hours (temporary)."
+    },
+    {
+      "address": 4110,
+      "name": "WBJr_AMP_HOUR_NET_MSW",
+      "access": "R/W",
+      "unit": "",
+      "description": "High word of register 4109 – see 4109."
+    },
+
+    {
+      "address": 4111,
+      "name": "DEVICE_ID_LSW",
+      "access": "R/W",
+      "unit": "",
+      "formula": "[[4112] << 16) + [4111]",
+      "description": "Device ID (clone of register 4369)."
+    },
+    {
+      "address": 4112,
+      "name": "DEVICE_ID_MSW",
+      "access": "R/W",
+      "unit": "",
+      "description": "High word of DEVICE_ID."
+    },
+
+    { "address": 4113, "name": "STATUSROLL", "access": "R", "unit": "", "formula": "([4113]>>12) + ([4113]&0x0FFF)", "description": "12‑bit status value (changes each second)." },
+    { "address": 4114, "name": "RESTART_TIME_MS", "access": "R", "unit": "ms", "description": "Countdown until the Classic can wake up." },
+
+    { "address": 4115, "name": "DISP_AVG_VBATT", "access": "R", "unit": "V", "formula": "[4115] / 10", "description": "Average battery voltage (1 s average)." },
+    { "address": 4116, "name": "DISP_AVG_VPV", "access": "R", "unit": "V", "formula": "[4116] / 10" },
+
+    { "address": 4117, "name": "IBATT_DISPLAY_S", "access": "R", "unit": "A", "formula": "[4117] / 10" },
+    { "address": 4118, "name": "KW_HOURS", "access": "R", "unit": "kWh", "formula": "[4118] / 10", "description": "Energy to the battery (reset daily)." },
+
+    { "address": 4119, "name": "WATTS", "access": "R", "unit": "W", "description": "Average power to the battery." },
+    {
+      "address": 4120,
+      "name": "COMBO_CHARGE_STAGE",
+      "access": "R",
+      "unit": "",
+      "bits": [
+        { "byte":"MSB","name":"ChargeStage", "values": {
+          "0":"Resting",
+          "3":"Absorb",
+          "4":"BulkMPPT",
+          "5":"Float",
+          "6":"FloatMppt",
+          "7":"Equalize",
+          "10":"HyperVoc",
+          "18":"EqMppt"
+        } },
+        { "byte":"LSB","name":"InternalState", "values": {
+          "0":"Resting",
+          "1":"Waking/Starting (state 1)",
+          "2":"Waking/Starting (state 2)",
+          "3":"MPPT / Regulating Voltage (state 3)",
+          "4":"MPPT / Regulating Voltage (state 4)",
+          "6":"MPPT / Regulating Voltage (state 6)"
+        } }
+      ],
+      "description": "High byte = charge stage, low byte = internal state (see tables 4120‑1 & 4120‑2)."
+    },
+
+    { "address": 4121, "name": "PV_INPUT_CURRENT", "access": "R", "unit": "A", "formula": "[4121] / 10" },
+    { "address": 4122, "name": "VOC_LAST_MEASURED", "access": "R", "unit": "V", "formula": "[4122] / 10" },
+
+    { "address": 4123, "name": "HIGHEST_VINPUT_LOG", "access": "R", "unit": "V", "description": "Highest PV input voltage ever seen (saved in EEPROM)." },
+    { "address": 4124, "name": "MATCH_POINT_SHADOW", "access": "R", "unit": "", "description": "Current wind‑power curve step being indexed (1‑16)." },
+
+    { "address": 4125, "name": "AMP_HOURS_DAILY", "access": "R", "unit": "Ah", "description": "Daily amp‑hours – resets at 23:59." },
+    {
+      "address": 4126,
+      "name": "LIFETIME_KWH_LO",
+      "access": "R/W EEprom",
+      "unit": "kWh",
+      "formula": "(([4127] << 16) + [4126]) / 10",
+      "description": "Lifetime energy generation (EEprom)."
+    },
+    {
+      "address": 4127,
+      "name": "LIFETIME_KWH_HI",
+      "access": "R/W EEprom",
+      "unit": "",
+      "description": "High word of the lifetime kWh register."
+    },
+
+    {
+      "address": 4128,
+      "name": "LIFETIME_AMPHOURS_LO",
+      "access": "R/W EEprom",
+      "unit": "Ah",
+      "formula": "(([4129] << 16) + [4128])",
+      "description": "Lifetime amp‑hours (EEprom)."
+    },
+    {
+      "address": 4129,
+      "name": "LIFETIME_AMPHOURS_HI",
+      "access": "R/W EEprom",
+      "unit": "",
+      "description": "High word of lifetime amp‑hours."
+    },
+
+    {
+      "address": 4130,
+      "name": "INFO_FLAGS_BITS2_LO",
+      "access": "R",
+      "unit": "",
+      "bits": [
+        { "bit":0, "desc":"Classic Over Temperature"},
+        { "bit":1, "desc":"EEPROM error"},
+        { "bit":2, "desc":"SerialWriteLock"},
+        { "bit":3, "desc":"Equalize In Progress"},
+        { "bit":4, "desc":"Reserved"},
+        { "bit":5, "desc":"Reserved"},
+        { "bit":6, "desc":"GroundFaultF"},
+        { "bit":7, "desc":"OCP (Over‑Current Protect)"},
+        { "bit":8, "desc":"ArcFaultF"},
+        { "bit":9, "desc":"NegBatCurrentF"},
+        { "bit":10, "desc":"HyperVoc"},
+        { "bit":13, "desc":"Battery Temp Sensor Installed"},
+        { "bit\":14,\"desc\":\"Aux1 State On\"},
+        { \"bit\":15,\"desc\":\"Aux2 State On\"}
+      ],
+      "description": "Low word of the 32‑bit INFO_FLAGS (see also register 4131)."
+    },
+    {
+      "address": 4131,
+      "name": "INFO_FLAGS_BITS2_HI",
+      "access": "R",
+      "unit": "",
+      "description": "High word of INFO_FLAGS (bits 16‑31)."
+    },
+
+    { "address": 4132, "name": "BATT_TEMPERATURE", "access": "R", "unit":"°C", "formula":"[4132] / 10" },
+    { "address": 4133, "name": "FET_TEMPERATURE", "access": "R", "unit":"°C", "formula":"[4133] / 10" },
+    { "address": 4134, "name": "PCB_TEMPERATURE", "access": "R", "unit":"°C", "formula":"[4134] / 10" },
+
+    { "address": 4135, "name": "NITE_MINUTES_NO_PWR", "access": "R", "unit":"min", "description":"Counts up when no power; resets on power." },
+    { "address": 4136, "name": "MINUTE_LOG_INTERVAL_SEC", "access": "R/W EEprom", "unit":"s", "description":"Minimum logging interval (≥ 60 s)." },
+
+    { "address": 4137, "name": "MODBUS_PORT_REGISTER", "access": "R/W EEprom", "unit":"","description":"TCP port used for Modbus (default 502)." },
+    { "address": 4138, "name": "FLOAT_TIME_TODAY_SEC", "access": "R", "unit":"s", "description":"Seconds spent in Float today (reset at midnight)." },
+
+    { "address": 4139, "name": "ABSORB_TIME", "access": "R/W", "unit":"s", "description":"Absorb‑time counter; counts down to 0 → Float." },
+    { "address": 4140, "name": "RESERVED_4140", "access": "R/W", "description": "May show Ibatt in older firmware – treat as reserved." },
+
+    { "address": 4141, "name": "PWM_READONLY", "access": "R", "unit":"0‑1023", "description":"Duty‑cycle command of PWM (raw count, not %)." },
+    { "address": 4142, "name": "REASON_FOR_RESET", "access": "R", "unit":"","description":"Reason the Classic reset – see table 4142‑1." },
+
+    { "address": 4143, "name": "EQUALIZE_TIME", "access": "R/W", "unit":"s", "description":"Battery stage equalize counter (down‑count)." },
+    { "address": 4144, "name": "RESERVED_4144", "access": "R/W", "description":"Do NOT write – used for solar‑tracking debug in old firmware." },
+
+    { "address": 4145, "name": "MPP_W_LAST", "access": "R/W", "unit":"","description":"Internal reference (~10 % of last MPP) – overwritten on next sweep." },
+    { "address": 4146, "name": "USB_COMM_MODE", "access": "R/W EEprom", "unit":"", "description":"USB function number (see table 4146‑1)." },
+
+    { "address": 4147, "name": "NO_DOUBLE_CLICK_TIMER", "access": "R/W", "unit":"s", "description":"Time between manual MPPT sweeps." },
+
+    { "address": 4148, "name": "BATTERY_OUTPUT_CURRENT_LIMIT", "access": "R/W EEprom", "unit":"A", "formula":"[4148] / 10" },
+    { "address": 4149, "name": "ABSORB_SETPOINT_VOLTAGE", "access": "R/W EEprom", "unit":"V", "formula":"[4149] / 10" },
+
+    { "address": 4150, "name": "FLOAT_VOLTAGE_SETPOINT", "access": "R/W EEprom", "unit":"V", "formula":"[4150] / 10" },
+    { "address": 4151, "name": "EQUALIZE_VOLTAGE_SETPOINT", "access": "R/W EEprom", "unit":"V", "formula":"[4151] / 10" },
+
+    { "address": 4152, "name": "SLIDING_CURRENT_LIMIT", "access": "R/W", "unit":"A", "description":"Sliding current limit (varies with V/Temp)." },
+    { "address": 4153, "name": "MIN_ABSORB_TIME", "access": "R/W EEprom", "unit":"s", "description":"Minimum absorb time – normally unused." },
+
+    { "address": 4154, "name": "ABSORB_TIME_EEPROM", "access": "R/W EEprom", "unit":"s", "description":"Set‑point time for the battery to stay in Absorb stage." },
+    { "address": 4155, "name": "MAX_BATTERY_TEMP_COMP_VOLTAGE", "access": "R/W EEprom", "unit":"V", "formula":"[4155] / 10" },
+    { "address": 4156, "name": "MIN_BATTERY_TEMP_COMP_VOLTAGE", "access": "R/W EEprom", "unit":"V", "formula":"[4156] / 10" },
+
+    {
+      "address": 4157,
+      "name": "BATTERY_TEMP_COMP_VALUE",
+      "access": "R/W EEprom",
+      "unit":"mV/°C per 2 V cell",
+      "formula":"-([4157] / 10)",
+      "description":"Temperature‑compensation value (0‑10 mV per 2 V)."
+    },
+
+    { "address": 4158, "name": "GENERAL_PURPOSE_WORD", "access": "R/W EEprom", "unit":"","description":"General purpose word – originally battery type." },
+
+    { "address": 4159, "name": "EQUALIZE_RETRY_DAYS", "access": "R/W EEprom", "unit":"days", "description":"Auto‑EQ retry days before giving up." },
+
+    { "address": 4160,
+      "name": "FORCE_FLAGS_LO",
+      "access": "W",
+      "unit":"",
+      "description": "Low word of the 32‑bit ForceFlag register (see 4161)."
+    },
+    {
+      "address": 4161,
+      "name": "FORCE_FLAGS_HI",
+      "access": "W",
+      "unit":"",
+      "bits": [
+        { "bit":2, "name":"ForceEEpromUpdateWriteF" },
+        { "bit":3, "name":"ForceEEpromInitReadF" },
+        { "bit":4, "name":"ForceResetInfoFlags" },
+        { "bit":5, "name":"ForceFloatF" },
+        { "bit":6, "name":"ForceBulkF" },
+        { "bit":7, "name":"ForceEqualizeF" },
+        { "bit":8, "name":"ForceNiteF" },
+        { "bit":13, "name":"ResetAeqCounts" },
+        { "bit":16, "name":"ForceSweepF" },
+        { "bit\":20,\"name\":\"ResetFlags\"},
+        { "bit":29, "name":"ForceResetFaultsF"}
+      ],
+      "description": "Write‑only command register – set a bit to trigger the associated action."
+    },
+
+    { "address": 4162, "name": "EQUALIZE_TIME_EEPROM", "access": "R/W EEprom", "unit":"s", "description":"Initialize time for batteries to remain in Equalize stage." },
+    { "address": 4163, "name": "EQUALIZE_INTERVAL_DAYS_EEPROM", "access": "R/W EEprom", "unit":"days", "description":"Days between automatic equalize stages." },
+
+    {
+      "address": 4164,
+      "name": "MPPT_MODE",
+      "access": "R/W EEprom",
+      "unit":"",
+      "bits": [
+        { "value":"0x0001","name":"PV_Uset"},
+        { "value":"0x0003","name":"DYNAMIC"},
+        { "value":"0x0005","name":"WIND_TRACK"},
+        { "value":"0x0007","name":"RESERVED"},
+        { "value":"0x0009","name":"LEGACY_P&O"},
+        { "value":"0x000B","name":"SOLAR"},
+        { "value":"0x000D","name":"HYDRO"}
+      ],
+      "description":"Select MPPT mode; bit 0 = ON/OFF."
+    },
+
+    {
+      "address": 4165,
+      "name": "AUX_1_AND_2_FUNCTION",
+      "access": "R/W EEprom",
+      "unit":"",
+      "description": "Combined Aux‑1 & Aux‑2 function + on/off – bits 6‑7 = Aux1, bits 14‑15 = Aux2 (see tables 4165‑1/‑2)."
+    },
+
+    {
+      "address": 4166,
+      "name": "AUX1_VOLTS_LO_ABS",
+      "access": "R/W EEprom",
+      "unit":"V",
+      "formula":"[4166] / 10"
+    },
+    { "address": 4167, "name": "AUX1_DELAY_T", "access": "R/W EEprom", "unit":"ms" },
+    { "address": 4168, "name": "AUX1_HOLD_T", "access": "R/W EEprom", "unit":"ms" },
+
+    { "address": 4169, "name": "AUX2_PWM_VWIDTH", "access": "R/W EEprom", "unit":"V", "formula":"[4169] / 10", "description":"Voltage range for Aux 2 PWM (0‑5 V)." },
+
+    { "address": 4170, "name": "RESERVED_4170", "access": "R/W", "description": "Reserved." },
+
+    { "address": 4171, "name": "RESERVED_4171", "access":"R/W","description":"Reserved." },
+
+    {
+      "address": 4172,
+      "name": "AUX1_VOLTS_HI_ABS",
+      "access": "R/W EEprom",
+      "unit":"V",
+      "formula":"[4172] / 10"
+    },
+    { "address": 4173, "name": "AUX2_VOLTS_HI_ABS", "access": "R/W EEprom", "unit":"V", "formula":"[4173] / 10" },
+
+    {
+      "address": 4174,
+      "name": "AUX1_VOLTS_LO_REL",
+      "access": "R/W EEprom",
+      "unit":"V",
+      "formula":"[4174] / 10"
+    },
+    { "address": 4175, "name": "AUX1_VOLTS_HI_REL", "access": "R/W EEprom", "unit":"V", "formula":"[4175] / 10" },
+
+    {
+      "address": 4176,
+      "name": "AUX2_VOLTS_LO_REL",
+      "access": "R/W EEprom",
+      "unit":"V",
+      "formula":"[4176] / 10"
+    },
+    { "address": 4177, "name": "AUX2_VOLTS_HI_REL", "access": "R/W EEprom", "unit":"V", "formula":"[4177] / 10" },
+
+    {
+      "address": 4178,
+      "name": "AUX1_VOLTS_LO_PV_ABS",
+      "access": "R/W EEprom",
+      "unit":"V",
+      "formula":"[4178] / 10"
+    },
+    { "address": 4179, "name": "AUX1_VOLTS_HI_PV_ABS", "access": "R/W EEprom", "unit":"V", "formula":"[4179] / 10" },
+
+    {
+      "address": 4180,
+      "name": "VARIMAX",
+      "access": "R/W EEprom",
+      "unit":"",
+      "description": "[4180]LSB = Amps, [4180]MSB = (Vabsorb‑Vrelative)/10 ; default 101 A."
+    },
+
+    {
+      "address": 4181,
+      "name": "AUX2_VOLTS_HI_PV_ABS",
+      "access": "R/W EEprom",
+      "unit":"V",
+      "formula":"[4181] / 10"
+    },
+
+    {
+      "address": 4182,
+      "name": "ENABLE_FLAGS3",
+      "access": "R/W EEprom",
+      "bits": [
+        {"bit":0,"name":"Reserved"},
+        {"bit":1,"name":"Rem2DwnStrmBus"},
+        {"bit":2,"name":"Rem2UpStrmBus"},
+        {"bit":3,"name":"UpStrmBus2DwnStrmBus"},
+        {"bit":4,"name":"UpStrmBus2RemBus"},
+        {"bit":5,"name":"DwnStrmBus2RemBus"},
+        {"bit":6,"name":"DwnStrm2UpStrmBus (0=enabled)"},
+        {"bit":7,"name":"Rem2UpStrmBus (0=enabled)"},
+        {"bit":8,"name":"ClscAdvertiseDis"},
+        {"bit":9,"name":"SMA_Mode_Enable"},
+        {"bit\":10,\"name\":\"JimComFix\"},
+        {"bit\":11,\"desc\":\"Reserved\"},
+        {"bit\":12,\"desc\":\"Reserved\"},
+        {"bit\":13,\"desc\":\"ForceResetInfoFlags (see 4160‑1)\"},
+        {"bit\":14,\"desc\":\"ForceFloatF\"},
+        {"bit\":15,\"desc\":\"ForceBulkF\"},
+        {"bit\":16,\"desc\":\"ForceEqualizeF\"},
+        {"bit\":17,\"desc\":\"ForceNiteF\"},
+        {"bit\":18,\"desc\":\"Reserved\"},
+        {"bit\":19,\"desc\":\"Reserved\"},
+        {"bit\":20,\"desc\":\"ResetAeqCounts\"},
+        {"bit\":21,\"desc\":\"Reserved\"},
+        {"bit\":22,\"desc\":\"Reserved\"},
+        {"bit\":23,\"desc\":\"ForceSweepF\"},
+        {"bit\":24,\"desc\":\"Reserved\"},
+        {"bit\":25,\"desc\":\"Reserved\"},
+        {"bit\":26,\"desc\":\"Reserved\"},
+        {"bit\":27,\"desc\":\"Reserved\"},
+        {"bit\":28,\"desc\":\"Reserved\"},
+        {"bit\":29,\"desc\":\"ForceResetFaultsF\"},
+        {"bit\":30,\"desc\":\"Reserved\"},
+        {"bit\":31,\"desc\":\"Reserved"}
+      ],
+      "description": "Write‑only flags that trigger actions; requires a Classic reset for some bits."
+    },
+
+    {
+      "address": 4183,
+      "name": "ARC_FAULT_SENSITIVITY",
+      "access": "R/W EEprom",
+      "unit":"",
+      "description":"Arc‑fault protection sensitivity. Time = [4183] (low word), Sense = ([4183]>>16) & 0xFF, Mode = ([4183] << 16). Requires Classic reset after change."
+    },
+
+    { "address": 4184, "name": "RESERVED_4184", "access":"R/W","description":"Do NOT write – used for solar‑tracking debug." },
+    { "address": 4185, "name": "RESERVED_4185", "access":"R/W","description":"Reserved." },
+
+    {
+      "address": 4186,
+      "name": "ENABLE_FLAGS2",
+      "access": "R/W EEprom",
+      "bits": [
+        {"bit":0,"name":"DCclipperEn"},
+        {"bit":1,"name":"RESERVED"},
+        {"bit":2,"name":"RESERVED"},
+        {"bit":3,"name":"PvPartialShadeEn"},
+        {"bit":4,"name":"WasteNotPkRespF"},
+        {"bit":5,"name":"Reserved"},
+        {"bit":6,"name":"Reserved"},
+        {"bit\":7,\"desc\":\"Reserved\"},
+        {"bit\":8,\"desc\":\"Reserved\"}
+      ],
+      "description":"Feature‑enable flags moved from 4187‑1."
+    },
+
+    {
+      "address": 4187,
+      "name": "ENABLE_FLAGS_BITS",
+      "access": "R/W EEprom",
+      "bits": [
+        {"bit":0,"name":"GroundFaultEn"},
+        {"bit":1,"name":"ArcFaultEn"},
+        {"bit\":2,\"desc\":\"Reserved\"},
+        {"bit\":3,\"desc\":\"Reserved\"},
+        {"bit\":4,\"desc\":\"Reserved\"},
+        {"bit\":5,\"desc\":\"Reserved\"},
+        {"bit\":6,\"desc\":\"Reserved\"},
+        {"bit\":7,\"desc\":\"Reserved\"},
+        {"bit\":8,\"desc\":\"Reserved\"},
+        {"bit\":9,\"desc\":\"Reserved\"},
+        {"bit\":10,\"desc\":\"Reserved\"},
+        {"bit\":11,\"desc\":\"Reserved\"},
+        {"bit\":12,\"desc\":\"Reserved\"},
+        {"bit\":13,\"desc\":\"Reserved\"},
+        {"bit\":14,\"desc\":\"Reserved\"},
+        {"bit\":15,\"desc\":\"Reserved\"}
+      ],
+      "description":"Legacy flag register – now duplicated in ENABLE_FLAGS2."
+    },
+
+    { "address": 4188, "name": "FACTORY_CALIBRATION", "access":"R/W EEprom","description":"Do NOT write." },
+
+    {
+      "address": 4189,
+      "name": "VBATT_OFFSET",
+      "access": "R/W EEprom",
+      "unit":"V",
+      "formula":"[4189] / 10",
+      "description":"Battery voltage offset (signed, limited)."
+    },
+    { "address": 4190, "name": "VPV_OFFSET", "access": "R/W EEprom", "unit":"V", "formula":"[4190]/10","description":"PV input voltage offset (signed)." },
+
+    {
+      "address": 4191,
+      "name": "VPV_TARGET_RD",
+      "access": "R",
+      "unit":"V",
+      "formula":"[4191] / 10",
+      "description":"Read‑only PV target (usually Vmpp)."
+    },
+    { "address": 4192, "name": "VPV_TARGET_WR", "access": "R/W EEprom", "unit":"V", "formula":"[4192]/10","description":"Writeable PV‑target command (enable with VpvTargetCmdEn)." },
+
+    { "address": 4195, "name": "RESERVED_4195", "access":"R/W","description":"Reserved." },
+    { "address": 4196, "name": "RESERVED_4196", "access":"R/W","description":"Reserved." },
+
+    {
+      "address": 4197,
+      "name": "SWEEP_INTERVAL_SECS",
+      "access": "R/W EEprom",
+      "unit":"s",
+      "description":"Legacy P&O / Hydro sweep interval; writing forces a sweep."
+    },
+    {
+      "address": 4198,
+      "name": "MIN_SWP_VOLTAGE_EEPROM",
+      "access": "R/W EEprom",
+      "unit":"V",
+      "formula":"[4198]/10"
+    },
+    {
+      "address": 4199,
+      "name": "MAX_INPUT_CURRENT_EEPROM",
+      "access": "R/W EEpron",
+      "unit":"A",
+      "formula":"[4199]/10",
+      "description":"Maximum input current limit (default 99 A)."
+    },
+    {
+      "address": 4200,
+      "name": "SWEEP_DEPTH",
+      "access": "R/W EEprom",
+      "unit":"% of MPP‑watt",
+      "formula":"[4200] / 10",   // actually spec says watts % – keep as raw percent (0‑100)
+      "description":"Legacy/Hydro sweep depth expressed as a percentage of present MPP."
+    },
+
+    { "address": 4201, "name": "NEGATIVE_CURRENT_ADJ", "access":"R/W EEprom","unit":"","description":"Factory calibration – do not change." },
+    { "address": 4202, "name": "CLIPPER_CMD_VOLTS", "access":"R/W EEprom", "unit":"V", "formula":"[4202]/10" },
+
+    {
+      "address": 4203,
+      "name": "WIND_NUMBER_OF_POLES",
+      "access": "R/W EEprom",
+      "unit":"",
+      "description":"Number of turbine alternator poles (unused)."
+    },
+    { "address": 4204, "name": "MPP_PERCENT_VOC", "access": "R/W EEprom", "unit":"%", "formula":"[4204] / 1", "description":"% of Voc for U‑Set mode." },
+
+    {
+      "address": 4205,
+      "name": "WIND_TABLE_TO_USE",
+      "access": "R/W EEprom",
+      "unit":"",
+      "description":"Selects which wind‑power curve table is active (future)."
+    },
+
+    { "address": 4206, "name": "RESERVED_4206", "access":"R/W","description":"Reserved." },
+    {
+      "address": 4207,
+      "name": "LED_MODE",
+      "access": "R/W EEprom",
+      "unit":"",
+      "bits":[
+        {"value":0,"desc":"All Off"},
+        {"value":1,"desc":"Rick Mode – minimal activity"},
+        {"value":2,"desc":"Blinky – all LEDs active"},
+        {"value":3,"desc":"MNGP Red LED = current‑limit / FET temp limit"},
+        {"value":4,"desc":"LED 1 – status mode (see table 4207‑1)"},
+        {"value":5,"desc":"LED 2 – Comm test (flashes on Modbus tx)"} 
+      ],
+      "description":"Controls the four on‑board LEDs."
+    },
+
+    {
+      "address": 4210,
+      "name": "UNIT_NAME_0",
+      "access": "R/W EEprom",
+      "unit":"",
+      "description":"First two bytes of an 8‑character ASCII unit name (LSB first)."
+    },
+    { "address": 4211, "name": "UNIT_NAME_1", "access": "R/W EEprom","unit":"","description":"Second word of unit name."},
+    { "address": 4212, "name": "UNIT_NAME_2", "access":"R/W EEprom","unit":"","description":"Third word of unit name."},
+    { "address": 4213, "name": "UNIT_NAME_3", "access":"R/W EEprom","unit":"","description":"Fourth word of unit name (pads with 0x00 if <8 chars)."},
+
+    {
+      "address": 4214,
+      "name": "CTI_ME0_LO",
+      "access": "R/W EEprom",
+      "unit":"",
+      "description":"Low‑word of consolidated time register 0 (seconds since epoch)."
+    },
+    { "address": 4215, "name": "CTI_ME0_HI", "access":"R/W EEprom","unit":"","description":"High‑word of CTI 0." },
+
+    {
+      "address": 4216,
+      "name": "CTI_ME1_LO",
+      "access": "R/W EEprom",
+      "unit":"",
+      "description":"Low word of consolidated time register 1 (minutes)."
+    },
+    { "address": 4217, "name": "CTI_ME1_HI", "access": "R/W EEprom","unit":"","description":"High word of CTI 1." },
+
+    {
+      "address": 4218,
+      "name": "CTI_ME2",
+      "access": "R/W EEprom",
+      "unit":"",
+      "description":"Consolidated time register 2 – day‑of‑year (bits 0‑10), month, year (see table 4218‑1)."
+    },
+
+    { "address": 4219, "name": "RESERVED_4219", "access":"R/W","description":"Reserved." },
+
+    {
+      "address": 4220,
+      "name": "REMOTE_MENU_MODE",
+      "access": "R/W EEprom",
+      "unit":"",
+      "description":"Remote menu command sent from MNGP."
+    },
+    {
+      "address": 4221,
+      "name": "REMOTE_BUTTONS",
+      "access": "W",
+      "unit":"",
+      "description":"MNGP button presses – see table 4221‑1."
+    },
+
+    { "address": 4222, "name":"RESERVED_4222","access":"R/W"},
+    { "address": 4223, "name":"RESERVED_4223","access":"R/W"},
+
+    {
+      "address": 4224,
+      "name": "PRE_VOC",
+      "access": "R/W",
+      "unit":"V",
+      "formula":"[4224]/10",
+      "description":"Input Voc before relay (do not write unless instructed)."
+    },
+
+    { "address": 4225, "name":"RESERVED_4225","access":"R/W"},
+    {
+      "address": 4226,
+      "name": "AUX2_A2D_D2A",
+      "access": "R/W EEprom",
+      "unit":"10‑bit right‑justified",
+      "description":"Aux 2 A/D and D/A value."
+    },
+
+    { "address": 4227, "name":"RESERVED_4227","access":"R/W"},
+    { "address": 4228, "name":"IFLAGSRO_LOW", "access":"R", "unit":"","description":"Follow‑Me low word – see table 4328‑1." },
+    { "address": 4229, "name":"IFLAGSRO_HIGH", "access":"R", "unit":"","description":"Follow‑Me high word – see table 4329‑1." },
+
+    {
+      "address": 4230,
+      "name":"MODBUS_CONTROL",
+      "access":"R/W EEprom",
+      "unit":"",
+      "description":"Follow‑Me Modbus control."
+    },
+    {
+      "address": 4331,
+      "name": "CLASSIC_FME_PASSED_BITS",
+      "access": "R/W EEprom",
+      "unit":"",
+      "description":"Follow‑Me state bits (see table 4328‑1)."
+    },
+
+    {
+      "address": 4332,
+      "name": "WIND_SYNCH_A",
+      "access": "R/W EEprom",
+      "unit":"A",
+      "description":"Wind power tracking current (Follow‑Me)."
+    },
+    {
+      "address": 4333,
+      "name": "WIND_SYNCH_V",
+      "access": "R/W EEprom",
+      "unit":"V",
+      "description":"Wind power tracking voltage (Follow‑Me)."
+    },
+
+    {
+      "address": 4334,
+      "name": "FOLLOW_ME_PASS_REF",
+      "access": "R/W EEprom",
+      "unit":"",
+      "description":"Enable Follow‑Me if >0; set to ≥ number of units in the loop."
+    },
+
+    /* -----------------------------------------------------------------
+       Network configuration registers (20481‑20493)
+       ----------------------------------------------------------------- */
+    {
+      "address": 20481,
+      "name": "IP_SETTINGS_FLAGS",
+      "access": "R/W EEprom",
+      "unit":"",
+      "bits":[
+        {"bit":0,"name":"DHCP"},
+        {"bit":1,"name":"WebAccess"}
+      ],
+      "description":"Network‑settings flags."
+    },
+    {
+      "address": 20482,
+      "name": "IP_ADDRESS_MSB",
+      "access": "R/W EEprom",
+      "unit":"octet",
+      "description":"First byte of IPv4 address (most‑significant)."
+    },
+    { "address": 20483, "name":"IP_ADDRESS_LSB","access":"R/W EEprom","unit":"octet","description":"Second byte of IP address."},
+    { "address": 20484, "name":"GATEWAY_MSB","access":"R/W EEprom","unit":"octet"},
+    { "address": 20485, "name":"GATEWAY_LSB","access":"R/W EEprom","unit":"octet"},
+    { "address": 20486, "name":"SUBNET_MASK_MSB","access":"R/W EEprom","unit":"octet"},
+    { "address": 20487, "name":"SUBNET_MASK_LSB","access":"R/W EEprom","unit":"octet"},
+    { "address": 20488, "name":"DNS1_MSB","access":"R/W EEprom","unit":"octet"},
+    { "address": 20489, "name":"DNS1_LSB","access":"R/W EEprom","unit":"octet"},
+    { "address": 20490, "name":"DNS2_MSB","access":"R/W EEprom","unit":"octet"},
+    { "address": 20491, "name":"DNS2_LSB","access":"R/W EEprom","unit":"octet"},
+    {
+      "address": 20492,
+      "name":"SERIAL_NUMBER_MSB",
+      "access":"R/W EEprom",
+      "unit":"",
+      "description":"Classic serial number MSB – writing both bytes unlocks Ethernet write access."
+    },
+    { "address": 20493, "name":"SERIAL_NUMBER_LSB","access":"R/W EEprom","unit":"","description":"Serial‑number LSB." },
+
+    /* -----------------------------------------------------------------
+       Version registers (16385‑16390)
+       ----------------------------------------------------------------- */
+    {
+      "address": 16385,
+      "name": "APP_VERSION",
+      "access":"R",
+      "unit":"",
+      "bits":[
+        {"bit_range":"15...12","name":"Major"},
+        {"bit_range":"11...8","name":"Minor"},
+        {"bit_range":"7...4","name":"Release"}
+      ],
+      "description":"Application firmware version."
+    },
+    {
+      "address": 16386,
+      "name": "NET_VERSION",
+      "access":"R",
+      "bits":[
+        {"bit_range":"15...12","name":"Major"},
+        {"bit_range":"11...8","name":"Minor"},
+        {"bit_range":"7...4","name":"Release"}
+      ],
+      "description":"Communications‑stack version."
+    },
+    {
+      "address": 16387,
+      "name": "APP_REV_HI",
+      "access":"R"
+    },
+    { "address": 16388, "name":"APP_REV_LO","access":"R"},
+    {
+      "address": 16389,
+      "name":"NET_REV_HI",
+      "access":"R"
+    },
+    {
+      "address": 16390,
+      "name":"NET_REV_LO",
+      "access":"R"
+    },
+
+    /* -----------------------------------------------------------------
+       Communication‑statistics registers (10001‑10062)
+       ----------------------------------------------------------------- */
+    {
+      "address": 10001,
+      "name":"MASTER_RX_OK_HI",
+      "access":"R",
+      "unit":"",
+      "description":"High word of master‑in‑good‑packet counter."
+    },
+    { "address": 10002, "name":"MASTER_RX_OK_LO","access":"R"},
+    {
+      "address": 10003,
+      "name":"MASTER_RX_CRC_ERR_HI",
+      "access":"R"
+    },
+    { "address": 10004, "name":"MASTER_RX_CRC_ERR_LO","access":"R"},
+    {
+      "address": 10005,
+      "name":"MASTER_REQ_OK_HI",
+      "access":"R"
+    },
+    { "address": 10006, "name":"MASTER_REQ_OK_LO","access":"R"},
+    {
+      "address": 10007,
+      "name":"MASTER_REQ_ERR_HI",
+      "access":"R"
+    },
+    { "address": 10008, "name":"MASTER_REQ_ERR_LO","access":"R"},
+    {
+      "address": 10009,
+      "name":"FORWARDED_HI",
+      "access":"R"
+    },
+    { "address": 10010, "name":"FORWARDED_LO","access":"R"},
+    {
+      "address": 10011,
+      "name":"BROADCAST_HI",
+      "access":"R"
+    },
+    { "address": 10012, "name":"BROADCAST_LO","access":"R"},
+    {
+      "address": 10013,
+      "name":"DROPPED_BUSY_HI",
+      "access":"R"
+    },
+    { "address": 10014, "name":"DROPPED_BUSY_LO","access":"R"},
+    /* Slave interface */
+    { "address": 10017, "name":"SLAVE_RX_OK_HI","access":"R"},
+    { "address": 10018, "name":"SLAVE_RX_OK_LO","access":"R"},
+    { "address": 10019, "name":"SLAVE_RX_CRC_ERR_HI","access":"R"},
+    { "address": 10020, "name":"SLAVE_RX_CRC_ERR_LO","access":"R"},
+    { "address": 10021, "name":"SLAVE_REQ_OK_HI","access":"R"},
+    { "address": 10022, "name":"SLAVE_REQ_OK_LO","access":"R"},
+    { "address": 10023, "name":"SLAVE_REQ_ERR_HI","access":"R"},
+    { "address": 10024, "name":"SLAVE_REQ_ERR_LO","access":"R"},
+    { "address": 10025, "name":"SLAVE_FORWARDED_HI","access":"R"},
+    { "address": 10026, "name":"SLAVE_FORWARDED_LO","access":"R"},
+    { "address": 10027, "name":"SLAVE_BROADCAST_HI","access":"R"},
+    { "address": 10028, "name":"SLAVE_BROADCAST_LO","access":"R"},
+    { "address": 10029, "name":"SLAVE_DROPPED_BUSY_HI","access":"R"},
+    { "address": 10030, "name":"SLAVE_DROPPED_BUSY_LO","access":"R"},
+    /* Remote bus interface (10033‑10044) */
+    {
+      "address": 10033,
+      "name":"REMOTE_RX_OK_HI",
+      "access":"R"
+    },
+    { "address": 10034, "name":"REMOTE_RX_OK_LO","access":"R"},
+    { "address": 10035, "name":"REMOTE_RX_CRC_ERR_HI","access":"R"},
+    { "address": 10036, "name":"REMOTE_RX_CRC_ERR_LO","access":"R"},
+    {
+      "address": 10037,
+      "name":"REMOTE_REQ_OK_HI",
+      "access":"R"
+    },
+    { "address": 10038, "name":"REMOTE_REQ_OK_LO","access":"R"},
+    {
+      "address": 10039,
+      "name":"REMOTE_REQ_ERR_HI",
+      "access":"R"
+    },
+    { "address": 10040, "name":"REMOTE_REQ_ERR_LO","access":"R"},
+    {
+      "address": 10041,
+      "name":"REMOTE_FORWARDED_HI",
+      "access":"R"
+    },
+    { "address": 10042, "name":"REMOTE_FORWARDED_LO","access":"R"},
+    {
+      "address": 10043,
+      "name":"REMOTE_BROADCAST_HI",
+      "access":"R"
+    },
+    { "address": 10044, "name":"REMOTE_BROADCAST_LO","access":"R"},
+    {
+      "address": 10045,
+      "name":"REMOTE_DROPPED_BUSY_HI",
+      "access":"R"
+    },
+    { "address": 10046, "name":"REMOTE_DROPPED_BUSY_LO","access":"R"},
+    /* TCP‑bus interface (10049‑10060) – same pattern as above */
+    {
+      "address": 10049,
+      "name":"TCP_RX_OK_HI",
+      "access":"R"
+    },
+    { "address": 10050, "name":"TCP_RX_OK_LO","access":"R"},
+    { "address": 10051, "name":"TCP_RX_CRC_ERR_HI","access":"R"},
+    { "address": 10052, "name":"TCP_RX_CRC_ERR_LO","access":"R"},
+    {
+      "address": 10053,
+      "name":"TCP_REQ_OK_HI",
+      "access":"R"
+    },
+    { "address": 10054, "name":"TCP_REQ_OK_LO","access":"R"},
+    {
+      "address": 10055,
+      "name":"TCP_REQ_ERR_HI",
+      "access":"R"
+    },
+    { "address": 10056, "name":"TCP_REQ_ERR_LO","access":"R"},
+    {
+      "address": 10057,
+      "name":"TCP_FORWARDED_HI",
+      "access":"R"
+    },
+    { "address": 10058, "name":"TCP_FORWARDED_LO","access":"R"},
+    {
+      "address": 10059,
+      "name":"TCP_BROADCAST_HI",
+      "access":"R"
+    },
+    {
+      "address": 10060,
+      "name":"TCP_BROADCAST_LO",
+      "access":"R"
+    },
+    { "address": 10061, "name":"TCP_DROPPED_BUSY_HI","access":"R"},
+    { "address": 10062, "name":"TCP_DROPPED_BUSY_LO","access":"R" },
+
+    /* -----------------------------------------------------------------
+       Wind‑power curve tables – each entry is a separate register (see 1.3‑2)
+       ----------------------------------------------------------------- */
+    {
+      "address": 4300,
+      "name":"WIND_POWER_TABLE_V_0",
+      "access":"R/W EEprom",
+      "unit":"V",
+      "description":"Wind power voltage step 0 (cut‑in)."
+    },
+    { "address": 4301, "name":"WIND_POWER_TABLE_V_1","access":"R/W EEprom","unit":"V"},
+    { "address": 4302, "name":"WIND_POWER_TABLE_V_2","access":"R/W EEprom","unit":"V"},
+    { "address": 4303, "name":"WIND_POWER_TABLE_V_3","access":"R/W EEprom","unit":"V"},
+    { "address": 4304, "name":"WIND_POWER_TABLE_V_4","access":"R/W EEprom","unit":"V"},
+    { "address": 4305, "name":"WIND_POWER_TABLE_V_5","access":"R/W EEprom","unit":"V"},
+    { "address": 4306, "name":"WIND_POWER_TABLE_V_6","access":"R/W EEprom","unit":"V"},
+    { "address": 4307, "name":"WIND_POWER_TABLE_V_7","access":"R/W EEprom","unit":"V"},
+    {
+      "address": 4308,
+      "name":"WIND_POWER_TABLE_I_0",
+      "access":"R/W EEprom",
+      "unit":"A",
+      "description":"Wind power current step 0."
+    },
+    { "address": 4309, "name":"WIND_POWER_TABLE_I_1","access":"R/W EEprom","unit":"A"},
+    { "address": 4310, "name":"WIND_POWER_TABLE_I_2","access":"R/W EEprom","unit":"A"},
+    { "address": 4311, "name":"WIND_POWER_TABLE_I_3","access":"R/W EEprom","unit":"A"},
+    { "address": 4312, "name":"WIND_POWER_TABLE_I_4","access":"R/W EEprom","unit":"A"},
+    { "address": 4313, "name":"WIND_POWER_TABLE_I_5","access":"R/W EEprom","unit":"A"},
+    { "address": 4314, "name":"WIND_POWER_TABLE_I_6","access":"R/W EEprom","unit":"A"},
+    { "address": 4315, "name":"WIND_POWER_TABLE_I_7","access":"R/W EEprom","unit":"A"},
+    {
+      "address": 4318,
+      "name":"PK_AMPS_OVER_TRIP_EEPROM",
+      "access": "R/W EEprom",
+      "description":"Factory calibration – leave as‑is."
+    },
+
+    { "address": 4319, "name":"MNGP_REVISION", "access":"R", "description":"Preliminary – shows unit is connected." },
+    { "address": 4320, "name":"MNLP_REVISION", "access":"R", "description":"Preliminary – shows unit is connected." },
+
+    { "address": 4326,
+      "name":"CLASSIC_MODBUS_ADDR_EEPROM",
+      "access":"R/W EEprom",
+      "unit":"",
+      "formula":"[4326]",
+      "description":"Modbus address (default 10)."
+    },
+    {
+      "address": 4327,
+      "name":"BATTERY_TEMP_PASSED",
+      "access":"R",
+      "unit":"°C",
+      "description":"Follow‑Me temperature sensor value."
+    },
+
+    { "address": 4328, "name":"IFLAGSRO_LOW", "access":"R","description":"Follow‑Me low word – see table 4328‑1." },
+    { "address": 4329, "name":"IFLAGSRO_HIGH", "access":"R","description":"Follow‑Me high word – see table 4329‑1." },
+
+    {
+      "address": 4330,
+      "name":"MODBUS_CONTROL",
+      "access":"R/W EEprom",
+      "description":"Follow‑Me Modbus control register."
+    },
+    {
+      "address": 4331,
+      "name":"CLASSIC_FME_PASSED_BITS",
+      "access":"R/W EEprom",
+      "description":"Follow‑Me state bits (see table 4328‑1)."
+    },
+
+    {
+      "address": 4332,
+      "name":"WIND_SYNCH_A",
+      "access":"R/W EEprom",
+      "unit":"A",
+      "description":"Wind‑power tracking current (Follow‑Me)."
+    },
+    {
+      "address": 4333,
+      "name":"WIND_SYNCH_V",
+      "access":"R/W EEprom",
+      "unit":"V",
+      "description":"Wind‑power tracking voltage."
+    },
+
+    {
+      "address": 4334,
+      "name":"FOLLOW_ME_PASS_REF",
+      "access":"R/W EEprom",
+      "unit":"",
+      "description":"Enable Follow‑Me if >0; set to at least number of units in the loop."
+    },
+
+    /* -----------------------------------------------------------------
+       Registers 4341‑4356 – diagnostics / clear‑logs / user variable
+       ----------------------------------------------------------------- */
+    { "address": 4341, "name":"DABT_U32_DEBUG_01","access":"R"},
+    { "address": 4342, "name":"DABT_U32_DEBUG_02","access":"R"},
+    { "address": 4343, "name":"DABT_U32_DEBUG_03","access":"R"},
+    { "address": 4344, "name":"DABT_U32_DEBUG_04","access":"R"},
+    { "address": 4354,
+      "name":"CLEAR_LOGS_CAT",
+      "access":"R/W EEprom",
+      "description":"Write 0x8000|cat to start clear; after ≥750 ms write 0x4000|cat. Success = 0x0500, failure = 0x0A00."
+    },
+    { "address": 4355,
+      "name":"CLEAR_LOGS_COUNTER_10MS",
+      "access":"R/W EEprom",
+      "unit":"ms",
+      "description":"Timer used by the clear‑logs sequence."
+    },
+
+    {
+      "address": 4356,
+      "name":"USER_VARIABLE_02",
+      "access":"R/W EEprom",
+      "description":"General purpose user variable."
+    },
+    { "address": 4357, "name":"WIZBANG_RX_BUFFER_TEMP_SH1","access":"R"},
+    { "address": 4358, "name":"WIZBANG_RX_BUFFER_TEMP_SH2","access":"R"},
+    { "address": 4359, "name":"WIZBANG_RX_BUFFER_TEMP_SH3","access":"R"},
+    { "address": 4360, "name":"WIZBANG_RX_BUFFER_TEMP_SH4","access":"R"},
+    {
+      "address": 4361,
+      "name":"WJBJRCMD_S_EEPROM",
+      "access":"R/W EEprom",
+      "description":"Whizbang Junior command (default 0x35)."
+    },
+    {
+      "address": 4362,
+      "name":"WIZBANG_RAW_CURRENT",
+      "access":"R",
+      "unit":"A‑peak",
+      "description":"Raw A/D counts, 1 count = 0.1 A (signed)."
+    },
+    {
+      "address": 4363,
+      "name":"WJBJ_NUMERATOR_SS_EEPROM",
+      "access":"R/W EEprom",
+      "unit":"",
+      "description":"Whizbang Jr gain adjustment; default 0, range ±32767."
+    },
+
+    { "address": 4365,
+      "name":"WJBJ_AMP_HOUR_POSITIVE",
+      "access":"R",
+      "unit":"Ah",
+      "formula":"(([4366] << 16) + [4365]) / 10",
+      "description":"Whizbang Jr positive amp‑hours."
+    },
+    {
+      "address": 4367,
+      "name":"WJBJ_AMP_HOUR_NEGATIVE",
+      "access":"R",
+      "unit":"Ah",
+      "formula":"(([4368] << 16) + [4367]) / 10",
+      "description":"Whizbang Jr negative amp‑hours (signed)."
+    },
+    {
+      "address": 4369,
+      "name":"WJBJ_AMP_HOUR_NET",
+      "access":"R",
+      "unit":"Ah",
+      "formula":"(([4370] << 16) + [4369]) / 10",
+      "description":"Whizbang Jr net amp‑hours (signed)."
+    },
+    {
+      "address": 4371,
+      "name":"WJBJ_CURRENT_32_SIGNED",
+      "access":"R",
+      "unit":"A",
+      "description":"Scaled & rounded Whizbang Jr current (±3276.7 A)."
+    },
+    {
+      "address": 4372,
+      "name":"WIZBANG_RAW_CRC_AND_TEMP",
+      "access":"R",
+      "unit":"",
+      "description":"(Raw CRC << 8) | (Temp + 50 °C)."
+    },
+
+    /* -----------------------------------------------------------------
+       Registers 4373‑4380 – not defined in the excerpt – marked RESERVED.
+       ----------------------------------------------------------------- */
+    { "address": 4373, "name":"RESERVED_4373","access":"R/W"},
+    { "address": 4374, "name":"RESERVED_4374","access":"R/W"},
+    { "address": 4375, "name":"RESERVED_4375","access":"R/W"},
+
+    /* -----------------------------------------------------------------
+       Registers 4210‑4213 – unit name (ASCII) – see note in metadata.
+       ----------------------------------------------------------------- */
+    /* already covered as separate words above (4210‑4213). */
+
+    /* -----------------------------------------------------------------
+       Remaining registers 4240‑4257 that were not yet listed
+       ----------------------------------------------------------------- */
+    {
+      "address": 4240,
+      "name":"FLAGS_RD_LO",
+      "access":"R/W EEprom",
+      "description":"Low word of the 32‑bit internal flags (see table 4240‑1)."
+    },
+    {
+      "address": 4241,
+      "name":"FLAGS_RD_HI",
+      "access":"R/W EEprom",
+      "description":"High word of the 32‑bit internal flags."
+    },
+
+    { "address": 4242, "name":"RESERVED_4242","access":"R/W"},
+    {
+      "address": 4243,
+      "name":"VBATT_REG_SET_P_TMP_COMP",
+      "access":"R/W EEprom",
+      "unit":"V",
+      "formula":"[4244]/10"
+    },
+    { "address": 4244, "name":"VBATT_NOMINAL_EEPROM", "access":"R/W EEprom","unit":"","description":"Nominal battery bank voltage (12‑250 V)."},
+    {
+      "address": 4245,
+      "name":"ENDING_AMPS_EEPROM",
+      "access":"R/W EEprom",
+      "unit":"A",
+      "formula":"[4246]/10",
+      "description":"End‑of‑Absorb current limit (float if reached)."
+    },
+    {
+      "address": 4246,
+      "name":"ENDING_AMPS_EEPROM_HI",
+      "access":"R/W EEprom",
+      "unit":"",
+      "description":"High word of ENDING_AMPS."
+    },
+
+    { "address": 4247, "name":"ENDING_SOC_EEPROM","access":"R/W EEprom","unit":"%","description":"SOC to end absorb (future SOC use)."},
+    {
+      "address": 4248,
+      "name":"END_AMP_SOC_ADDRESS",
+      "access":"R/W EEprom",
+      "description":"Modbus address of Ibatt – future SOC use."
+    },
+    {
+      "address": 4249,
+      "name":"REBUCK_VOLTAGE_EEPROM",
+      "access":"R/W EEprom",
+      "unit":"V",
+      "formula":"[4249]/10",
+      "description":"Re‑bulk voltage set point (trigger if Vbatt < this for >90 s)."
+    },
+    {
+      "address": 4250,
+      "name":"BATT_MON_VOLTAGE",
+      "access":"R",
+      "unit":"V",
+      "description":"Battery monitor voltage – future SOC use."
+    },
+    {
+      "address": 4251,
+      "name":"BATT_MON_SOC",
+      "access":"R",
+      "unit":"%",
+      "description":"Battery monitor SOC (future SOC use)."
+    },
+
+    {
+      "address": 4252,
+      "name":"DAYS_BTW_BULK_ABS_EEPROM",
+      "access":"R/W EEprom",
+      "unit":"days",
+      "description":"Days between bulk/absorb cycles; 0 = every day."
+    },
+    {
+      "address": 4253,
+      "name":"BATT_MON_AH_EFFICIENCY",
+      "access":"R/W EEprom",
+      "description":"Battery‑monitor amp‑hour efficiency (future SOC use)."
+    },
+
+    {
+      "address": 4254,
+      "name":"DAY_LOG_COMB_CAT_INDEX",
+      "access":"R/W EEprom",
+      "unit":"",
+      "formula":"([4254]>>10) & 0x3F → category, [4254] & 0x3FF → day offset",
+      "description":"Selects daily‑log category and how many days back to read."
+    },
+    {
+      "address": 4255,
+      "name":"LOG_VALUE_READ",
+      "access":"R/W EEprom",
+      "unit":"",
+      "description":"Requested single logging data point appears here after a file‑read request."
+    },
+
+    {
+      "address": 4256,
+      "name":"MIN_LOG_COMB_CAT_INDEX",
+      "access":"R/W EEprom",
+      "unit":"",
+      "formula":"([4256]>>10) & 0x3F → category, [4256] & 0x3FF → sample offset",
+      "description":"Selects minute‑log (or hourly/recent) category and index."
+    },
+
+    {
+      "address": 4257,
+      "name":"REBUCK_TIMER_SEC_EEPROM",
+      "access":"R/W EEprom",
+      "unit":"s",
+      "description":"Re‑bulk interval timer; cleared when Vbatt ≥ Re‑bulk voltage in Float MPPT."
+    },
+
+    /* -----------------------------------------------------------------
+       Registers 4260‑4279 (selected) – only those that are not RESERVED
+       ----------------------------------------------------------------- */
+    {
+      "address": 4265,
+      "name":"VOC_QUALIFY_TIMER_MS_LO",
+      "access":"R/W EEprom",
+      "unit":"ms",
+      "description":"Qualifying time until turn‑on (not very useful)."
+    },
+    {
+      "address": 4266,
+      "name":"IPV_MINUS_RAW",
+      "access":"R",
+      "unit":"A‑peak",
+      "description":"Raw PV negative current from ADC (1 count = 0.1 A)."
+    },
+
+    { "address": 4271, "name":"RESTART_TIME_MS_2", "access":"R/W EEprom","unit":"ms","description":"Countdown to wake; allowed <500 ms."},
+    {
+      "address": 4272,
+      "name":"IBATT_RAW_A",
+      "access":"R/W EEprom",
+      "unit":"A‑peak",
+      "formula":"[4272]/10",
+      "description":"Battery current, unfiltered."
+    },
+
+    { "address": 4275,
+      "name":"REASON_FOR_RESTING",
+      "access":"R/W EEprom",
+      "unit":"",
+      "bits":[
+        {"value":1,"desc":"Anti‑Click"},
+        {"value":2,"desc":"Insane Ibatt measurement"},
+        {"value":3,"desc":"Negative current (load on PV)"},
+        {"value":4,"desc":"PV voltage < battery V"},
+        {"value":5,"desc":"Low power out >90 s"},
+        {"value":6,"desc":"FET temperature high"},
+        {"value":7,"desc":"Ground fault"},
+        {"value":8,"desc":"Arc fault"},
+        {"value":9,"desc":"Negative current while operating"},
+        {"value":10,"desc":"Battery < 8.0 V"},
+        {"value":11,"desc":"PV rising too slowly (low light)"},
+        {"value":12,"desc":"Voc dropped – check solar mode"},
+        {"value":13,"desc":"Voc rose – suspicious"},
+        {"value\":16,\"desc\":\"MPPT OFF (user turned off)\"},
+        {"value\":17,\"desc\":\"PV > max for Classic‑150\"},
+        {"value\":18,\"desc\":\"PV > max for Classic‑200\"},
+        {"value\":19,\"desc\":\"PV > max for Classic‑250/KS\"},
+        {"value\":22,"desc":"Battery voltage too high above set point"},
+        {"value\":25,"desc":"Battery voltage overshoot (small battery or bad cable)"},
+        {"value\":26,"desc":"Mode changed while running OR Vabsorb raised >10 V at once OR Nominal Vbatt changed and MPPT ON"},
+        {"value\":27,"desc":"Bridge centre = 1023 → forces MPPT OFF"},
+        {"value\":28,"desc":"Not resting but relay not engaged"},
+        {"value\":29,"desc":"Wind‑track illegal (current step >100 A)"},
+        {"value\":30,"desc":"PkAmpsOverLimit – software limit exceeded"},
+        {"value\":31,"desc":"Peak negative battery current >90 A (Classic 250)"},
+        {"value\":32,"desc":"Aux2 input forces Classic to Rest"},
+        {"value\":33,"desc":"OCP in non‑Solar mode"},
+        {"value\":34,"desc":"Negative battery current >90 A (Classic 150/200)"},
+        {"value\":35,"desc":"Battery < Low‑Battery Disconnect (≈8.5 V)."}
+      ],
+      "description":"Reason the Classic entered Resting."
+    },
+
+    /* -----------------------------------------------------------------
+       Registers 4280‑4299 – wind / siesta / misc
+       ----------------------------------------------------------------- */
+    { "address": 4286, "name":"LOW_WATTS_EEPA","access":"R/W EEprom","unit":"","description":"Classic rests when watts < this for >90 s (non‑wind)."},
+    { "address": 4287, "name":"WIND_LOW_WATTS_EEPA","access":"R/W EEprom","unit":"W","description":"Wind low‑watts threshold (default 50 W)."},
+    {
+      "address": 4288,
+      "name":"WIND_WINDOW_WATTS_REF_EEPA",
+      "access":"R/W EEprom",
+      "unit":"",
+      "description":"Reference watts for wind‑window algorithm."
+    },
+    { "address": 4289, "name":"WINDOW_WATTS_RO_DELTA_EEPA","access":"R/W EEprom","unit":"","description":"Delta watts below WIND_LOW_WATTS that still counts as “wiggling”."},
+    {
+      "address": 4290,
+      "name":"WIND_TIMEOUT_REF_EEPA",
+      "access":"R/W EEprom",
+      "unit":"s",
+      "description":"If power < this for the given seconds, Classic goes to Rest."
+    },
+    { "address": 4291, "name":"WIND_TIMEOUT2_REF_EEPA","access":"R/W EEproc","unit":"s"},
+    {
+      "address": 4292,
+      "name":"WIND_TIMEOUT_SECONDS",
+      "access":"R/W EEprom",
+      "unit":"s",
+      "description":"Timer – > WIND_TIMEOUT_REF → Rest."
+    },
+    { "address": 4293, "name":"WIND_TIMEOUT2_SECONDS",
+      "access":"R/W EEprom",
+      "unit":"s",
+      "description":"Second timeout (default 1800 s)."
+    },
+
+    {
+      "address": 4294,
+      "name":"MIN_VPV_TURN_ON",
+      "access":"R/W EEprom",
+      "unit":"V",
+      "description":"Minimum PV voltage required to exit Rest."
+    },
+    {
+      "address": 4295,
+      "name":"VPV_B4_TURN_OFF",
+      "access":"R",
+      "unit":"V",
+      "description":"Internal reference of Vpv when going to Rest."
+    },
+
+    { "address": 4288, "name":"WIND_LOW_WATTS_EEPA","access":"R/W EEprom","unit":"W"},
+    {
+      "address": 4296,
+      "name":"HYDRO_SWP_AMPS10_TIME6",
+      "access":"R/W EEprom",
+      "description":"Internal variable for hydro sweep speed."
+    },
+    {
+      "address": 4297,
+      "name":"ENDING_AMPS_TIMER_SEC_EEPA",
+      "access":"R/W EEprom",
+      "unit":"s",
+      "description":"Timer for ending‑amps (default 60 s)."
+    },
+
+    { "address": 4298, "name":"PK_AMPS_OVER_LIMIT_HI_EEPA","access":"R/W EEprom","description":"Factory calibration – leave as is."},
+    {
+      "address": 4299,
+      "name":"PK_AMPS_OVER_LIMIT_LO_EEPA",
+      "access":"R/W EEprom",
+      "description":"Factory calibration – leave as is."
+    },
+
+    { "address": 4300, "name":"FACTORY_VBATT_OFFSET_EEPA","access":"R/W EEprom","unit":"V","description":"Factory battery‑voltage offset (signed)."},
+    {
+      "address": 4301,
+      "name":"WIND_POWER_TABLE_V_0_EEPA",
+      "access":"R/W EEprom",
+      "unit":"V"
+    },
+    { "address": 4302, "name":"WIND_POWER_TABLE_V_1_EEPA","access":"R/W EEprom","unit":"V"},
+    { "address": 4303, "name":"WIND_POWER_TABLE_V_2_EEPA","access":"R/W EEprom","unit":"V"},
+    { "address": 4304, "name":"WIND_POWER_TABLE_V_3_EEPA","access":"R/W EEprom","unit":"V"},
+    { "address": 4305, "name":"WIND_POWER_TABLE_V_4_EEPA","access":"R/W EEprom","unit":"V"},
+    { "address": 4306, "name":"WIND_POWER_TABLE_V_5_EEPA","access":"R/W EEprom","unit":"V"},
+    { "address": 4307, "name":"WIND_POWER_TABLE_V_6_EEPA","access":"R/W EEprom","unit":"V"},
+    { "address": 4308, "name":"WIND_POWER_TABLE_V_7_EEPA","access":"R/W EEproc","unit":"V"},
+    {
+      "address": 4309,
+      "name":"WIND_POWER_TABLE_I_0_EEPA",
+      "access":"R/W EEprom",
+      "unit":"A"
+    },
+    { "address": 4310, "name":"WIND_POWER_TABLE_I_1_EEPA","access":"R/W EEprom","unit":"A"},
+    { "address": 4311, "name":"WIND_POWER_TABLE_I_2_EEPA","access":"R/W EEprom","unit":"A"},
+    { "address": 4312, "name":"WIND_POWER_TABLE_I_3_EEPA","access":"R/W EEproc","unit":"A"},
+    { "address": 4313, "name":"WIND_POWER_TABLE_I_4_EEPA","access":"R/W EEproc","unit":"A"},
+    { "address": 4314, "name":"WIND_POWER_TABLE_I_5_EEPA","access":"R/W EEproc","unit":"A"},
+    { "address": 4315, "name":"WIND_POWER_TABLE_I_6_EEPA","access":"R/W EEproc","unit":"A"},
+    { "address": 4316, "name":"WIND_POWER_TABLE_I_7_EEPA","access":"R/W EEproc","unit":"A"},
+    {
+      "address": 4318,
+      "name":"PK_AMPS_OVER_TRIP_EEPROM",
+      "access":"R/W EEprom",
+      "description":"Factory calibration – leave as is."
+    },
+
+    { "address": 4320, "name":"MNGP_REVISION","access":"R","description":"Preliminary – shows unit is connected."},
+    { "address": 4321, "name":"RESERVED_4321","access":"R/W"},
+    { "address": 4322, "name":"RESERVED_4322","access":"R/W"},
+    { "address": 4323, "name":"RESERVED_4323","access":"R/W"},
+    { "address": 4324, "name":"RESERVED_4324","access":"R/W"},
+    { "address": 4325, "name":"RESERVED_4325","access":"R/W"},
+
+    {
+      "address": 4326,
+      "name":"CLASSIC_MODBUS_ADDR_EEPROM",
+      "access":"R/W EEprom",
+      "unit":"0‑255",
+      "description":"Modbus address (default 10)."
+    },
+
+    { "address": 4327, "name":"BATTERY_TEMP_PASSED_EEPROM","access":"R","unit":"°C","description":"Follow‑Me temperature sensor value."},
+    {
+      "address": 4328,
+      "name":"IFLAGSRO_LOW",
+      "access":"R",
+      "description":"Low word of Follow‑Me flags (see table 4328‑1)."
+    },
+    { "address": 4329, "name":"IFLAGSRO_HIGH","access":"R","description":"High word of Follow‑Me flags."},
+    {
+      "address": 4330,
+      "name":"MODBUS_CONTROL_EEPROM",
+      "access":"R/W EEprom",
+      "description":"Follow‑Me Modbus control register."
+    },
+    {
+      "address": 4331,
+      "name":"CLASSIC_FME_PASSED_BITS_EEPROM",
+      "access":"R/W EEprom",
+      "description":"Follow‑Me state bits (see table 4328‑1)."
+    },
+    {
+      "address": 4332,
+      "name":"WIND_SYNCH_A_EEPROM",
+      "access":"R/W EEprom",
+      "unit":"A",
+      "description":"Wind power tracking current."
+    },
+    {
+      "address": 4333,
+      "name":"WIND_SYNCH_V_EEPROM",
+      "access":"R/W EEprom",
+      "unit":"V",
+      "description":"Wind power tracking voltage."
+    },
+
+    {
+      "address": 4334,
+      "name":"FOLLOW_ME_PASS_REF_EEPROM",
+      "access":"R/W EEprom",
+      "unit":"",
+      "description":"Enable Follow‑Me if >0 (set to number of units in loop)."
+    },
+
+    /* -----------------------------------------------------------------
+       Registers 4341‑4356 – diagnostics / clear‑logs
+       ----------------------------------------------------------------- */
+    {
+      "address": 4341,
+      "name":"DABT_U32_DEBUG_01",
+      "access":"R"
+    },
+    { "address": 4342, "name":"DABT_U32_DEBUG_02","access":"R"},
+    { "address": 4343, "name":"DABT_U32_DEBUG_03","access":"R"},
+    { "address": 4344, "name":"DABT_U32_DEBUG_04","access":"R"},
+
+    {
+      "address": 4354,
+      "name":"CLEAR_LOGS_CAT",
+      "access":"R/W EEprom",
+      "description":"Write 0x8000|cat → start clear; after ≥750 ms write 0x4000|cat. Success = 0x0500."
+    },
+    {
+      "address": 4355,
+      "name":"CLEAR_LOGS_COUNTER_10MS",
+      "access":"R/W EEprom",
+      "unit":"ms",
+      "description":"Timer for the two‑step clear‑logs command."
+    },
+
+    {
+      "address": 4356,
+      "name":"USER_VARIABLE_02",
+      "access":"R/W EEprom",
+      "description":"General purpose user variable."
+    },
+
+    {
+      "address": 4357,
+      "name":"WIZBANG_RX_BUFFER_TEMP_SH1",
+      "access":"R"
+    },
+    { "address": 4358, "name":"WIZBANG_RX_BUFFER_TEMP_SH2","access":"R"},
+    { "address": 4359, "name":"WIZBANG_RX_BUFFER_TEMP_SH3","access":"R"},
+    { "address": 4360, "name":"WIZBANG_RX_BUFFER_TEMP_SH4","access":"R"},
+
+    {
+      "address": 4361,
+      "name":"WJBJ_CMD_S_EEPROM",
+      "access":"R/W EEprom",
+      "description":"Whizbang Jr command (default 0x35)."
+    },
+
+    {
+      "address": 4362,
+      "name":"WJBJ_RAW_CURRENT",
+      "access":"R",
+      "unit":"A‑peak",
+      "description":"Raw current from Whizbang Jr A/D (1 count = 0.1 A, signed)."
+    },
+
+    {
+      "address": 4363,
+      "name":"WJBJ_NUMERATOR_SS_EEPROM",
+      "access":"R/W EEprom",
+      "description":"Whizbang Jr gain adjustment (default 0, ±32767)."
+    },
+
+    {
+      "address": 4365,
+      "name":"WJBJ_AMP_HOUR_POSITIVE",
+      "access":"R",
+      "unit":"Ah",
+      "formula":"(([4366] << 16) + [4365]) / 10",
+      "description":"Whizbang Jr positive amp‑hours."
+    },
+    {
+      "address": 4367,
+      "name":"WJBJ_AMP_HOUR_NEGATIVE",
+      "access":"R",
+      "unit":"Ah",
+      "formula":"(([4368] << 16) + [4367]) / 10",
+      "description":"Whizbang Jr negative amp‑hours (signed)."
+    },
+
+    {
+      "address": 4369,
+      "name":"WJBJ_AMP_HOUR_NET",
+      "access":"R",
+      "unit":"Ah",
+      "formula":"(([4370] << 16) + [4369]) / 10",
+      "description":"Whizbang Jr net amp‑hours (signed)."
+    },
+
+    {
+      "address": 4371,
+      "name":"WJBJ_CURRENT_32_SIGNED",
+      "access":"R",
+      "unit":"A",
+      "description":"Scaled & rounded Whizbang Jr amps (±3 276.7 A)."
+    },
+    {
+      "address": 4372,
+      "name":"WJBJ_RAW_CRC_AND_TEMP",
+      "access":"R",
+      "description":"(Raw CRC << 8) | (Temp + 50°C)."
+    },
+
+    /* -----------------------------------------------------------------
+       Version registers – 16385‑16390
+       ----------------------------------------------------------------- */
+    {
+      "address": 16385,
+      "name":"APP_VERSION",
+      "access":"R",
+      "bits":[
+        {"bit_range":"15...12","name":"Major"},
+        {"bit_range":"11...8","name":"Minor"},
+        {"bit_range":"7...4","name":"Release"}
+      ]
+    },
+    {
+      "address": 16386,
+      "name":"NET_VERSION",
+      "access":"R",
+      "bits":[
+        {"bit_range":"15...12","name":"Major"},
+        {"bit_range":"11...8","name":"Minor"},
+        {"bit_range":"7...4","name":"Release"}
+      ]
+    },
+    {
+      "address": 16387,
+      "name":"APP_REV_HI",
+      "access":"R"
+    },
+    { "address": 16388, "name":"APP_REV_LO","access":"R"},
+    { "address": 16389, "name":"NET_REV_HI","access":"R"},
+    { "address": 16390, "name":"NET_REV_LO","access":"R"},
+
+    /* -----------------------------------------------------------------
+       Communication‑statistics registers – 10001‑10062 (high/low pairs)
+       ----------------------------------------------------------------- */
+    {
+      "address": 10001,
+      "name":"MASTER_RX_OK_HI",
+      "access":"R"
+    },
+    { "address": 10002, "name":"MASTER_RX_OK_LO","access":"R"},
+    { "address": 10003, "name":"MASTER_RX_CRC_ERR_HI","access":"R"},
+    { "address": 10004, "name":"MASTER_RX_CRC_ERR_LO","access":"R"},
+    {
+      "address": 10005,
+      "name":"MASTER_REQ_OK_HI",
+      "access":"R"
+    },
+    { "address": 10006, "name":"MASTER_REQ_OK_LO","access":"R"},
+    {
+      "address": 10007,
+      "name":"MASTER_REQ_ERR_HI",
+      "access":"R"
+    },
+    {
+      "address": 10008,
+      "name":"MASTER_REQ_ERR_LO",
+      "access":"R"
+    },
+
+    {
+      "address": 10009,
+      "name":"MASTER_FORWARDED_HI",
+      "access":"R"
+    },
+    { "address": 10010, "name":"MASTER_FORWARDED_LO","access":"R"},
+    {
+      "address": 10011,
+      "name":"MASTER_BROADCAST_HI",
+      "access":"R"
+    },
+    { "address": 10012, "name":"MASTER_BROADCAST_LO","access":"R"},
+
+    {
+      "address": 10013,
+      "name":"MASTER_DROPPED_BUSY_HI",
+      "access":"R"
+    },
+    { "address": 10014, "name":"MASTER_DROPPED_BUSY_LO","access":"R"},
+    /* (Slave interface registers 10017‑10028 follow the same pattern – omitted for brevity but can be added similarly.) */
+    {
+      "address": 10017,
+      "name":"SLAVE_RX_OK_HI",
+      "access":"R"
+    },
+    { "address": 10018, "name":"SLAVE_RX_OK_LO","access":"R"},
+    /* ... other slave‑interface registers omitted for brevity … */
+    {
+      "address": 10033,
+      "name":"REMOTE_RX_OK_HI",
+      "access":"R"
+    },
+    { "address": 10034, "name":"REMOTE_RX_OK_LO","access":"R"},
+    /* ... remaining remote‑stats registers omitted – add similarly if needed … */
+    
+    /* -----------------------------------------------------------------
+       Miscellaneous single‑word registers that appear after 4375 but are not in the excerpt
+       (the PDF ends at 4375‑3 reserved). Add placeholders for completeness.
+       ----------------------------------------------------------------- */
+    { "address": 4373, "name":"RESERVED_4373","access":"R/W"},
+    { "address": 4374, "name":"RESERVED_4374","access":"R/W"},
+    { "address": 4375, "name":"RESERVED_4375","access":"R/W"}
+  ],
+
+  "tables": {
+    "DEVICE_TYPE": [
+      {"value":150,"desc":"Classic 150"},
+      {"value":200,"desc":"Classic 200"},
+      {"value":250,"desc":"Classic 250"},
+      {"value":251,"desc":"Classic 250 KS (120 V battery)"}],
+
+    "CHARGE_STAGE": [
+      {"value":0,"desc":"Resting"},
+      {"value":3,"desc":"Absorb"},
+      {"value":4,"desc":"BulkMPPT"},
+      {"value":5,"desc":"Float"},
+      {"value":6,"desc":"FloatMppt"},
+      {"value":7,"desc":"Equalize"},
+      {"value":10,"desc":"HyperVoc"},
+      {"value":18,"desc":"EqMppt"}
+    ],
+
+    "CLASSIC_STATE_LOWER_BYTE": [
+      {"value":0,"desc":"Resting"},
+      {"value":1,"desc":"Waking/Starting (state 1)"},
+      {"value":2,"desc":"Waking/Starting (state 2)"},
+      {"value":3,"desc":"MPPT / Regulating Voltage (state 3)"},
+      {"value":4,"desc":"MPPT / Regulating Voltage (state 4)"},
+      {"value":6,"desc":"MPPT / Regulating Voltage (state 6)"}
+    ],
+
+    "INFO_FLAGS_BITS3": [
+      {"bit":0,"desc":"Classic Over Temperature"},
+      {"bit":1,"desc":"EEPROM error"},
+      {"bit\":2,\"desc\":\"SerialWriteLock\"},
+      {"bit\":3,\"desc\":\"Equalize In Progress"},
+      {"bit\":7,\"desc\":\"EQ MPPT"},
+      {"bit\":8,\"desc\":\"In V lower than Out"},
+      {"bit\":9,\"desc\":\"Current Limit active"},
+      {"bit\":10,\"desc\":\"HyperVoc"},
+      {"bit\":13,"desc":"Battery Temp Sensor Installed"},
+      {"bit\":14,"desc":"Aux1 State On"},
+      {"bit\":15,"desc":"Aux2 State On"},
+      {"bit\":16,"desc":"GroundFaultF"},
+      {"bit\":17,"desc":"OCP"},
+      {"bit\":18,\"desc\":\"ArcFaultF"},
+      {"bit\":19,\"desc\":\"NegBatCurrentF"},
+      {"bit\":23,\"desc\":\"XtraInfo2DsplayF"},
+      {"bit\":24,\"desc\":\"PvPartialShadeF"},
+      {"bit\":27,\"desc\":\"WatchdogResetF"},
+      {"bit\":28,\"desc\":\"LowBatteryVF"},
+      {"bit\":29,\"desc":"StackumperF"}
+    ],
+
+    "ENABLE_FLAGS3": [
+      {"bit":1,"desc":"Rem2DwnStrmBus"},
+      {"bit":2,"desc":"UpStrmBus2DwnStrmBus"},
+      {"bit":3,"desc":"UpStrmBus2RemBus"},
+      {"bit\":4,\"desc\":\"DwnStrmBus2RemBus\"},
+      {"bit\":5,\"desc\":\"DwnStrm2UpStrmBus (0=enabled)"},
+      {"bit\":6,\"desc\":\"Rem2UpStrmBus (0=enabled)"},
+      {"bit\":7,\"desc":"ClscAdvertiseDis (0 = enabled)"},
+      {"bit\":8,"desc":"SMA Mode Enable"},
+      {"bit\":9,"desc":"JimComFix"},
+      {"bit\":10,\"desc\":\"Reserved\"},
+      {"bit\":11,\"desc\":\"Reserved\"},
+      {"bit\":12,\"desc\":\"ForceResetInfoFlags (see 4160‑1)"},
+      {"bit\":13,\"desc\":\"ForceFloatF"},
+      {"bit\":14,\"desc\":\"ForceBulkF"},
+      {"bit\":15,\"desc\":\"ForceEqualizeF"},
+      {"bit\":16,\"desc\":\"ForceNiteF"},
+      {"bit\":20,\"desc\":\"ResetAeqCounts"},
+      {"bit\":29,\"desc\":\"ForceResetFaultsF\"}
+    ],
+
+    "ENABLE_FLAGS2": [
+      {"bit":0,"desc":"DCclipperEn"},
+      {"bit\":1,\"desc\":\"Reserved\"},
+      {"bit\":2,\"desc\":\"Reserved\"},
+      {"bit\":3,\"desc\":\"PvPartialShadeEn"},
+      {"bit\":4,\"desc\":\"WasteNotPkRespF"}
+    ],
+
+    "ENABLE_FLAGS_BITS": [
+      {"bit":0,"desc":"GroundFaultEn"},
+      {"bit\":1,\"desc\":\"ArcFaultEn"},
+      {"bit\":2,\"desc\":\"Reserved\"},
+      {"bit\":3,\"desc\":\"Reserved\"},
+      {"bit\":4,\"desc\":\"Reserved\"},
+      {"bit\":5,\"desc\":\"Reserved\"},
+      {"bit\":6,\"desc\":\"Reserved\"},
+      {"bit\":7,\"desc\":\"Reserved\"},
+      {"bit\":8,\"desc\":\"Reserved\"},
+      {"bit\":9,\"desc\":\"Reserved\"},
+      {"bit\":10,\"desc\":\"Reserved\"},
+      {"bit\":11,\"desc\":\"Reserved\"},
+      {"bit\":12,\"desc\":\"Reserved\"},
+      {"bit\":13,\"desc\":\"Reserved\"},
+      {"bit\":14,\"desc\":\"Reserved\"},
+      {"bit\":15,\"desc\":\"Reserved\"}
+    ],
+
+    "MPPT_MODE": [
+      {"value":"0x0001","desc":"PV_Uset (ON)"},
+      {"value":"0x0003","desc":"DYNAMIC – slow dynamic solar tracking"},
+      {"value":"0x0005","desc":"WIND_TRACK"},
+      {"value":"0x0007","desc":"RESERVED"},
+      {"value":"0x0009","desc":"Legacy P&O"},
+      {"value":"0x000B","desc":"SOLAR (fast)"},
+      {"value":"0x000D","desc":"HYDRO"}
+    ],
+
+    "AUX1_FUNCTION": [
+      {"value":0,"desc":"Off – Aux1 forced OFF (0 V)"},
+      {"value":1,"desc":"Auto – follows programmed behavior"},
+      {"value":2,"desc":"On – forced ~14 V"},
+      {"value":3,"desc":"Unimplemented"}
+    ],
+
+    "AUX2_FUNCTION": [
+      {"value":0,"desc":"Off – Aux2 forced OFF (0 V)"},
+      {"value":1,"desc":"Auto – follows programmed behavior"},
+      {"value":2,"desc":"On – forced ~14 V"},
+      {"value":3,"desc":"Unimplemented"}
+    ],
+
+    "AUX1_FUNCTION_BITS": [
+      {"value":1,"desc":"DIVERSION_SLOW_HIGH (non‑PWM on when Vbatt > HiAbs, off when < LoAbs"},
+      {"value\":2,\"desc\":\"Off at Vbatt < LoAbs\"},
+      {"value\":3,\"desc\":\"Low Battery Disconnect High\"},
+      {"value\":4,\"desc\":\"Waste Not High\"},
+      {"value\":5,\"desc\":\"Waste Not Low\"},
+      {"value\":6,\"desc\":\"PV_ON_HIGH (active high if Vpv > HiPv after delay)"},
+      {"value\":7,\"desc":"PV_OFF_LOW (active low if Vpv < LoPv after delay)"},
+      {"value\":8,\"desc\":\"TOGGLE TEST – toggle each second\"},
+      {"value\":14,\"desc\":\"NITE LIGHT HIGH (on at dawn, off at dusk)"},
+      {"value\":15,\"desc\":\"DAY LIGHT HIGH (on at dawn, off at dusk)"},
+      {"value\":16,\"desc\":\"WIND_CLIPPER_CONTROL (active high)\"},
+      {"value\":17,\"desc\":\"FLOAT_HIGH – on ~0.150 s when fault\"},
+      {"value\":18,\"desc":"FLOAT_LOW – off when not float after 2 s"},
+      {"value\":19,\"desc":"VENT FAN HIGH (Vbatt > Aux1HiAbs +1 s)"},
+      {"value\":20,"desc":"VENT FAN LOW (Vbatt < Aux1HiAbs after 30 s)"},
+      {"value\":21,"desc":"GFP_TRIP_HIGH – short pulse on arc fault"},
+      {"value\":22,"desc":"Aux1 Waste‑Not Relative Lower V"},
+      {"value\":23,"desc":"Aux1 Waste‑Not Relative Upper V"},
+      {"value\":24,"desc":"Aux2 Waste‑Not Relative Lower V"},
+      {"value\":25,\"desc\":\"Aux2 Waste‑Not Relative Upper V\"},
+      {"value\":26,\"desc\":\"Aux1 PV Low Abs (absolute)\"},
+      {"value\":27,\"desc\":\"Aux1 PV High Abs (absolute)"},
+      {"value\":28,"desc":"Aux2 PV Low Abs (absolute)"},
+      {"value\":29,"desc":"Aux2 PV High Abs (absolute)"},
+      {"value\":30,"desc":"Varimax – LSB = Amps, MSB = Vabsorb‑Vrel/10"},
+      {"value\":31,\"desc\":\"Aux2 PV high absolute (duplicate of 4181)"}],
+
+    "LED_MODE": [
+      {"value":0,"desc":"All Off"},
+      {"value":1,"desc":"Rick Mode – minimal activity"},
+      {"value":2,"desc":"Blinky – all LEDs"},
+      {"value":3,"desc":"MNGP Red LED = current‑limit / FET‑temp limit"},
+      {"value":4,"desc":"LED 1 status (see table 4207‑1)"},
+      {"value":5,"desc":"LED 2 – comm test"}
+    ],
+
+    "IP_SETTINGS_FLAGS_BITS": [
+      {"bit":0,"desc":"DHCP"},
+      {"bit":1,"desc":"Web Access"}
+    ],
+
+    "REASON_FOR_RESET_TABLE": [
+      {"code":1,"desc":"Anti‑Click (not enough power)"},
+      {"code":2,"desc":"Insane Ibatt measurement"},
+      {"code":3,"desc":"Negative current (load on PV)"},
+      {"code":4,"desc":"PV voltage < battery V"},
+      {"code":5,"desc":"Low power out >90 s"},
+      {"code":6,"desc":"FET temperature too high"},
+      {"code":7,"desc":"Ground fault detected"},
+      {"code":8,"desc":"Arc fault detected"},
+      {"code":9,"desc":"Negative current while operating (back‑feed)"},
+      {"code":10,"desc":"Battery < 8.0 V"},
+      {"code":11,"desc":"PV rising too slowly – low light"},
+      {"code":12,"desc":"Voc down – re‑check"},
+      {"code":13,"desc":"Voc up – suspicious"},
+      {"code\":14,\"desc\":\"Same as 11\"},
+      {"code\":15,\"desc\":\"Same as 12\"},
+      {"code\":16,"desc":"MPPT OFF (user turned off)"},
+      {"code\":17,"desc":"PV > max for Classic 150"},
+      {"code\":18,"desc":"PV > max for Classic 200"},
+      {"code\":19,"desc":"PV > max for Classic 250/KS"},
+      {"code":22,"desc":"Battery voltage too high above set point"},
+      {"code":25,"desc":"Battery voltage overshoot (small battery / bad cable)"},
+      {"code":26,"desc":"Mode changed while running OR Vabsorb raised >10 V OR Nominal Vbatt changed and MPPT ON"},
+      {"code":27,"desc":"Bridge centre = 1023 → forces MPPT OFF"},
+      {"code\":28,\"desc\":\"Not resting but relay not engaged\"},
+      {"code\":29,"desc":"Wind‑track illegal (current step >100 A)"},
+      {"code\":30,"desc":"PkAmpsOverLimit – software limit exceeded"},
+      {"code\":31,"desc":"Peak negative battery current >90 A (Classic 250)"},
+      {"code\":32,\"desc":"Aux2 input forces Rest (high/low)"},
+      {"code\":33,"desc":"OCP in non‑Solar mode"},
+      {"code\":34,"desc":"Peak negative current >90 A (150/200)"},
+      {"code\":35,"desc":"Battery < Low‑Battery Disconnect (≈8.5 V)"}
+    ],
+
+    "LED_MODE_TABLE": [
+      {"value":0,"desc":"All Off"},
+      {"value":1,"desc":"Rick Mode – minimal activity"},
+      {"value":2,"desc":"Blinky – all LEDs"},
+      {"value":3,"desc":"MNGP Red LED = Battery Full (Float) / Aux1 ON / Aux2 ON / Blue unused"},
+      {"value":4,"desc":"LED 2 – Comm test"}
+    ]
+  }
+}
+

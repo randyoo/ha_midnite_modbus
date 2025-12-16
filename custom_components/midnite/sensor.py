@@ -40,7 +40,6 @@ async def async_setup_entry(
         PVoltageSensor(api, entry),
         BatteryCurrentSensor(api, entry),
         PowerWattsSensor(api, entry),
-        RawChargeStateSensor(api, entry),
         ChargeStageSensor(api, entry),
         InternalStateSensor(api, entry),
         RestReasonSensor(api, entry),
@@ -67,11 +66,15 @@ class MidniteSolarSensor(SensorEntity):
         """Initialize the sensor."""
         self._api = api
         self._entry = entry
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, entry.entry_id)},
-            "name": entry.title,
-            "manufacturer": "Midnite Solar",
-        }
+        # Use device_info from API if available, otherwise create basic one
+        if hasattr(api, 'device_info') and api.device_info.get('identifiers'):
+            self._attr_device_info = api.device_info
+        else:
+            self._attr_device_info = {
+                "identifiers": {(DOMAIN, entry.entry_id)},
+                "name": entry.title,
+                "manufacturer": "Midnite Solar",
+            }
 
     async def async_update(self) -> None:
         """Update sensor data from the device."""
@@ -220,31 +223,6 @@ class InternalStateSensor(MidniteSolarSensor):
             
             # Look up the internal state description
             self._attr_native_value = INTERNAL_STATES.get(internal_state_value, f"Unknown ({internal_state_value})")
-
-
-class RawChargeStateSensor(MidniteSolarSensor):
-    """Representation of a raw charge state register for debugging."""
-
-    def __init__(self, api: MidniteAPI, entry: Any):
-        """Initialize the sensor."""
-        super().__init__(api, entry)
-        self._attr_name = "Midnite Raw Charge State"
-        self._attr_unique_id = f"{entry.entry_id}_raw_charge_state"
-
-    async def async_update(self) -> None:
-        """Update sensor data from the device."""
-        registers = await self._api.read_holding_registers(REGISTER_MAP["COMBO_CHARGE_STAGE"])
-        if registers:
-            # Store raw value for debugging
-            self._attr_native_value = registers[0]
-            # Also add extra attributes with decoded bits
-            charge_stage_value = (registers[0] >> 8) & 0xFF
-            internal_state_value = registers[0] & 0xFF
-            self._attr_extra_state_attributes = {
-                "raw_value": registers[0],
-                "charge_stage": charge_stage_value,
-                "internal_state": internal_state_value,
-            }
 
 
 class DeviceTypeSensor(MidniteSolarSensor):

@@ -50,6 +50,10 @@ REGISTER_MAP = {
     
     # Force flags (write-only)
     "FORCE_FLAG_BITS": 4160,
+    
+    # Serial number
+    "SERIAL_NUMBER_LO": 28673,
+    "SERIAL_NUMBER_HI": 28674,
 }
 
 # Charge stage mappings (from register 4120 MSB)

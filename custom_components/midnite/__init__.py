@@ -55,6 +55,9 @@ async def async_setup_entry(
     # Create a wrapper for easier access
     midnite_api = MidniteAPI(hass, client)
     
+    # Read device information (serial number, model, etc.)
+    await midnite_api.read_device_info(entry.data[CONF_HOST])
+    
     # Store the client in runtime data
     entry.runtime_data = midnite_api
 
@@ -81,7 +84,13 @@ class MidniteAPI:
         """Initialize the API wrapper."""
         self.hass = hass
         self.client = client
-        self.device_info = {}
+        self.device_info = {
+            "identifiers": {},
+            "name": None,
+            "model": None,
+            "serial_number": None,
+            "manufacturer": "Midnite Solar",
+        }
         # Keep connection open
         if not client.connected:
             _LOGGER.info("Connecting Modbus client...")
@@ -119,6 +128,37 @@ class MidniteAPI:
             _LOGGER.error(f"Exception while writing register at address {address}: {e}", exc_info=True)
             return False
 
+    async def read_device_info(self, hostname):
+        """Read device information including serial number and model."""
+        from .const import DEVICE_TYPES, REGISTER_MAP
+        
+        _LOGGER.info("Reading device information...")
+        
+        # Read unit ID to get device type/model
+        unit_id_reg = await self.read_holding_registers(REGISTER_MAP["UNIT_ID"])
+        if unit_id_reg:
+            device_value = unit_id_reg[0] & 0xFF  # Get LSB (unit type)
+            model = DEVICE_TYPES.get(device_value, f"Unknown ({device_value})")
+            self.device_info["model"] = model
+            _LOGGER.info(f"Device model: {model}")
+        
+        # Read serial number (32-bit value from registers 4369 and 4370)
+        serial_lo = await self.read_holding_registers(REGISTER_MAP["SERIAL_NUMBER_LO"])
+        serial_hi = await self.read_holding_registers(REGISTER_MAP["SERIAL_NUMBER_HI"]) if serial_lo else None
+        
+        if serial_lo and serial_hi:
+            serial_number = (serial_hi[0] << 16) | serial_lo[0]
+            self.device_info["serial_number"] = str(serial_number)
+            # Use serial number as identifier for device registry
+            self.device_info["identifiers"] = {(DOMAIN, str(serial_number))}
+            self.device_info["name"] = f"Midnite {model} ({serial_number})"
+            _LOGGER.info(f"Device serial number: {serial_number}")
+        else:
+            # Fallback to hostname if serial not available
+            self.device_info["identifiers"] = {(DOMAIN, hostname)}
+            self.device_info["name"] = f"Midnite Device ({hostname})"
+            _LOGGER.warning("Could not read serial number, using hostname as identifier")
+    
     async def _execute(self, func):
         """Execute a function in the executor and return the result."""
         # Use hass.async_add_executor_job to run synchronous Modbus calls

@@ -29,8 +29,7 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
         super().__init__()
         self.discovery_info: DhcpServiceInfo | None = None
 
-    @callback
-    def async_step_dhcp(self, discovery_info: DhcpServiceInfo) -> ConfigFlowResult:
+    async def async_step_dhcp(self, discovery_info: DhcpServiceInfo) -> ConfigFlowResult:
         """Handle DHCP discovery."""
         _LOGGER.info(f"DHCP discovery for Midnite Solar device at {discovery_info.ip}")
         

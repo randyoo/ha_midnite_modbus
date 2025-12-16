@@ -10,6 +10,7 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.const import (
     UnitOfElectricCurrent,
     UnitOfEnergy,
@@ -233,7 +234,7 @@ class DeviceTypeSensor(MidniteSolarSensor):
         super().__init__(api, entry)
         self._attr_name = "Device Type"
         self._attr_unique_id = f"{entry.entry_id}_device_type"
-        self._attr_entity_category = "diagnostic"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     async def async_update(self) -> None:
         """Update sensor data from the device."""
@@ -252,7 +253,7 @@ class RestReasonSensor(MidniteSolarSensor):
         super().__init__(api, entry)
         self._attr_name = "Rest Reason"
         self._attr_unique_id = f"{entry.entry_id}_rest_reason"
-        self._attr_entity_category = "diagnostic"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     async def async_update(self) -> None:
         """Update sensor data from the device."""
@@ -360,7 +361,7 @@ class DailyAmpHoursSensor(MidniteSolarSensor):
         super().__init__(api, entry)
         self._attr_name = "Daily Amp-Hours"
         self._attr_unique_id = f"{entry.entry_id}_daily_ah"
-        self._attr_entity_category = "diagnostic"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_device_class = SensorDeviceClass.ENERGY
         self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
@@ -381,7 +382,7 @@ class LifetimeEnergySensor(MidniteSolarSensor):
         super().__init__(api, entry)
         self._attr_name = "Lifetime Energy"
         self._attr_unique_id = f"{entry.entry_id}_lifetime_energy"
-        self._attr_entity_category = "diagnostic"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_device_class = SensorDeviceClass.ENERGY
         self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
@@ -405,7 +406,7 @@ class LifetimeAmpHoursSensor(MidniteSolarSensor):
         super().__init__(api, entry)
         self._attr_name = "Lifetime Amp-Hours"
         self._attr_unique_id = f"{entry.entry_id}_lifetime_ah"
-        self._attr_entity_category = "diagnostic"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_device_class = SensorDeviceClass.ENERGY
         self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
@@ -429,7 +430,7 @@ class PVInputCurrentSensor(MidniteSolarSensor):
         super().__init__(api, entry)
         self._attr_name = "PV Input Current"
         self._attr_unique_id = f"{entry.entry_id}_pv_current"
-        self._attr_entity_category = "diagnostic"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_device_class = SensorDeviceClass.CURRENT
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
         self._attr_state_class = SensorStateClass.MEASUREMENT
@@ -460,7 +461,7 @@ class VOCMeasuredSensor(MidniteSolarSensor):
         super().__init__(api, entry)
         self._attr_name = "Last Measured VOC"
         self._attr_unique_id = f"{entry.entry_id}_voc_measured"
-        self._attr_entity_category = "diagnostic"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_device_class = SensorDeviceClass.VOLTAGE
         self._attr_native_unit_of_measurement = "V"
         self._attr_state_class = SensorStateClass.MEASUREMENT
@@ -481,7 +482,7 @@ class FloatTimeTodaySensor(MidniteSolarSensor):
         super().__init__(api, entry)
         self._attr_name = "Float Time Today"
         self._attr_unique_id = f"{entry.entry_id}_float_time_today"
-        self._attr_entity_category = "diagnostic"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_device_class = SensorDeviceClass.DURATION
         # Display in minutes for better readability
         self._attr_native_unit_of_measurement = UnitOfTime.MINUTES
@@ -515,7 +516,7 @@ class AbsorbTimeRemainingSensor(MidniteSolarSensor):
         super().__init__(api, entry)
         self._attr_name = "Absorb Time Remaining"
         self._attr_unique_id = f"{entry.entry_id}_absorb_time_remaining"
-        self._attr_entity_category = "diagnostic"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_device_class = SensorDeviceClass.DURATION
         # Display in minutes for better readability
         self._attr_native_unit_of_measurement = UnitOfTime.MINUTES
@@ -549,7 +550,7 @@ class EqualizeTimeRemainingSensor(MidniteSolarSensor):
         super().__init__(api, entry)
         self._attr_name = "Equalize Time Remaining"
         self._attr_unique_id = f"{entry.entry_id}_equalize_time_remaining"
-        self._attr_entity_category = "diagnostic"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_device_class = SensorDeviceClass.DURATION
         # Display in minutes for better readability
         self._attr_native_unit_of_measurement = UnitOfTime.MINUTES

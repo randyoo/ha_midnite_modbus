@@ -36,7 +36,9 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
         
         # 1. SET UNIQUE ID (Crucial step - use MAC address)
         from homeassistant.config_entries import ConfigEntries
-        await self.async_set_unique_id(ConfigEntries.format_mac(discovery_info.macaddress))
+        # Format the MAC address properly for unique ID
+        mac_str = discovery_info.macaddress.replace(":", "").replace("-", "").lower()
+        await self.async_set_unique_id(f"midnite_{mac_str}")
         
         # 2. ABORT IF ALREADY CONFIGURED (prevents duplicate discovery cards)
         self._abort_if_unique_id_configured(

@@ -42,11 +42,15 @@ class MidniteSolarButton(ButtonEntity):
         """Initialize the button."""
         self._api = api
         self._entry = entry
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, entry.entry_id)},
-            "name": entry.title,
-            "manufacturer": "Midnite Solar",
-        }
+        # Use device_info from API if available, otherwise create basic one
+        if hasattr(api, 'device_info') and api.device_info.get('identifiers'):
+            self._attr_device_info = api.device_info
+        else:
+            self._attr_device_info = {
+                "identifiers": {(DOMAIN, entry.entry_id)},
+                "name": entry.title,
+                "manufacturer": "Midnite Solar",
+            }
 
 
 class ForceFloatButton(MidniteSolarButton):

@@ -239,6 +239,7 @@ class MidniteAPI:
             _LOGGER.warning(f"Error reading unit name: {e}")
         
         # Set device identifiers and name
+        # Use Device ID (from registers 20492/20493) as the primary identifier
         if self.device_info.get("serial_number"):
             # Use serial number as identifier for device registry
             self.device_info["identifiers"] = {(DOMAIN, str(self.device_info["serial_number"]))}
@@ -246,8 +247,8 @@ class MidniteAPI:
         else:
             # Fallback to hostname if serial not available
             self.device_info["identifiers"] = {(DOMAIN, hostname)}
-            self.device_info["name"] = f"Midnite Device ({hostname})"
-            _LOGGER.warning("Could not read serial number, using hostname as identifier")
+            self.device_info["name"] = f"Midnite {self.device_info.get('model', 'Device')} @ {hostname}"
+            _LOGGER.warning("Could not read Device ID/Serial number from registers 20492/20493, using hostname as identifier")
     
     async def _execute(self, func):
         """Execute a function in the executor and return the result."""

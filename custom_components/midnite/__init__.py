@@ -100,6 +100,12 @@ class MidniteAPI:
         """Read holding registers from the device."""
         _LOGGER.info(f"Reading holding registers: address={address}, count={count}")
         try:
+            # Ensure connection is active
+            if not self.client.connected:
+                _LOGGER.info("Reconnecting Modbus client before read...")
+                await self.hass.async_add_executor_job(self.client.connect)
+                _LOGGER.info(f"Connection status: {self.client.connected}")
+            
             result = await self._execute(lambda: self.client.read_holding_registers(
                 address=address - 1,  # Modbus addresses are 0-indexed
                 count=count,
@@ -112,6 +118,14 @@ class MidniteAPI:
             return result.registers
         except Exception as e:
             _LOGGER.error(f"Exception while reading registers at address {address}: {e}", exc_info=True)
+            # Try to reconnect on connection errors
+            try:
+                if self.client.connected:
+                    await self.hass.async_add_executor_job(self.client.close)
+                await self.hass.async_add_executor_job(self.client.connect)
+                _LOGGER.info(f"Reconnection attempt after error: {self.client.connected}")
+            except Exception as reconnect_error:
+                _LOGGER.error(f"Reconnection failed: {reconnect_error}")
             return None
 
     async def write_register(self, address: int, value: int):
@@ -135,12 +149,20 @@ class MidniteAPI:
         _LOGGER.info("Reading device information...")
         
         # Read unit ID to get device type/model (register 4101)
-        unit_id_reg = await self.read_holding_registers(REGISTER_MAP["UNIT_ID"])
-        if unit_id_reg:
-            device_value = unit_id_reg[0] & 0xFF  # Get LSB (unit type)
-            model = DEVICE_TYPES.get(device_value, f"Unknown ({device_value})")
-            self.device_info["model"] = model
-            _LOGGER.info(f"Device model: {model}")
+        # This is a critical register that should always be readable
+        max_retries = 3
+        for attempt in range(max_retries):
+            unit_id_reg = await self.read_holding_registers(REGISTER_MAP["UNIT_ID"])
+            if unit_id_reg:
+                device_value = unit_id_reg[0] & 0xFF  # Get LSB (unit type)
+                model = DEVICE_TYPES.get(device_value, f"Unknown ({device_value})")
+                self.device_info["model"] = model
+                _LOGGER.info(f"Device model: {model}")
+                break
+            if attempt < max_retries - 1:
+                _LOGGER.warning(f"Attempt {attempt + 1} failed to read UNIT_ID, retrying...")
+                import asyncio
+                await asyncio.sleep(2)
         
         # Read software date (registers 4102-4103)
         try:
@@ -159,27 +181,39 @@ class MidniteAPI:
         # Read serial number (16-bit value from registers 20492 and 20493)
         # According to registers2.json: SERIAL_NUMBER_MSB = 20492, SERIAL_NUMBER_LSB = 20493
         try:
-            serial_msb = await self.read_holding_registers(REGISTER_MAP["SERIAL_NUMBER_MSB"])
-            if serial_msb:
-                serial_lsb = await self.read_holding_registers(REGISTER_MAP["SERIAL_NUMBER_LSB"])
-                if serial_lsb:
-                    # Formula from registers2.json: (high << 16) + low
-                    serial_number = (serial_msb[0] << 16) | serial_lsb[0]
-                    self.device_info["serial_number"] = str(serial_number)
-                    _LOGGER.info(f"Device serial number (MSB/LSB): {serial_number} (0x{serial_msb[0]:04X}/0x{serial_lsb[0]:04X})")
+            for attempt in range(max_retries):
+                serial_msb = await self.read_holding_registers(REGISTER_MAP["SERIAL_NUMBER_MSB"])
+                if serial_msb:
+                    serial_lsb = await self.read_holding_registers(REGISTER_MAP["SERIAL_NUMBER_LSB"])
+                    if serial_lsb:
+                        # Formula from registers2.json: (high << 16) + low
+                        serial_number = (serial_msb[0] << 16) | serial_lsb[0]
+                        self.device_info["serial_number"] = str(serial_number)
+                        _LOGGER.info(f"Device serial number (MSB/LSB): {serial_number} (0x{serial_msb[0]:04X}/0x{serial_lsb[0]:04X})")
+                        break
+                    if attempt < max_retries - 1:
+                        _LOGGER.warning(f"Attempt {attempt + 1} failed to read serial number, retrying...")
+                        import asyncio
+                        await asyncio.sleep(2)
         except Exception as e:
             _LOGGER.warning(f"Could not read serial number from registers 20492/20493: {e}")
         
         # Try alternative: Device ID (registers 4111-4112, described as clone of register 4369)
         try:
             if not self.device_info.get("serial_number"):
-                device_id_lsw = await self.read_holding_registers(REGISTER_MAP["DEVICE_ID_LSW"])
-                if device_id_lsw:
-                    device_id_msw = await self.read_holding_registers(REGISTER_MAP["DEVICE_ID_MSW"])  # Note: MSW is at 4112, not 4113
-                    if device_id_msw:
-                        alt_serial = (device_id_msw[0] << 16) | device_id_lsw[0]
-                        self.device_info["serial_number"] = str(alt_serial)
-                        _LOGGER.info(f"Alternative serial from DEVICE_ID: {alt_serial} (0x{device_id_msw[0]:04X}/0x{device_id_lsw[0]:04X})")
+                for attempt in range(max_retries):
+                    device_id_lsw = await self.read_holding_registers(REGISTER_MAP["DEVICE_ID_LSW"])
+                    if device_id_lsw:
+                        device_id_msw = await self.read_holding_registers(REGISTER_MAP["DEVICE_ID_MSW"])  # Note: MSW is at 4112, not 4113
+                        if device_id_msw:
+                            alt_serial = (device_id_msw[0] << 16) | device_id_lsw[0]
+                            self.device_info["serial_number"] = str(alt_serial)
+                            _LOGGER.info(f"Alternative serial from DEVICE_ID: {alt_serial} (0x{device_id_msw[0]:04X}/0x{device_id_lsw[0]:04X})")
+                            break
+                        if attempt < max_retries - 1:
+                            _LOGGER.warning(f"Attempt {attempt + 1} failed to read DEVICE_ID, retrying...")
+                            import asyncio
+                            await asyncio.sleep(2)
         except Exception as e:
             _LOGGER.warning(f"Error reading alternative serial from DEVICE_ID: {e}")
         

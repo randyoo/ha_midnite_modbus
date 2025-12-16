@@ -134,7 +134,7 @@ class MidniteAPI:
         
         _LOGGER.info("Reading device information...")
         
-        # Read unit ID to get device type/model
+        # Read unit ID to get device type/model (register 4101)
         unit_id_reg = await self.read_holding_registers(REGISTER_MAP["UNIT_ID"])
         if unit_id_reg:
             device_value = unit_id_reg[0] & 0xFF  # Get LSB (unit type)
@@ -142,17 +142,60 @@ class MidniteAPI:
             self.device_info["model"] = model
             _LOGGER.info(f"Device model: {model}")
         
-        # Read serial number (32-bit value from registers 4369 and 4370)
-        serial_lo = await self.read_holding_registers(REGISTER_MAP["SERIAL_NUMBER_LO"])
-        serial_hi = await self.read_holding_registers(REGISTER_MAP["SERIAL_NUMBER_HI"]) if serial_lo else None
+        # Read software date (registers 4102-4103)
+        sw_date_year = await self.read_holding_registers(REGISTER_MAP["UNIT_SW_DATE_RO"])
+        sw_date_month_day = await self.read_holding_registers(REGISTER_MAP["UNIT_SW_DATE_MONTH_DAY"]) if sw_date_year else None
         
-        if serial_lo and serial_hi:
-            serial_number = (serial_hi[0] << 16) | serial_lo[0]
+        if sw_date_year and sw_date_month_day:
+            year = sw_date_year[0]
+            month = (sw_date_month_day[0] >> 8) & 0xFF
+            day = sw_date_month_day[0] & 0xFF
+            self.device_info["sw_version"] = f"{year}-{month:02d}-{day:02d}"
+            _LOGGER.info(f"Software date: {self.device_info['sw_version']}")
+        
+        # Read serial number (16-bit value from registers 20492 and 20493)
+        # According to registers2.json: SERIAL_NUMBER_MSB = 20492, SERIAL_NUMBER_LSB = 20493
+        serial_msb = await self.read_holding_registers(REGISTER_MAP["SERIAL_NUMBER_MSB"])
+        serial_lsb = await self.read_holding_registers(REGISTER_MAP["SERIAL_NUMBER_LSB"]) if serial_msb else None
+        
+        if serial_msb and serial_lsb:
+            # Formula from registers2.json: (high << 16) + low
+            serial_number = (serial_msb[0] << 16) | serial_lsb[0]
             self.device_info["serial_number"] = str(serial_number)
+            _LOGGER.info(f"Device serial number (MSB/LSB): {serial_number} (0x{serial_msb[0]:04X}/0x{serial_lsb[0]:04X})")
+        else:
+            _LOGGER.warning("Could not read serial number from registers 20492/20493")
+        
+        # Try alternative: Device ID (registers 4111-4112, described as clone of register 4369)
+        device_id_lsw = await self.read_holding_registers(REGISTER_MAP["DEVICE_ID_LSW"]) if not serial_msb else None
+        device_id_msw = await self.read_holding_registers(REGISTER_MAP["DEVICE_ID_MSW"] + 1) if device_id_lsw else None
+        
+        if device_id_lsw and device_id_msw:
+            alt_serial = (device_id_msw[0] << 16) | device_id_lsw[0]
+            _LOGGER.info(f"Alternative serial from DEVICE_ID: {alt_serial} (0x{device_id_msw[0]:04X}/0x{device_id_lsw[0]:04X})")
+        
+        # Read unit name (ASCII, 8 characters from registers 4210-4213)
+        unit_name_parts = []
+        for i in range(4):
+            reg_name = f"UNIT_NAME_{i}"
+            if REGISTER_MAP.get(reg_name):
+                name_part = await self.read_holding_registers(REGISTER_MAP[reg_name])
+                if name_part:
+                    # Convert to ASCII characters (LSB first as per spec)
+                    word = name_part[0]
+                    char1 = chr(word & 0xFF)
+                    char2 = chr((word >> 8) & 0xFF)
+                    unit_name_parts.extend([char1, char2])
+        
+        if unit_name_parts:
+            unit_name = ''.join(unit_name_parts).rstrip('\x00').rstrip()
+            _LOGGER.info(f"Unit name: '{unit_name}'")
+        
+        # Set device identifiers and name
+        if self.device_info.get("serial_number"):
             # Use serial number as identifier for device registry
-            self.device_info["identifiers"] = {(DOMAIN, str(serial_number))}
-            self.device_info["name"] = f"Midnite {model} ({serial_number})"
-            _LOGGER.info(f"Device serial number: {serial_number}")
+            self.device_info["identifiers"] = {(DOMAIN, str(self.device_info["serial_number"]))}
+            self.device_info["name"] = f"Midnite {self.device_info.get('model', 'Device')} ({self.device_info['serial_number']})"
         else:
             # Fallback to hostname if serial not available
             self.device_info["identifiers"] = {(DOMAIN, hostname)}

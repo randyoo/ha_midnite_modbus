@@ -51,9 +51,19 @@ REGISTER_MAP = {
     # Force flags (write-only)
     "FORCE_FLAG_BITS": 4160,
     
-    # Serial number
-    "SERIAL_NUMBER_LO": 28673,
-    "SERIAL_NUMBER_HI": 28674,
+    # Serial number (from registers2.json: addresses 20492 and 20493)
+    "SERIAL_NUMBER_MSB": 20492,
+    "SERIAL_NUMBER_LSB": 20493,
+    
+    # Unit name (ASCII, 8 characters from registers 4210-4213)
+    "UNIT_NAME_0": 4210,
+    "UNIT_NAME_1": 4211,
+    "UNIT_NAME_2": 4212,
+    "UNIT_NAME_3": 4213,
+    
+    # Device ID (alternative serial, registers 4111-4112)
+    "DEVICE_ID_LSW": 4111,
+    "DEVICE_ID_MSW": 4112,
 }
 
 # Charge stage mappings (from register 4120 MSB)

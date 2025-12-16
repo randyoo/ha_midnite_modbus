@@ -11,6 +11,7 @@ REGISTER_MAP = {
     # Base information
     "UNIT_ID": 4101,
     "UNIT_SW_DATE_RO": 4102,
+    "UNIT_SW_DATE_MONTH_DAY": 4103,
     "INFO_FLAGS_BITS3": 4104,
     "MAC_ADDRESS_PART_1": 4106,
     "STATUSROLL": 4113,

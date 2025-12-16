@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 from homeassistant.components.button import ButtonEntity
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
@@ -115,6 +116,7 @@ class ForceEEpromUpdateButton(MidniteSolarButton):
         super().__init__(api, entry)
         self._attr_name = "Force EEPROM Update"
         self._attr_unique_id = f"{entry.entry_id}_force_eeprom_update"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     async def async_press(self) -> None:
         """Press the button."""
@@ -133,6 +135,7 @@ class ResetFaultsButton(MidniteSolarButton):
         super().__init__(api, entry)
         self._attr_name = "Reset Faults"
         self._attr_unique_id = f"{entry.entry_id}_reset_faults"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     async def async_press(self) -> None:
         """Press the button."""
@@ -151,6 +154,7 @@ class ResetFlagsButton(MidniteSolarButton):
         super().__init__(api, entry)
         self._attr_name = "Reset Flags"
         self._attr_unique_id = f"{entry.entry_id}_reset_flags"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     async def async_press(self) -> None:
         """Press the button."""

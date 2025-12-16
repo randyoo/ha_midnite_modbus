@@ -208,6 +208,7 @@ class InternalStateSensor(MidniteSolarSensor):
         self._attr_name = "Internal State"
         self._attr_unique_id = f"{entry.entry_id}_internal_state"
         self._attr_device_class = SensorDeviceClass.ENUM
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_options = list(INTERNAL_STATES.values())
 
     async def async_update(self) -> None:
@@ -302,6 +303,7 @@ class FETTemperatureSensor(MidniteSolarSensor):
         self._attr_name = "FET Temperature"
         self._attr_unique_id = f"{entry.entry_id}_fet_temp"
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
@@ -332,6 +334,7 @@ class PCBTemperatureSensor(MidniteSolarSensor):
         self._attr_name = "PCB Temperature"
         self._attr_unique_id = f"{entry.entry_id}_pcb_temp"
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1

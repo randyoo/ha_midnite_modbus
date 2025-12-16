@@ -12,7 +12,6 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_HOST, CONF_NAME, CONF_PORT
 from homeassistant.components.dhcp import DhcpServiceInfo
-from homeassistant.core import callback
 
 from .const import DEFAULT_PORT, DOMAIN
 
@@ -34,10 +33,10 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
         _LOGGER.info(f"DHCP discovery for Midnite Solar device at {discovery_info.ip}")
         
         # 1. SET UNIQUE ID (Crucial step - use MAC address)
+        # Format the MAC address properly for unique ID using Home Assistant's standard format
         from homeassistant.config_entries import ConfigEntries
-        # Format the MAC address properly for unique ID
-        mac_str = discovery_info.macaddress.replace(":", "").replace("-", "").lower()
-        await self.async_set_unique_id(f"midnite_{mac_str}")
+        formatted_mac = ConfigEntries.format_mac(discovery_info.macaddress)
+        await self.async_set_unique_id(formatted_mac)
         
         # 2. ABORT IF ALREADY CONFIGURED (prevents duplicate discovery cards)
         self._abort_if_unique_id_configured(

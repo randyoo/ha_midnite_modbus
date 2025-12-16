@@ -59,7 +59,7 @@ class ForceFloatButton(MidniteSolarButton):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the button."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite Force Float"
+        self._attr_name = "Force Float"
         self._attr_unique_id = f"{entry.entry_id}_force_float"
 
     async def async_press(self) -> None:
@@ -77,7 +77,7 @@ class ForceBulkButton(MidniteSolarButton):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the button."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite Force Bulk"
+        self._attr_name = "Force Bulk"
         self._attr_unique_id = f"{entry.entry_id}_force_bulk"
 
     async def async_press(self) -> None:
@@ -95,7 +95,7 @@ class ForceEqualizeButton(MidniteSolarButton):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the button."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite Force Equalize"
+        self._attr_name = "Force Equalize"
         self._attr_unique_id = f"{entry.entry_id}_force_equalize"
 
     async def async_press(self) -> None:
@@ -113,7 +113,7 @@ class ForceEEpromUpdateButton(MidniteSolarButton):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the button."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite Force EEPROM Update"
+        self._attr_name = "Force EEPROM Update"
         self._attr_unique_id = f"{entry.entry_id}_force_eeprom_update"
 
     async def async_press(self) -> None:
@@ -131,7 +131,7 @@ class ResetFaultsButton(MidniteSolarButton):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the button."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite Reset Faults"
+        self._attr_name = "Reset Faults"
         self._attr_unique_id = f"{entry.entry_id}_reset_faults"
 
     async def async_press(self) -> None:
@@ -149,7 +149,7 @@ class ResetFlagsButton(MidniteSolarButton):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the button."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite Reset Flags"
+        self._attr_name = "Reset Flags"
         self._attr_unique_id = f"{entry.entry_id}_reset_flags"
 
     async def async_press(self) -> None:

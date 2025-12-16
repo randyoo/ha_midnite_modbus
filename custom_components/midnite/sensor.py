@@ -87,7 +87,7 @@ class BatteryVoltageSensor(MidniteSolarSensor):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the sensor."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite Battery Voltage"
+        self._attr_name = "Battery Voltage"
         self._attr_unique_id = f"{entry.entry_id}_batt_voltage"
         self._attr_device_class = SensorDeviceClass.VOLTAGE
         self._attr_native_unit_of_measurement = "V"
@@ -107,7 +107,7 @@ class PVoltageSensor(MidniteSolarSensor):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the sensor."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite PV Voltage"
+        self._attr_name = "PV Voltage"
         self._attr_unique_id = f"{entry.entry_id}_pv_voltage"
         self._attr_device_class = SensorDeviceClass.VOLTAGE
         self._attr_native_unit_of_measurement = "V"
@@ -127,7 +127,7 @@ class BatteryCurrentSensor(MidniteSolarSensor):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the sensor."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite Battery Current"
+        self._attr_name = "Battery Current"
         self._attr_unique_id = f"{entry.entry_id}_batt_current"
         self._attr_device_class = SensorDeviceClass.CURRENT
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
@@ -158,7 +158,7 @@ class PowerWattsSensor(MidniteSolarSensor):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the sensor."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite Power Output"
+        self._attr_name = "Power Output"
         self._attr_unique_id = f"{entry.entry_id}_power_watts"
         self._attr_device_class = SensorDeviceClass.POWER
         self._attr_native_unit_of_measurement = UnitOfPower.WATT
@@ -177,7 +177,7 @@ class ChargeStageSensor(MidniteSolarSensor):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the sensor."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite Charge Stage"
+        self._attr_name = "Charge Stage"
         self._attr_unique_id = f"{entry.entry_id}_charge_stage"
         self._attr_device_class = SensorDeviceClass.ENUM
         self._attr_options = list(CHARGE_STAGES.values())
@@ -204,7 +204,7 @@ class InternalStateSensor(MidniteSolarSensor):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the sensor."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite Internal State"
+        self._attr_name = "Internal State"
         self._attr_unique_id = f"{entry.entry_id}_internal_state"
         self._attr_device_class = SensorDeviceClass.ENUM
         self._attr_options = list(INTERNAL_STATES.values())
@@ -231,8 +231,9 @@ class DeviceTypeSensor(MidniteSolarSensor):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the sensor."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite Device Type"
+        self._attr_name = "Device Type"
         self._attr_unique_id = f"{entry.entry_id}_device_type"
+        self._attr_entity_category = "diagnostic"
 
     async def async_update(self) -> None:
         """Update sensor data from the device."""
@@ -249,8 +250,9 @@ class RestReasonSensor(MidniteSolarSensor):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the sensor."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite Rest Reason"
+        self._attr_name = "Rest Reason"
         self._attr_unique_id = f"{entry.entry_id}_rest_reason"
+        self._attr_entity_category = "diagnostic"
 
     async def async_update(self) -> None:
         """Update sensor data from the device."""
@@ -266,7 +268,7 @@ class BatteryTemperatureSensor(MidniteSolarSensor):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the sensor."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite Battery Temperature"
+        self._attr_name = "Battery Temperature"
         self._attr_unique_id = f"{entry.entry_id}_batt_temp"
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
         self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
@@ -296,7 +298,7 @@ class FETTemperatureSensor(MidniteSolarSensor):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the sensor."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite FET Temperature"
+        self._attr_name = "FET Temperature"
         self._attr_unique_id = f"{entry.entry_id}_fet_temp"
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
         self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
@@ -326,7 +328,7 @@ class PCBTemperatureSensor(MidniteSolarSensor):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the sensor."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite PCB Temperature"
+        self._attr_name = "PCB Temperature"
         self._attr_unique_id = f"{entry.entry_id}_pcb_temp"
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
         self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
@@ -356,8 +358,9 @@ class DailyAmpHoursSensor(MidniteSolarSensor):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the sensor."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite Daily Amp-Hours"
+        self._attr_name = "Daily Amp-Hours"
         self._attr_unique_id = f"{entry.entry_id}_daily_ah"
+        self._attr_entity_category = "diagnostic"
         self._attr_device_class = SensorDeviceClass.ENERGY
         self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
@@ -376,8 +379,9 @@ class LifetimeEnergySensor(MidniteSolarSensor):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the sensor."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite Lifetime Energy"
+        self._attr_name = "Lifetime Energy"
         self._attr_unique_id = f"{entry.entry_id}_lifetime_energy"
+        self._attr_entity_category = "diagnostic"
         self._attr_device_class = SensorDeviceClass.ENERGY
         self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
@@ -399,8 +403,9 @@ class LifetimeAmpHoursSensor(MidniteSolarSensor):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the sensor."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite Lifetime Amp-Hours"
+        self._attr_name = "Lifetime Amp-Hours"
         self._attr_unique_id = f"{entry.entry_id}_lifetime_ah"
+        self._attr_entity_category = "diagnostic"
         self._attr_device_class = SensorDeviceClass.ENERGY
         self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
@@ -422,8 +427,9 @@ class PVInputCurrentSensor(MidniteSolarSensor):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the sensor."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite PV Input Current"
+        self._attr_name = "PV Input Current"
         self._attr_unique_id = f"{entry.entry_id}_pv_current"
+        self._attr_entity_category = "diagnostic"
         self._attr_device_class = SensorDeviceClass.CURRENT
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
         self._attr_state_class = SensorStateClass.MEASUREMENT
@@ -452,8 +458,9 @@ class VOCMeasuredSensor(MidniteSolarSensor):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the sensor."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite Last Measured VOC"
+        self._attr_name = "Last Measured VOC"
         self._attr_unique_id = f"{entry.entry_id}_voc_measured"
+        self._attr_entity_category = "diagnostic"
         self._attr_device_class = SensorDeviceClass.VOLTAGE
         self._attr_native_unit_of_measurement = "V"
         self._attr_state_class = SensorStateClass.MEASUREMENT
@@ -472,8 +479,9 @@ class FloatTimeTodaySensor(MidniteSolarSensor):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the sensor."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite Float Time Today"
+        self._attr_name = "Float Time Today"
         self._attr_unique_id = f"{entry.entry_id}_float_time_today"
+        self._attr_entity_category = "diagnostic"
         self._attr_device_class = SensorDeviceClass.DURATION
         # Display in minutes for better readability
         self._attr_native_unit_of_measurement = UnitOfTime.MINUTES
@@ -505,8 +513,9 @@ class AbsorbTimeRemainingSensor(MidniteSolarSensor):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the sensor."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite Absorb Time Remaining"
+        self._attr_name = "Absorb Time Remaining"
         self._attr_unique_id = f"{entry.entry_id}_absorb_time_remaining"
+        self._attr_entity_category = "diagnostic"
         self._attr_device_class = SensorDeviceClass.DURATION
         # Display in minutes for better readability
         self._attr_native_unit_of_measurement = UnitOfTime.MINUTES
@@ -538,8 +547,9 @@ class EqualizeTimeRemainingSensor(MidniteSolarSensor):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the sensor."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite Equalize Time Remaining"
+        self._attr_name = "Equalize Time Remaining"
         self._attr_unique_id = f"{entry.entry_id}_equalize_time_remaining"
+        self._attr_entity_category = "diagnostic"
         self._attr_device_class = SensorDeviceClass.DURATION
         # Display in minutes for better readability
         self._attr_native_unit_of_measurement = UnitOfTime.MINUTES

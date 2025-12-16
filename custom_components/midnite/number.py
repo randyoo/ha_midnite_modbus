@@ -90,7 +90,7 @@ class AbsorbVoltageNumber(MidniteSolarNumber):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the number."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite Absorb Voltage Setpoint"
+        self._attr_name = "Absorb Voltage Setpoint"
         self._attr_unique_id = f"{entry.entry_id}_absorb_voltage"
         self._attr_native_unit_of_measurement = "V"
         self._attr_mode = NumberMode.BOX
@@ -112,7 +112,7 @@ class FloatVoltageNumber(MidniteSolarNumber):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the number."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite Float Voltage Setpoint"
+        self._attr_name = "Float Voltage Setpoint"
         self._attr_unique_id = f"{entry.entry_id}_float_voltage"
         self._attr_native_unit_of_measurement = "V"
         self._attr_mode = NumberMode.BOX
@@ -134,7 +134,7 @@ class EqualizeVoltageNumber(MidniteSolarNumber):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the number."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite Equalize Voltage Setpoint"
+        self._attr_name = "Equalize Voltage Setpoint"
         self._attr_unique_id = f"{entry.entry_id}_equalize_voltage"
         self._attr_native_unit_of_measurement = "V"
         self._attr_mode = NumberMode.BOX
@@ -156,7 +156,7 @@ class BatteryCurrentLimitNumber(MidniteSolarNumber):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the number."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite Battery Current Limit"
+        self._attr_name = "Battery Current Limit"
         self._attr_unique_id = f"{entry.entry_id}_current_limit"
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
         self._attr_mode = NumberMode.BOX
@@ -177,7 +177,7 @@ class AbsorbTimeNumber(MidniteSolarNumber):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the number."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite Absorb Time (seconds)"
+        self._attr_name = "Absorb Time (seconds)"
         self._attr_unique_id = f"{entry.entry_id}_absorb_time"
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
         self._attr_mode = NumberMode.BOX
@@ -199,7 +199,7 @@ class EqualizeTimeNumber(MidniteSolarNumber):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the number."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite Equalize Time (seconds)"
+        self._attr_name = "Equalize Time (seconds)"
         self._attr_unique_id = f"{entry.entry_id}_equalize_time"
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
         self._attr_mode = NumberMode.BOX
@@ -221,7 +221,7 @@ class EqualizeIntervalDaysNumber(MidniteSolarNumber):
     def __init__(self, api: MidniteAPI, entry: Any):
         """Initialize the number."""
         super().__init__(api, entry)
-        self._attr_name = "Midnite Equalize Interval (days)"
+        self._attr_name = "Equalize Interval (days)"
         self._attr_unique_id = f"{entry.entry_id}_equalize_interval"
         self._attr_native_unit_of_measurement = UnitOfTime.DAYS
         self._attr_mode = NumberMode.BOX

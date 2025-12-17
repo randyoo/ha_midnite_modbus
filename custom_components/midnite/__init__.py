@@ -269,18 +269,22 @@ class MidniteAPI:
                 result = await self.hass.async_add_executor_job(func)
                 _LOGGER.info(f"Function executed successfully, result: {result}")
                 return result
-            except Exception as e:
-                _LOGGER.error(f"Exception during executor job (attempt {attempt + 1}/{max_retries}): {e}", exc_info=True)
-                # Try to reconnect on failure
+            except (OSError, BrokenPipeError) as e:
+                # Connection/socket errors - need to reconnect
+                _LOGGER.error(f"Connection error (attempt {attempt + 1}/{max_retries}): {e}")
                 try:
-                    if self.client.connected:
-                        _LOGGER.info("Closing connection after error...")
-                        await self.hass.async_add_executor_job(self.client.close)
-                    _LOGGER.info(f"Waiting {attempt + 1} seconds before retry...")
-                    import asyncio
-                    await asyncio.sleep(attempt + 1)
+                    await self.hass.async_add_executor_job(self.client.close)
                 except Exception as close_error:
-                    _LOGGER.error(f"Error while closing connection: {close_error}")
+                    _LOGGER.debug(f"Error closing connection: {close_error}")
+                
+                if attempt < max_retries - 1:
+                    _LOGGER.info(f"Waiting {(attempt + 1) * 2} seconds before retry...")
+                    await asyncio.sleep((attempt + 1) * 2)
+            except Exception as e:
+                # Other errors - don't close connection, just retry
+                _LOGGER.error(f"Error (attempt {attempt + 1}/{max_retries}): {e}")
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(1)
         
         _LOGGER.error(f"Failed after {max_retries} attempts")
         raise

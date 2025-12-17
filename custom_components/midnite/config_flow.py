@@ -35,50 +35,54 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_dhcp(self, discovery_info: DhcpServiceInfo) -> ConfigFlowResult:
         """Handle DHCP discovery."""
-        _LOGGER.info(f"DHCP discovery triggered for device at {discovery_info.ip}")
-        _LOGGER.info(f"Discovery info type: {type(discovery_info)}")
-        _LOGGER.info(f"Discovery info attributes: {dir(discovery_info)}")
-        
-        # Debug: Log all discovery info details
         try:
-            _LOGGER.info(f"MAC address (raw): {discovery_info.macaddress}")
-            _LOGGER.info(f"IP address: {discovery_info.ip}")
-            if hasattr(discovery_info, 'hostname'):
-                _LOGGER.info(f"Hostname: {discovery_info.hostname}")
+            _LOGGER.info(f"DHCP discovery triggered for device at {discovery_info.ip}")
+            _LOGGER.info(f"Discovery info type: {type(discovery_info)}")
+            _LOGGER.info(f"Discovery info attributes: {dir(discovery_info)}")
+            
+            # Debug: Log all discovery info details
+            try:
+                _LOGGER.info(f"MAC address (raw): {discovery_info.macaddress}")
+                _LOGGER.info(f"IP address: {discovery_info.ip}")
+                if hasattr(discovery_info, 'hostname'):
+                    _LOGGER.info(f"Hostname: {discovery_info.hostname}")
+            except Exception as e:
+                _LOGGER.error(f"Error accessing discovery info attributes: {e}", exc_info=True)
+            
+            # 1. SET UNIQUE ID (Crucial step - use MAC address)
+            # Format the MAC address properly for unique ID using Home Assistant's standard format
+            from homeassistant.config_entries import ConfigEntries
+            try:
+                formatted_mac = ConfigEntries.format_mac(discovery_info.macaddress)
+                _LOGGER.info(f"Formatted MAC for unique ID: {formatted_mac}")
+                await self.async_set_unique_id(formatted_mac, raise_on_progress=False)
+                _LOGGER.info("Unique ID set successfully")
+            except Exception as e:
+                _LOGGER.error(f"Error setting unique ID: {e}", exc_info=True)
+                return self.async_abort(reason="cannot_set_unique_id")
+            
+            # 2. ABORT IF ALREADY CONFIGURED (prevents duplicate discovery cards)
+            try:
+                _LOGGER.info("Checking if device is already configured...")
+                self._abort_if_unique_id_configured(
+                    updates={CONF_HOST: discovery_info.ip}
+                )
+                _LOGGER.info("Device is not already configured, continuing with discovery")
+            except Exception as e:
+                _LOGGER.error(f"Error checking for existing configuration: {e}", exc_info=True)
+            
+            # 3. STORE DISCOVERY INFO FOR USER CONFIRMATION
+            self.discovery_info = discovery_info
+            self.context["title_placeholders"] = {"ip": discovery_info.ip}
+            _LOGGER.info(f"Discovery info stored, proceeding to user confirmation step")
+            
+            # 4. TRIGGER USER FLOW TO SHOW "DISCOVERED" CARD
+            result = await self.async_step_user()
+            _LOGGER.info(f"User flow triggered, result: {type(result)}")
+            return result
         except Exception as e:
-            _LOGGER.error(f"Error accessing discovery info attributes: {e}", exc_info=True)
-        
-        # 1. SET UNIQUE ID (Crucial step - use MAC address)
-        # Format the MAC address properly for unique ID using Home Assistant's standard format
-        from homeassistant.config_entries import ConfigEntries
-        try:
-            formatted_mac = ConfigEntries.format_mac(discovery_info.macaddress)
-            _LOGGER.info(f"Formatted MAC for unique ID: {formatted_mac}")
-            await self.async_set_unique_id(formatted_mac, raise_on_progress=False)
-            _LOGGER.info("Unique ID set successfully")
-        except Exception as e:
-            _LOGGER.error(f"Error setting unique ID: {e}", exc_info=True)
-            return self.async_abort(reason="cannot_set_unique_id")
-        
-        # 2. ABORT IF ALREADY CONFIGURED (prevents duplicate discovery cards)
-        try:
-            _LOGGER.info("Checking if device is already configured...")
-            self._abort_if_unique_id_configured(
-                updates={CONF_HOST: discovery_info.ip}
-            )
-            _LOGGER.info("Device is not already configured, continuing with discovery")
-        except Exception as e:
-            _LOGGER.error(f"Error checking for existing configuration: {e}", exc_info=True)
-        
-        # 3. STORE DISCOVERY INFO FOR USER CONFIRMATION
-        self.discovery_info = discovery_info
-        self.context["title_placeholders"] = {"ip": discovery_info.ip}
-        _LOGGER.info(f"Discovery info stored, proceeding to user confirmation step")
-        
-        # 4. TRIGGER USER FLOW TO SHOW "DISCOVERED" CARD
-        result = await self.async_step_user()
-        _LOGGER.info(f"User flow triggered, result: {type(result)}")
-        return result
+            _LOGGER.error(f"Unexpected error in async_step_dhcp: {e}", exc_info=True)
+            return self.async_abort(reason="discovery_failed")
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None

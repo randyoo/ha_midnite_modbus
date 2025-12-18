@@ -2,7 +2,8 @@
 
 import asyncio
 import logging
-from typing import Any
+import random
+from typing import Any, Optional
 
 from pymodbus.client import ModbusTcpClient
 from homeassistant.config_entries import ConfigEntry
@@ -26,6 +27,11 @@ _PLATFORMS: list[Platform] = [
     Platform.NUMBER,
 ]
 
+# Connection state constants
+CONNECTION_STATE_CONNECTED = "connected"
+CONNECTION_STATE_DISCONNECTED = "disconnected"
+CONNECTION_STATE_RECONNECTING = "reconnecting"
+
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the Midnite Solar component from YAML configuration."""
@@ -36,30 +42,23 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry
 ) -> bool:
     """Set up Midnite Solar from a config entry."""
-    _LOGGER.info(f"Setting up Midnite Solar at {entry.data[CONF_HOST]}:{entry.data.get(CONF_PORT, DEFAULT_PORT)}")
-    client = ModbusTcpClient(
-        entry.data[CONF_HOST],
-        port=entry.data.get(CONF_PORT, DEFAULT_PORT),
-    )
-
-    # Configure client timeout settings BEFORE connecting
-    client.timeout = 5
-    client.retries = 3
-
-    # Connect to the device
+    host = entry.data[CONF_HOST]
+    port = entry.data.get(CONF_PORT, DEFAULT_PORT)
+    _LOGGER.info(f"Setting up Midnite Solar at {host}:{port}")
+    
+    # Create a wrapper for easier access
+    midnite_api = MidniteAPI(hass, host, port)
+    
+    # Connect to the device with retry logic
     _LOGGER.info("Attempting to connect to Midnite Solar device...")
-    connected = await hass.async_add_executor_job(client.connect)
-    _LOGGER.info(f"Connection result: {connected}")
+    connected = await midnite_api.connection_manager.connect()
     if not connected:
         raise ConfigEntryNotReady("Could not connect to Midnite Solar device")
     
-    # Create a wrapper for easier access
-    midnite_api = MidniteAPI(hass, client)
-    
     # Read device information (serial number, model, etc.)
-    await midnite_api.read_device_info(entry.data[CONF_HOST])
+    await midnite_api.read_device_info(host)
     
-    # Store the client in runtime data
+    # Store the API in runtime data
     entry.runtime_data = midnite_api
 
     await hass.config_entries.async_forward_entry_setups(entry, _PLATFORMS)
@@ -74,17 +73,138 @@ async def async_unload_entry(
     if hasattr(entry, 'runtime_data') and entry.runtime_data:
         api = entry.runtime_data
         _LOGGER.info("Closing Modbus connection...")
-        hass.async_add_executor_job(api.client.close)
+        await api.connection_manager.close()
     return await hass.config_entries.async_unload_platforms(entry, _PLATFORMS)
+
+
+class ConnectionManager:
+    """Manages Modbus TCP connections with exponential backoff and retry logic."""
+
+    def __init__(self, hass: HomeAssistant, host: str, port: int = 502):
+        """Initialize the connection manager."""
+        self.hass = hass
+        self.host = host
+        self.port = port
+        self.client = ModbusTcpClient(host, port=port)
+        self.connection_state = CONNECTION_STATE_DISCONNECTED
+        self.retry_count = 0
+        self.last_connection_attempt = 0
+        self.lock = asyncio.Lock()
+        
+        # Configure client with better defaults
+        self.client.timeout = 10  # Increased from 5 to 10 seconds
+        self.client.retries = 3
+    
+    async def connect(self) -> bool:
+        """Connect to the Modbus device with retry logic."""
+        async with self.lock:
+            if self.connection_state == CONNECTION_STATE_CONNECTED and self.client.connected:
+                _LOGGER.debug("Already connected")
+                return True
+            
+            if self.connection_state == CONNECTION_STATE_RECONNECTING:
+                _LOGGER.debug("Connection attempt already in progress")
+                return False
+            
+            self.connection_state = CONNECTION_STATE_RECONNECTING
+            self.retry_count += 1
+            
+            try:
+                # Calculate backoff with jitter
+                backoff_delay = await self._calculate_backoff()
+                if backoff_delay > 0:
+                    _LOGGER.info(f"Waiting {backoff_delay:.1f} seconds before connection attempt {self.retry_count}")
+                    await asyncio.sleep(backoff_delay)
+                
+                # Close any existing connection first
+                if self.client.connected:
+                    _LOGGER.debug("Closing existing connection before reconnect")
+                    await self.hass.async_add_executor_job(self.client.close)
+                
+                _LOGGER.info(f"Attempting to connect to {self.host}:{self.port} (attempt {self.retry_count})")
+                connected = await self.hass.async_add_executor_job(self.client.connect)
+                
+                if connected:
+                    self.connection_state = CONNECTION_STATE_CONNECTED
+                    self.retry_count = 0  # Reset retry counter on success
+                    _LOGGER.info(f"Successfully connected to {self.host}:{self.port}")
+                    return True
+                else:
+                    _LOGGER.warning(f"Connection attempt {self.retry_count} failed")
+                    self.connection_state = CONNECTION_STATE_DISCONNECTED
+                    return False
+                    
+            except Exception as e:
+                _LOGGER.error(f"Connection error: {e}", exc_info=True)
+                self.connection_state = CONNECTION_STATE_DISCONNECTED
+                # Try to close the connection to cleanup
+                try:
+                    await self.hass.async_add_executor_job(self.client.close)
+                except Exception as close_error:
+                    _LOGGER.debug(f"Error closing connection: {close_error}")
+                return False
+    
+    async def _calculate_backoff(self) -> float:
+        """Calculate exponential backoff with jitter."""
+        if self.retry_count == 0:
+            return 0
+        elif self.retry_count == 1:
+            base_delay = 2.0
+        elif self.retry_count == 2:
+            base_delay = 4.0
+        elif self.retry_count == 3:
+            base_delay = 8.0
+        else:
+            # For retries beyond 3, use longer delays with cap
+            base_delay = min(64.0 * (2 ** (self.retry_count - 4)), 120.0)
+        
+        # Add jitter (±20%)
+        jitter = random.uniform(0.8, 1.2)
+        return base_delay * jitter
+    
+    async def ensure_connected(self) -> bool:
+        """Ensure we have an active connection."""
+        if self.connection_state == CONNECTION_STATE_CONNECTED and self.client.connected:
+            return True
+        
+        # Check if client thinks it's connected but socket might be bad
+        if self.client.connected:
+            _LOGGER.debug("Client reports connected, verifying connection...")
+            try:
+                # Quick ping by reading a register that should always work
+                result = await self.hass.async_add_executor_job(
+                    lambda: self.client.read_holding_registers(0, 1)
+                )
+                if not result.isError():
+                    _LOGGER.debug("Connection verified as healthy")
+                    return True
+            except Exception as e:
+                _LOGGER.debug(f"Connection verification failed: {e}")
+        
+        # Need to reconnect
+        return await self.connect()
+    
+    async def close(self):
+        """Close the connection."""
+        async with self.lock:
+            if self.client.connected:
+                _LOGGER.info("Closing Modbus connection")
+                try:
+                    await self.hass.async_add_executor_job(self.client.close)
+                except Exception as e:
+                    _LOGGER.error(f"Error closing connection: {e}")
+            self.connection_state = CONNECTION_STATE_DISCONNECTED
 
 
 class MidniteAPI:
     """Wrapper class for Midnite Solar Modbus communication."""
 
-    def __init__(self, hass: HomeAssistant, client: ModbusTcpClient):
+    def __init__(self, hass: HomeAssistant, host: str, port: int = 502):
         """Initialize the API wrapper."""
         self.hass = hass
-        self.client = client
+        self.host = host
+        self.port = port
+        self.connection_manager = ConnectionManager(hass, host, port)
         self.device_info = {
             "identifiers": {},
             "name": None,
@@ -93,51 +213,50 @@ class MidniteAPI:
             "manufacturer": "Midnite Solar",
         }
         # Keep connection open
-        if not client.connected:
+        if not self.connection_manager.client.connected:
             _LOGGER.info("Connecting Modbus client...")
-            self.hass.async_add_executor_job(client.connect)
+            asyncio.run_coroutine_threadsafe(
+                self.connection_manager.connect(), hass.loop
+            ).result()
 
     async def read_holding_registers(self, address: int, count: int = 1):
         """Read holding registers from the device."""
-        _LOGGER.info(f"Reading holding registers: address={address}, count={count}")
+        _LOGGER.debug(f"Reading holding registers: address={address}, count={count}")
         try:
             # Ensure connection is active
-            if not self.client.connected:
-                _LOGGER.info("Reconnecting Modbus client before read...")
-                await self.hass.async_add_executor_job(self.client.connect)
-                _LOGGER.info(f"Connection status: {self.client.connected}")
+            if not await self.connection_manager.ensure_connected():
+                _LOGGER.warning(f"Failed to establish connection for reading address {address}")
+                return None
             
-            result = await self._execute(lambda: self.client.read_holding_registers(
+            result = await self._execute(lambda: self.connection_manager.client.read_holding_registers(
                 address=address - 1,  # Modbus addresses are 0-indexed
                 count=count,
             ))
-            _LOGGER.info(f"Read result: {result}")
+            _LOGGER.debug(f"Read result: {result}")
             if result.isError():
                 _LOGGER.error(f"Modbus error reading address {address}: {result}")
                 return None
-            _LOGGER.info(f"Registers read successfully: {result.registers}")
+            _LOGGER.debug(f"Registers read successfully: {result.registers}")
             return result.registers
         except Exception as e:
             _LOGGER.error(f"Exception while reading registers at address {address}: {e}", exc_info=True)
-            # Try to reconnect on connection errors
-            try:
-                if self.client.connected:
-                    await self.hass.async_add_executor_job(self.client.close)
-                await self.hass.async_add_executor_job(self.client.connect)
-                _LOGGER.info(f"Reconnection attempt after error: {self.client.connected}")
-            except Exception as reconnect_error:
-                _LOGGER.error(f"Reconnection failed: {reconnect_error}")
+            # The connection manager will handle reconnection on next attempt
             return None
 
     async def write_register(self, address: int, value: int):
         """Write a single register to the device."""
-        _LOGGER.info(f"Writing register: address={address}, value={value}")
+        _LOGGER.debug(f"Writing register: address={address}, value={value}")
         try:
-            result = await self._execute(lambda: self.client.write_register(
+            # Ensure connection is active
+            if not await self.connection_manager.ensure_connected():
+                _LOGGER.warning(f"Failed to establish connection for writing to address {address}")
+                return False
+            
+            result = await self._execute(lambda: self.connection_manager.client.write_register(
                 address=address - 1,  # Modbus addresses are 0-indexed
                 value=value,
             ))
-            _LOGGER.info(f"Write result: {result}")
+            _LOGGER.debug(f"Write result: {result}")
             return not result.isError()
         except Exception as e:
             _LOGGER.error(f"Exception while writing register at address {address}: {e}", exc_info=True)
@@ -147,7 +266,7 @@ class MidniteAPI:
         """Read device information including serial number and model."""
         from .const import DEVICE_TYPES, REGISTER_MAP
         
-        _LOGGER.info("Reading device information...")
+        _LOGGER.debug("Reading device information...")
         
         # Read unit ID to get device type/model (register 4101)
         # This is a critical register that should always be readable
@@ -258,28 +377,25 @@ class MidniteAPI:
         max_retries = 3
         for attempt in range(max_retries):
             try:
-                _LOGGER.info(f"Executing Modbus function: {func}")
+                _LOGGER.debug(f"Executing Modbus function: {func}")
                 
                 # Ensure we're connected before executing
-                if not self.client.connected:
-                    _LOGGER.info("Reconnecting Modbus client...")
-                    await self.hass.async_add_executor_job(self.client.connect)
-                    _LOGGER.info(f"Connection status after reconnect: {self.client.connected}")
+                if not await self.connection_manager.ensure_connected():
+                    _LOGGER.warning(f"Failed to establish connection for execution (attempt {attempt + 1}/{max_retries})")
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(2)
+                    continue
                 
                 result = await self.hass.async_add_executor_job(func)
-                _LOGGER.info(f"Function executed successfully, result: {result}")
+                _LOGGER.debug(f"Function executed successfully, result: {result}")
                 return result
             except (OSError, BrokenPipeError) as e:
                 # Connection/socket errors - need to reconnect
                 _LOGGER.error(f"Connection error (attempt {attempt + 1}/{max_retries}): {e}")
-                try:
-                    await self.hass.async_add_executor_job(self.client.close)
-                except Exception as close_error:
-                    _LOGGER.debug(f"Error closing connection: {close_error}")
                 
                 if attempt < max_retries - 1:
-                    _LOGGER.info(f"Waiting {(attempt + 1) * 2} seconds before retry...")
-                    await asyncio.sleep((attempt + 1) * 2)
+                    # The connection manager will handle the backoff on next ensure_connected call
+                    await asyncio.sleep(2)
             except Exception as e:
                 # Other errors - don't close connection, just retry
                 _LOGGER.error(f"Error (attempt {attempt + 1}/{max_retries}): {e}")

@@ -89,6 +89,7 @@ class ConnectionManager:
         self.connection_state = CONNECTION_STATE_DISCONNECTED
         self.retry_count = 0
         self.last_connection_attempt = 0
+        self.last_disconnect_time = 0
         self.lock = asyncio.Lock()
         
         # Configure client with better defaults
@@ -98,6 +99,14 @@ class ConnectionManager:
     async def connect(self) -> bool:
         """Connect to the Modbus device with retry logic."""
         async with self.lock:
+            # Check if we need cooldown after previous disconnect
+            current_time = asyncio.get_event_loop().time()
+            if self.last_disconnect_time > 0:
+                time_since_disconnect = current_time - self.last_disconnect_time
+                if time_since_disconnect < 2.0:  # 2 second cooldown after disconnect
+                    _LOGGER.debug(f"Waiting for cooldown period ({time_since_disconnect:.1f}s since disconnect)")
+                    await asyncio.sleep(2.0 - time_since_disconnect)
+            
             if self.connection_state == CONNECTION_STATE_CONNECTED and self.client.connected:
                 _LOGGER.debug("Already connected")
                 return True
@@ -189,6 +198,8 @@ class ConnectionManager:
                 except Exception as e:
                     _LOGGER.error(f"Error closing connection: {e}")
             self.connection_state = CONNECTION_STATE_DISCONNECTED
+            # Record disconnect time for cooldown calculation
+            self.last_disconnect_time = asyncio.get_event_loop().time()
 
 
 class MidniteAPI:

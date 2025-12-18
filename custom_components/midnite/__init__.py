@@ -228,14 +228,18 @@ class MidniteAPI:
                 address=address - 1,  # Modbus addresses are 0-indexed
                 count=count,
             ))
+            if result is None:
+                _LOGGER.debug(f"Read operation failed for address {address}")
+                return None
+            
             _LOGGER.debug(f"Read result: {result}")
             if result.isError():
-                _LOGGER.error(f"Modbus error reading address {address}: {result}")
+                _LOGGER.warning(f"Modbus error reading address {address}: {result}")
                 return None
             _LOGGER.debug(f"Registers read successfully: {result.registers}")
             return result.registers
         except Exception as e:
-            _LOGGER.error(f"Exception while reading registers at address {address}: {e}", exc_info=True)
+            _LOGGER.debug(f"Exception while reading registers at address {address}: {e}")
             # The connection manager will handle reconnection on next attempt
             return None
 
@@ -252,10 +256,14 @@ class MidniteAPI:
                 address=address - 1,  # Modbus addresses are 0-indexed
                 value=value,
             ))
+            if result is None:
+                _LOGGER.debug(f"Write operation failed for address {address}")
+                return False
+            
             _LOGGER.debug(f"Write result: {result}")
             return not result.isError()
         except Exception as e:
-            _LOGGER.error(f"Exception while writing register at address {address}: {e}", exc_info=True)
+            _LOGGER.debug(f"Exception while writing register at address {address}: {e}")
             return False
 
     async def read_device_info(self, hostname):
@@ -387,16 +395,23 @@ class MidniteAPI:
                 return result
             except (OSError, BrokenPipeError) as e:
                 # Connection/socket errors - need to reconnect
-                _LOGGER.error(f"Connection error (attempt {attempt + 1}/{max_retries}): {e}")
+                if attempt == max_retries - 1:
+                    _LOGGER.error(f"Connection error after {max_retries} attempts: {e}")
+                else:
+                    _LOGGER.debug(f"Connection error (attempt {attempt + 1}/{max_retries}): {e}")
                 
                 if attempt < max_retries - 1:
                     # The connection manager will handle the backoff on next ensure_connected call
                     await asyncio.sleep(2)
             except Exception as e:
                 # Other errors - don't close connection, just retry
-                _LOGGER.error(f"Error (attempt {attempt + 1}/{max_retries}): {e}")
+                if attempt == max_retries - 1:
+                    _LOGGER.error(f"Error after {max_retries} attempts: {e}")
+                else:
+                    _LOGGER.debug(f"Error (attempt {attempt + 1}/{max_retries}): {e}")
                 if attempt < max_retries - 1:
                     await asyncio.sleep(1)
         
-        _LOGGER.error(f"Failed after {max_retries} attempts")
-        raise
+        # Don't raise here, just return None to indicate failure
+        _LOGGER.debug(f"Operation failed after {max_retries} attempts, returning None")
+        return None

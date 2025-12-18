@@ -165,13 +165,8 @@ class ConnectionManager:
     async def ensure_connected(self) -> bool:
         """Ensure we have an active connection."""
         if self.connection_state == CONNECTION_STATE_CONNECTED and self.client.connected:
-            return True
-        
-        # Check if client thinks it's connected but socket might be bad
-        if self.client.connected:
-            _LOGGER.debug("Client reports connected, verifying connection...")
+            # Quick health check to see if connection is actually working
             try:
-                # Quick ping by reading a register that should always work
                 result = await self.hass.async_add_executor_job(
                     lambda: self.client.read_holding_registers(0, 1)
                 )
@@ -179,7 +174,7 @@ class ConnectionManager:
                     _LOGGER.debug("Connection verified as healthy")
                     return True
             except Exception as e:
-                _LOGGER.debug(f"Connection verification failed: {e}")
+                _LOGGER.debug(f"Connection health check failed: {e}")
         
         # Need to reconnect
         return await self.connect()
@@ -390,6 +385,9 @@ class MidniteAPI:
                         await asyncio.sleep(2)
                     continue
                 
+                # Small delay before operation to ensure device is ready
+                await asyncio.sleep(0.1)
+                
                 result = await self.hass.async_add_executor_job(func)
                 _LOGGER.debug(f"Function executed successfully, result: {result}")
                 return result
@@ -405,12 +403,20 @@ class MidniteAPI:
                     await asyncio.sleep(2)
             except Exception as e:
                 # Other errors - don't close connection, just retry
-                if attempt == max_retries - 1:
+                error_msg = str(e)
+                if "Unable to decode" in error_msg or "byte_count" in error_msg:
+                    # Modbus protocol errors - these are often transient
+                    if attempt == max_retries - 1:
+                        _LOGGER.warning(f"Modbus protocol error after {max_retries} attempts: {e}")
+                    else:
+                        _LOGGER.debug(f"Modbus protocol error (attempt {attempt + 1}/{max_retries}): {e}")
+                elif attempt == max_retries - 1:
                     _LOGGER.error(f"Error after {max_retries} attempts: {e}")
                 else:
                     _LOGGER.debug(f"Error (attempt {attempt + 1}/{max_retries}): {e}")
+                
                 if attempt < max_retries - 1:
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(0.5)
         
         # Don't raise here, just return None to indicate failure
         _LOGGER.debug(f"Operation failed after {max_retries} attempts, returning None")

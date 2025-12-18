@@ -212,12 +212,8 @@ class MidniteAPI:
             "serial_number": None,
             "manufacturer": "Midnite Solar",
         }
-        # Keep connection open
-        if not self.connection_manager.client.connected:
-            _LOGGER.info("Connecting Modbus client...")
-            asyncio.run_coroutine_threadsafe(
-                self.connection_manager.connect(), hass.loop
-            ).result()
+        # Note: Connection is established lazily during first operation
+        # This prevents initialization deadlocks during Home Assistant startup
 
     async def read_holding_registers(self, address: int, count: int = 1):
         """Read holding registers from the device."""

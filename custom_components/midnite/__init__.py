@@ -58,8 +58,9 @@ async def async_setup_entry(
     # Read device information (serial number, model, etc.)
     await midnite_api.read_device_info(host)
     
-    # Store the API in runtime data
+    # Store the API in runtime data - connection stays open for sensors
     entry.runtime_data = midnite_api
+    _LOGGER.info("Midnite Solar setup complete. Connection will remain open for sensor polling.")
 
     await hass.config_entries.async_forward_entry_setups(entry, _PLATFORMS)
 

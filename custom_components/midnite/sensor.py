@@ -379,7 +379,7 @@ class FETTemperatureSensor(MidniteSolarSensor):
                         temp_value = temp_value - 65536
                     
                     # Validate temperature range (-50°C to 150°C is reasonable)
-                    if value < -50 or value > 150:
+                    if temp_value < -50 or temp_value > 150:
                         _LOGGER.warning(f"Invalid FET temperature reading: {temp_value}°C. Ignoring.")
                         return None
                     
@@ -415,7 +415,7 @@ class PCBTemperatureSensor(MidniteSolarSensor):
                         temp_value = temp_value - 65536
                     
                     # Validate temperature range (-50°C to 150°C is reasonable)
-                    if value < -50 or value > 150:
+                    if temp_value < -50 or temp_value > 150:
                         _LOGGER.warning(f"Invalid PCB temperature reading: {temp_value}°C. Ignoring.")
                         return None
                     

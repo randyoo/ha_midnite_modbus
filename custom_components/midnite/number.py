@@ -88,19 +88,15 @@ class MidniteSolarNumber(CoordinatorEntity[MidniteSolarUpdateCoordinator], Numbe
     @property
     def native_value(self) -> float | None:
         """Return the current value."""
-        if self.coordinator.data and "data" in self.coordinator.data:
-            # Find which register group contains this address
-            for group_name, registers in self.coordinator.api.REGISTER_GROUPS.items():
-                if self.register_address in registers:
-                    data = self.coordinator.data["data"].get(group_name)
-                    if data and self.register_address in data:
-                        value = data[self.register_address]
-                        # Convert from register value (divide by 10 for voltage/current)
-                        # Time values should NOT be divided by 10
-                        if hasattr(self, 'is_time_value') and self.is_time_value:
-                            return float(value)
-                        else:
-                            return float(value) / 10.0
+        # Get the raw register value from coordinator data
+        value = self.coordinator.get_register_value(self.register_address)
+        if value is not None:
+            # Convert from register value (divide by 10 for voltage/current)
+            # Time values should NOT be divided by 10
+            if hasattr(self, 'is_time_value') and self.is_time_value:
+                return float(value)
+            else:
+                return float(value) / 10.0
         return None
 
     async def _async_set_value(self, value: float) -> None:

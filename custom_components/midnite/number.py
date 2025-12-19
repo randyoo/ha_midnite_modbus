@@ -9,9 +9,10 @@ from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.const import UnitOfElectricCurrent, UnitOfTemperature, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, REGISTER_MAP
-from . import MidniteAPI
+from .coordinator import MidniteSolarUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -22,41 +23,85 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up Midnite Solar numbers."""
-    api = entry.runtime_data
+    coordinator = hass.data[DOMAIN][entry.entry_id]
     
     numbers = [
-        AbsorbVoltageNumber(api, entry),
-        FloatVoltageNumber(api, entry),
-        EqualizeVoltageNumber(api, entry),
-        BatteryCurrentLimitNumber(api, entry),
-        AbsorbTimeNumber(api, entry),
-        EqualizeTimeNumber(api, entry),
-        EqualizeIntervalDaysNumber(api, entry),
+        AbsorbVoltageNumber(coordinator, entry),
+        FloatVoltageNumber(coordinator, entry),
+        EqualizeVoltageNumber(coordinator, entry),
+        BatteryCurrentLimitNumber(coordinator, entry),
+        AbsorbTimeNumber(coordinator, entry),
+        EqualizeTimeNumber(coordinator, entry),
+        EqualizeIntervalDaysNumber(coordinator, entry),
     ]
     
     async_add_entities(numbers)
 
 
-class MidniteSolarNumber(NumberEntity):
+class MidniteSolarNumber(CoordinatorEntity[MidniteSolarUpdateCoordinator], NumberEntity):
     """Base class for all Midnite Solar numbers."""
 
     _attr_native_min_value: float | None = None
     _attr_native_max_value: float | None = None
     _attr_native_step: float | None = None
 
-    def __init__(self, api: MidniteAPI, entry: Any):
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
-        self._api = api
+        super().__init__(coordinator)
         self._entry = entry
-        # Use device_info from API if available, otherwise create basic one
-        if hasattr(api, 'device_info') and api.device_info.get('identifiers'):
-            self._attr_device_info = api.device_info
+        
+        # Create device info based on available data
+        if coordinator.data and "data" in coordinator.data:
+            # Try to extract serial number from device_info registers
+            device_info_data = coordinator.data["data"].get("device_info")
+            if device_info_data:
+                # Check for serial number (32-bit value)
+                serial_msb = device_info_data.get(REGISTER_MAP["SERIAL_NUMBER_MSB"])
+                serial_lsb = device_info_data.get(REGISTER_MAP["SERIAL_NUMBER_LSB"])
+                if serial_msb is not None and serial_lsb is not None:
+                    serial_number = (serial_msb << 16) | serial_lsb
+                    self._attr_device_info = {
+                        "identifiers": {(DOMAIN, str(serial_number))},
+                        "name": f"Midnite Solar ({serial_number})",
+                        "manufacturer": "Midnite Solar",
+                    }
+                else:
+                    # Fallback to hostname
+                    self._attr_device_info = {
+                        "identifiers": {(DOMAIN, entry.entry_id)},
+                        "name": entry.title,
+                        "manufacturer": "Midnite Solar",
+                    }
+            else:
+                self._attr_device_info = {
+                    "identifiers": {(DOMAIN, entry.entry_id)},
+                    "name": entry.title,
+                    "manufacturer": "Midnite Solar",
+                }
         else:
             self._attr_device_info = {
                 "identifiers": {(DOMAIN, entry.entry_id)},
                 "name": entry.title,
                 "manufacturer": "Midnite Solar",
             }
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        if self.coordinator.data and "data" in self.coordinator.data:
+            # Find which register group contains this address
+            for group_name, registers in self.coordinator.api.REGISTER_GROUPS.items():
+                if self.register_address in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data and self.register_address in data:
+                        value = data[self.register_address]
+                        # Convert from register value (divide by 10 for voltage/current)
+                        # Time values should NOT be divided by 10
+                        if hasattr(self, 'is_time_value') and self.is_time_value:
+                            return float(value)
+                        else:
+                            return float(value) / 10.0
+        return None
 
     async def _async_set_value(self, value: float) -> None:
         """Set the value on the device."""
@@ -66,30 +111,28 @@ class MidniteSolarNumber(NumberEntity):
             register_value = int(value)
         else:
             register_value = int(value * 10)
-        success = await self._api.write_register(self.register_address, register_value)
-        if not success:
-            _LOGGER.error(f"Failed to write value {value} to register {self.register_address}")
+        try:
+            result = await self.hass.async_add_executor_job(
+                self.coordinator.api.write_register, self.register_address, register_value
+            )
+            if not result or result.isError():
+                _LOGGER.error(f"Failed to write value {value} to register {self.register_address}")
+                return False
+        except Exception as e:
+            _LOGGER.error(f"Error writing to register {self.register_address}: {e}")
             return False
+        
+        # Request a refresh after writing
+        await self.coordinator.async_request_refresh()
         return True
-
-    async def async_update(self) -> None:
-        """Update number data from the device."""
-        registers = await self._api.read_holding_registers(self.register_address)
-        if registers:
-            # Convert from register value (divide by 10 for voltage/current)
-            # Time values should NOT be divided by 10
-            if hasattr(self, 'is_time_value') and self.is_time_value:
-                self._attr_native_value = registers[0]
-            else:
-                self._attr_native_value = registers[0] / 10.0
 
 
 class AbsorbVoltageNumber(MidniteSolarNumber):
     """Number to set absorb voltage."""
 
-    def __init__(self, api: MidniteAPI, entry: Any):
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
-        super().__init__(api, entry)
+        super().__init__(coordinator, entry)
         self._attr_name = "Absorb Voltage Setpoint"
         self._attr_unique_id = f"{entry.entry_id}_absorb_voltage"
         self._attr_native_unit_of_measurement = "V"
@@ -109,9 +152,9 @@ class AbsorbVoltageNumber(MidniteSolarNumber):
 class FloatVoltageNumber(MidniteSolarNumber):
     """Number to set float voltage."""
 
-    def __init__(self, api: MidniteAPI, entry: Any):
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
-        super().__init__(api, entry)
+        super().__init__(coordinator, entry)
         self._attr_name = "Float Voltage Setpoint"
         self._attr_unique_id = f"{entry.entry_id}_float_voltage"
         self._attr_native_unit_of_measurement = "V"
@@ -131,9 +174,9 @@ class FloatVoltageNumber(MidniteSolarNumber):
 class EqualizeVoltageNumber(MidniteSolarNumber):
     """Number to set equalize voltage."""
 
-    def __init__(self, api: MidniteAPI, entry: Any):
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
-        super().__init__(api, entry)
+        super().__init__(coordinator, entry)
         self._attr_name = "Equalize Voltage Setpoint"
         self._attr_unique_id = f"{entry.entry_id}_equalize_voltage"
         self._attr_native_unit_of_measurement = "V"
@@ -153,9 +196,9 @@ class EqualizeVoltageNumber(MidniteSolarNumber):
 class BatteryCurrentLimitNumber(MidniteSolarNumber):
     """Number to set battery output current limit."""
 
-    def __init__(self, api: MidniteAPI, entry: Any):
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
-        super().__init__(api, entry)
+        super().__init__(coordinator, entry)
         self._attr_name = "Battery Current Limit"
         self._attr_unique_id = f"{entry.entry_id}_current_limit"
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
@@ -174,9 +217,9 @@ class BatteryCurrentLimitNumber(MidniteSolarNumber):
 class AbsorbTimeNumber(MidniteSolarNumber):
     """Number to set absorb time."""
 
-    def __init__(self, api: MidniteAPI, entry: Any):
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
-        super().__init__(api, entry)
+        super().__init__(coordinator, entry)
         self._attr_name = "Absorb Time (seconds)"
         self._attr_unique_id = f"{entry.entry_id}_absorb_time"
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
@@ -196,9 +239,9 @@ class AbsorbTimeNumber(MidniteSolarNumber):
 class EqualizeTimeNumber(MidniteSolarNumber):
     """Number to set equalize time."""
 
-    def __init__(self, api: MidniteAPI, entry: Any):
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
-        super().__init__(api, entry)
+        super().__init__(coordinator, entry)
         self._attr_name = "Equalize Time (seconds)"
         self._attr_unique_id = f"{entry.entry_id}_equalize_time"
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
@@ -218,9 +261,9 @@ class EqualizeTimeNumber(MidniteSolarNumber):
 class EqualizeIntervalDaysNumber(MidniteSolarNumber):
     """Number to set equalize interval in days."""
 
-    def __init__(self, api: MidniteAPI, entry: Any):
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
-        super().__init__(api, entry)
+        super().__init__(coordinator, entry)
         self._attr_name = "Equalize Interval (days)"
         self._attr_unique_id = f"{entry.entry_id}_equalize_interval"
         self._attr_native_unit_of_measurement = UnitOfTime.DAYS

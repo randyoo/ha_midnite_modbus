@@ -200,11 +200,26 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
                     result_data[reg] = value
                     _LOGGER.debug(f"Successfully read register {reg}: {value}")
                 else:
-                    _LOGGER.warning(f"Failed to read register {reg} (group: {REGISTER_MAP.get(reg, 'unknown')})")
-                    failed_registers.append(reg)
+                    # Check if this is a known issue with certain registers
+                    reg_name = REGISTER_MAP.get(reg, 'unknown')
+                    if reg_name in ['SERIAL_NUMBER_MSB', 'SERIAL_NUMBER_LSB']:
+                        _LOGGER.info(f"Register {reg} ({reg_name}) not accessible - device may not support serial number reading")
+                        # Don't mark as failed, just skip
+                    else:
+                        _LOGGER.warning(f"Failed to read register {reg} (group: {reg_name})")
+                        failed_registers.append(reg)
             except Exception as e:
-                _LOGGER.warning(f"Exception reading register {reg}: {e}", exc_info=True)
-                failed_registers.append(reg)
+                error_msg = str(e)
+                reg_name = REGISTER_MAP.get(reg, 'unknown')
+                
+                # Special handling for serial number registers that may not be supported
+                if reg_name in ['SERIAL_NUMBER_MSB', 'SERIAL_NUMBER_LSB'] and \
+                   ('Unable to decode request' in error_msg or 'byte_count' in error_msg):
+                    _LOGGER.info(f"Register {reg} ({reg_name}) not accessible - device may not support serial number reading: {e}")
+                    # Don't mark as failed, just skip
+                else:
+                    _LOGGER.warning(f"Exception reading register {reg}: {e}", exc_info=True)
+                    failed_registers.append(reg)
 
         if failed_registers:
             _LOGGER.debug(f"Failed to read registers: {failed_registers}")

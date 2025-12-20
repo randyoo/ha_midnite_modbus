@@ -84,22 +84,34 @@ This allows valid temperatures between -50°C and 150°C to be accepted.
 
 ---
 
-### 3. Serial Number Register Failures (High Priority)
-**Error**: "All 3 attempts failed for address 20492, 20493, 4101"
-**Location**: `hub.py:69`
+### 3. Serial Number Register Failures (High Priority - INVESTIGATING)
+**Error**: "Unable to decode frame Modbus Error: [Input/Output] byte_count 2 > length of packet 1"
+**Location**: `hub.py:66`
+**Frequency**: 100+ occurrences
 
 **Analysis**:
 - Addresses 20492 and 20493 are SERIAL_NUMBER_MSB/LSB
-- Address 4101 is UNIT_ID (used for connection test)
 - These failures prevent device identification by serial number
-- May indicate these registers don't exist or are inaccessible on this device model
+- Error suggests Modbus protocol mismatch when reading these specific registers
+- This worked in commit 1ff2db4 but fails now - investigating what changed
+- May indicate:
+  - These registers don't exist on this device model
+  - Different register addressing scheme for high addresses (20492 vs typical 4xxx range)
+  - Device firmware version differences
+  - pymodbus version compatibility issue
 
 **Action Items**:
-1. Verify these register addresses in the Midnite Solar documentation
-2. Check if different device models use different register maps
-3. Add fallback mechanism when serial number registers fail
-4. Log which specific devices/models have these issues
+1. ✅ Add fallback mechanism when serial number registers fail (graceful degradation)
+2. ✅ Add detailed logging to identify specific error patterns
+3. Investigate if these registers should be read differently than standard registers
+4. Check Midnite Solar documentation for device model differences
 5. Consider making serial number optional for device identification
+6. Test with different pymodbus versions if possible
+
+**Current Workaround**:
+- Serial number registers now fail gracefully with INFO-level logging
+- Device continues to function using entry_id for identification
+- Full error details logged for diagnosis
 
 ---
 

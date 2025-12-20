@@ -63,7 +63,14 @@ class MidniteHub:
                     return result
                 _LOGGER.warning(f"Attempt {attempt + 1} failed for address {address}: {result}")
             except Exception as e:
-                _LOGGER.warning(f"Attempt {attempt + 1} exception for address {address}: {e}")
+                # Special handling for "Unable to decode request" errors
+                error_msg = str(e)
+                if "Unable to decode request" in error_msg or "byte_count" in error_msg:
+                    _LOGGER.warning(f"Attempt {attempt + 1} exception for address {address}: {e}")
+                    _LOGGER.debug(f"This may indicate a Modbus protocol issue with this register range")
+                else:
+                    _LOGGER.warning(f"Attempt {attempt + 1} exception for address {address}: {e}")
+                
                 if attempt < max_retries - 1:
                     backoff_time = 0.2 * (attempt + 1)  # Increased exponential backoff
                     _LOGGER.debug(f"Waiting {backoff_time}s before retry {attempt + 2}")

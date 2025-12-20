@@ -84,7 +84,7 @@ class MidniteSolarSensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], Senso
             device_info_data = self.coordinator.data["data"].get("device_info")
             if device_info_data:
                 device_id_lsw = device_info_data.get(REGISTER_MAP["DEVICE_ID_LSW"])
-                device_id_msw = device_info_data.get(REGISTER_MAP["DEVICE_ID_MSB"])
+                device_id_msw = device_info_data.get(REGISTER_MAP["DEVICE_ID_MSW"])
                 if device_id_lsw is not None and device_id_msw is not None:
                     device_id = (device_id_msw << 16) | device_id_lsw
                     return {

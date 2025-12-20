@@ -11,7 +11,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, FORCE_FLAGS, REGISTER_MAP
+from .const import DEVICE_TYPES, DOMAIN, FORCE_FLAGS, REGISTER_MAP
 from .coordinator import MidniteSolarUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)

@@ -69,40 +69,36 @@ class MidniteSolarSensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], Senso
         super().__init__(coordinator)
         self._entry = entry
         
-        # Create device info based on available data
-        if coordinator.data and "data" in coordinator.data:
-            # Try to extract serial number from device_info registers
-            device_info_data = coordinator.data["data"].get("device_info")
+        # Create device info - will be updated dynamically when data becomes available
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, entry.entry_id)},
+            "name": entry.title,
+            "manufacturer": "Midnite Solar",
+        }
+
+    @property
+    def device_info(self):
+        """Return dynamic device info with serial number if available."""
+        # Try to get serial number from coordinator data
+        if self.coordinator.data and "data" in self.coordinator.data:
+            device_info_data = self.coordinator.data["data"].get("device_info")
             if device_info_data:
-                # Check for serial number (32-bit value)
                 serial_msb = device_info_data.get(REGISTER_MAP["SERIAL_NUMBER_MSB"])
                 serial_lsb = device_info_data.get(REGISTER_MAP["SERIAL_NUMBER_LSB"])
                 if serial_msb is not None and serial_lsb is not None:
                     serial_number = (serial_msb << 16) | serial_lsb
-                    self._attr_device_info = {
+                    return {
                         "identifiers": {(DOMAIN, str(serial_number))},
                         "name": f"Midnite Solar ({serial_number})",
                         "manufacturer": "Midnite Solar",
                     }
-                else:
-                    # Fallback to hostname
-                    self._attr_device_info = {
-                        "identifiers": {(DOMAIN, entry.entry_id)},
-                        "name": entry.title,
-                        "manufacturer": "Midnite Solar",
-                    }
-            else:
-                self._attr_device_info = {
-                    "identifiers": {(DOMAIN, entry.entry_id)},
-                    "name": entry.title,
-                    "manufacturer": "Midnite Solar",
-                }
-        else:
-            self._attr_device_info = {
-                "identifiers": {(DOMAIN, entry.entry_id)},
-                "name": entry.title,
-                "manufacturer": "Midnite Solar",
-            }
+        
+        # Fallback to entry_id if serial number not available
+        return {
+            "identifiers": {(DOMAIN, self._entry.entry_id)},
+            "name": self._entry.title,
+            "manufacturer": "Midnite Solar",
+        }
 
     @property
     def native_value(self) -> Optional[float]:

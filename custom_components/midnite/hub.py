@@ -2,6 +2,7 @@
 
 import logging
 import threading
+import time
 from typing import Optional
 
 from pymodbus.client import ModbusTcpClient
@@ -45,11 +46,25 @@ class MidniteHub:
         )
 
     def read_holding_registers(self, address: int, count: int = 1):
-        """Read holding registers."""
+        """Read holding registers with retry logic."""
         _LOGGER.debug(f"Reading unit 1 address {address} count {count}")
         # Midnite devices use unit_id 1 by default
-        return self._client.read_holding_registers(
-            address=address - 1,  # Modbus addresses are 0-indexed
-            count=count,
-            device_id=1,
-        )
+        
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                result = self._client.read_holding_registers(
+                    address=address - 1,  # Modbus addresses are 0-indexed
+                    count=count,
+                    device_id=1,
+                )
+                if result is not None and not result.isError():
+                    return result
+                _LOGGER.debug(f"Attempt {attempt + 1} failed: {result}")
+            except Exception as e:
+                _LOGGER.debug(f"Attempt {attempt + 1} exception: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(0.1 * (attempt + 1))  # Exponential backoff
+        
+        _LOGGER.error(f"All {max_retries} attempts failed for address {address}")
+        return None

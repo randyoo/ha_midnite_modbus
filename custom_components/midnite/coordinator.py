@@ -63,6 +63,19 @@ REGISTER_GROUPS = {
     "diagnostics": [
         REGISTER_MAP["REASON_FOR_RESTING"],
     ],
+    # Add setpoint registers for number entities
+    "setpoints": [
+        REGISTER_MAP["ABSORB_SETPOINT_VOLTAGE"],
+        REGISTER_MAP["FLOAT_VOLTAGE_SETPOINT"],
+        REGISTER_MAP["EQUALIZE_VOLTAGE_SETPOINT"],
+        REGISTER_MAP["BATTERY_OUTPUT_CURRENT_LIMIT"],
+    ],
+    # Add EEPROM time settings for number entities
+    "eeprom_settings": [
+        REGISTER_MAP["ABSORB_TIME_EEPROM"],
+        REGISTER_MAP["EQUALIZE_TIME_EEPROM"],
+        REGISTER_MAP["EQUALIZE_INTERVAL_DAYS_EEPROM"],
+    ],
 }
 
 
@@ -98,7 +111,34 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
         # Ensure connection is active
         if not self.api.is_still_connected():
             _LOGGER.debug("Connection not active, attempting to reconnect")
-            await self.hass.async_add_executor_job(self.api.connect)
+            try:
+                await self.hass.async_add_executor_job(self.api.connect)
+            except Exception as e:
+                _LOGGER.error(f"Failed to connect: {e}")
+                raise UpdateFailed(f"Cannot connect to device: {e}") from e
+        
+        # Test connection with a simple read before proceeding
+        try:
+            test_result = await self.hass.async_add_executor_job(
+                self.api.read_holding_registers, REGISTER_MAP["UNIT_ID"], 1
+            )
+            if test_result is None or test_result.isError():
+                _LOGGER.error("Connection test failed - device not responding")
+                raise UpdateFailed("Device not responding to connection test")
+        except Exception as e:
+            _LOGGER.error(f"Connection test failed: {e}")
+            # Try to reconnect once more
+            try:
+                await self.hass.async_add_executor_job(self.api.disconnect)
+                await self.hass.async_add_executor_job(self.api.connect)
+                test_result = await self.hass.async_add_executor_job(
+                    self.api.read_holding_registers, REGISTER_MAP["UNIT_ID"], 1
+                )
+                if test_result is None or test_result.isError():
+                    raise UpdateFailed("Device not responding after reconnect attempt")
+            except Exception as e2:
+                _LOGGER.error(f"Reconnect failed: {e2}")
+                raise UpdateFailed(f"Cannot communicate with device: {e2}") from e2
 
         # Read all register groups
         for group_name, registers in REGISTER_GROUPS.items():

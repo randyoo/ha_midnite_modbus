@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any, Optional
 
 from homeassistant.components.sensor import (
@@ -78,7 +79,7 @@ class MidniteSolarSensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], Senso
 
     @property
     def device_info(self):
-        """Return dynamic device info with device ID if available."""
+        """Return dynamic device info with device ID and model if available."""
         # Try to get device ID from coordinator data (registers 4111-4112)
         if self.coordinator.data and "data" in self.coordinator.data:
             device_info_data = self.coordinator.data["data"].get("device_info")
@@ -87,13 +88,22 @@ class MidniteSolarSensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], Senso
                 device_id_msw = device_info_data.get(REGISTER_MAP["DEVICE_ID_MSW"])
                 if device_id_lsw is not None and device_id_msw is not None:
                     device_id = (device_id_msw << 16) | device_id_lsw
+                    # Try to get device model from UNIT_ID register
+                    unit_id_value = device_info_data.get(REGISTER_MAP["UNIT_ID"])
+                    if unit_id_value is not None:
+                        device_type = unit_id_value & 0xFF  # Get LSB (unit type)
+                        model = DEVICE_TYPES.get(device_type, f"Unknown ({device_type})")
+                    else:
+                        model = "Midnite Solar Device"
+                    
                     return {
                         "identifiers": {(DOMAIN, str(device_id))},
-                        "name": f"Midnite Solar ({device_id})",
+                        "name": f"{model} ({device_id})",
                         "manufacturer": "Midnite Solar",
+                        "model": model,
                     }
         
-        # Fallback to entry_id if serial number not available
+        # Fallback to entry_id if device ID not available
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
             "name": self._entry.title,
@@ -324,6 +334,8 @@ class BatteryTemperatureSensor(MidniteSolarSensor):
         self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
+        self._last_temp: Optional[float] = None
+        self._last_time: Optional[float] = None
 
     @property
     def native_value(self) -> Optional[float]:
@@ -343,6 +355,23 @@ class BatteryTemperatureSensor(MidniteSolarSensor):
                         _LOGGER.warning(f"Invalid battery temperature reading: {temp_value}°C. Ignoring.")
                         return None
                     
+                    # Check for sudden temperature changes (>0.5°C per second)
+                    current_time = time.time()
+                    if self._last_temp is not None and self._last_time is not None:
+                        time_diff = current_time - self._last_time
+                        if time_diff > 0:  # Avoid division by zero
+                            temp_change_rate = abs(temp_value - self._last_temp) / time_diff
+                            if temp_change_rate > 0.5:  # More than 0.5°C per second
+                                _LOGGER.warning(
+                                    f"Sudden battery temperature change detected: {self._last_temp}°C -> {temp_value}°C "
+                                    f"({temp_change_rate:.2f}°C/s over {time_diff:.1f}s). Possible sensor error. Ignoring reading."
+                                )
+                                return None
+                    
+                    # Update last values
+                    self._last_temp = temp_value
+                    self._last_time = current_time
+                    
                     return temp_value
         return None
 
@@ -360,6 +389,8 @@ class FETTemperatureSensor(MidniteSolarSensor):
         self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
+        self._last_temp: Optional[float] = None
+        self._last_time: Optional[float] = None
 
     @property
     def native_value(self) -> Optional[float]:
@@ -379,6 +410,23 @@ class FETTemperatureSensor(MidniteSolarSensor):
                         _LOGGER.warning(f"Invalid FET temperature reading: {temp_value}°C. Ignoring.")
                         return None
                     
+                    # Check for sudden temperature changes (>0.5°C per second)
+                    current_time = time.time()
+                    if self._last_temp is not None and self._last_time is not None:
+                        time_diff = current_time - self._last_time
+                        if time_diff > 0:  # Avoid division by zero
+                            temp_change_rate = abs(temp_value - self._last_temp) / time_diff
+                            if temp_change_rate > 0.5:  # More than 0.5°C per second
+                                _LOGGER.warning(
+                                    f"Sudden FET temperature change detected: {self._last_temp}°C -> {temp_value}°C "
+                                    f"({temp_change_rate:.2f}°C/s over {time_diff:.1f}s). Possible sensor error. Ignoring reading."
+                                )
+                                return None
+                    
+                    # Update last values
+                    self._last_temp = temp_value
+                    self._last_time = current_time
+                    
                     return temp_value
         return None
 
@@ -396,6 +444,8 @@ class PCBTemperatureSensor(MidniteSolarSensor):
         self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
+        self._last_temp: Optional[float] = None
+        self._last_time: Optional[float] = None
 
     @property
     def native_value(self) -> Optional[float]:
@@ -414,6 +464,23 @@ class PCBTemperatureSensor(MidniteSolarSensor):
                     if temp_value < -50 or temp_value > 150:
                         _LOGGER.warning(f"Invalid PCB temperature reading: {temp_value}°C. Ignoring.")
                         return None
+                    
+                    # Check for sudden temperature changes (>0.5°C per second)
+                    current_time = time.time()
+                    if self._last_temp is not None and self._last_time is not None:
+                        time_diff = current_time - self._last_time
+                        if time_diff > 0:  # Avoid division by zero
+                            temp_change_rate = abs(temp_value - self._last_temp) / time_diff
+                            if temp_change_rate > 0.5:  # More than 0.5°C per second
+                                _LOGGER.warning(
+                                    f"Sudden PCB temperature change detected: {self._last_temp}°C -> {temp_value}°C "
+                                    f"({temp_change_rate:.2f}°C/s over {time_diff:.1f}s). Possible sensor error. Ignoring reading."
+                                )
+                                return None
+                    
+                    # Update last values
+                    self._last_temp = temp_value
+                    self._last_time = current_time
                     
                     return temp_value
         return None

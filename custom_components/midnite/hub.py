@@ -42,7 +42,7 @@ class MidniteHub:
         return self._client.write_register(
             address=address - 1,  # Modbus addresses are 0-indexed
             value=value,
-            device_id=1,
+            # device_id=1,  # Removed - may cause issues with certain registers
         )
 
     def read_holding_registers(self, address: int, count: int = 1):
@@ -53,10 +53,15 @@ class MidniteHub:
         max_retries = 5  # Increased from 3 to 5 for better reliability
         for attempt in range(max_retries):
             try:
+                # Ensure connection is active before reading
+                if not self._client.is_socket_open():
+                    _LOGGER.debug(f"Connection closed, reconnecting before read attempt {attempt + 1}")
+                    self.connect()
+                
                 result = self._client.read_holding_registers(
                     address=address - 1,  # Modbus addresses are 0-indexed
                     count=count,
-                    device_id=1,
+                    # device_id=1,  # Removed - may cause issues with certain registers like 20492/20493
                 )
                 if result is not None and not result.isError():
                     _LOGGER.debug(f"Successfully read address {address}: {result.registers}")
@@ -68,6 +73,10 @@ class MidniteHub:
                 if "Unable to decode request" in error_msg or "byte_count" in error_msg:
                     _LOGGER.warning(f"Attempt {attempt + 1} exception for address {address}: {e}")
                     _LOGGER.debug(f"This may indicate a Modbus protocol issue with this register range")
+                    # Try to reset connection on protocol errors
+                    if attempt < max_retries - 1:
+                        _LOGGER.debug("Closing and reopening connection due to protocol error")
+                        self.disconnect()
                 else:
                     _LOGGER.warning(f"Attempt {attempt + 1} exception for address {address}: {e}")
                 

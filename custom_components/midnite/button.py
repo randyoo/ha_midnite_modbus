@@ -54,18 +54,18 @@ class MidniteSolarButton(CoordinatorEntity[MidniteSolarUpdateCoordinator], Butto
 
     @property
     def device_info(self):
-        """Return dynamic device info with serial number if available."""
-        # Try to get serial number from coordinator data
+        """Return dynamic device info with device ID if available."""
+        # Try to get device ID from coordinator data (registers 4111-4112)
         if self.coordinator.data and "data" in self.coordinator.data:
             device_info_data = self.coordinator.data["data"].get("device_info")
             if device_info_data:
-                serial_msb = device_info_data.get(REGISTER_MAP["SERIAL_NUMBER_MSB"])
-                serial_lsb = device_info_data.get(REGISTER_MAP["SERIAL_NUMBER_LSB"])
-                if serial_msb is not None and serial_lsb is not None:
-                    serial_number = (serial_msb << 16) | serial_lsb
+                device_id_lsw = device_info_data.get(REGISTER_MAP["DEVICE_ID_LSW"])
+                device_id_msw = device_info_data.get(REGISTER_MAP["DEVICE_ID_MSW"])
+                if device_id_lsw is not None and device_id_msw is not None:
+                    device_id = (device_id_msw << 16) | device_id_lsw
                     return {
-                        "identifiers": {(DOMAIN, str(serial_number))},
-                        "name": f"Midnite Solar ({serial_number})",
+                        "identifiers": {(DOMAIN, str(device_id))},
+                        "name": f"Midnite Solar ({device_id})",
                         "manufacturer": "Midnite Solar",
                     }
         

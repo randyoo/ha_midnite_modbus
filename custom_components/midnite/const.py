@@ -52,9 +52,9 @@ REGISTER_MAP = {
     # Force flags (write-only)
     "FORCE_FLAG_BITS": 4160,
     
-    # Serial number (from registers2.json: addresses 20492 and 20493)
-    "SERIAL_NUMBER_MSB": 20492,
-    "SERIAL_NUMBER_LSB": 20493,
+    # NOTE: Registers 20492/20493 (SERIAL_NUMBER_MSB/LSB) have been removed
+    # These registers caused Modbus protocol errors and are not reliably accessible
+    # We now use DEVICE_ID (registers 4111-4112) as the serial number identifier instead
     
     # Unit name (ASCII, 8 characters from registers 4210-4213)
     "UNIT_NAME_0": 4210,

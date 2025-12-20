@@ -18,7 +18,7 @@ except ImportError:
     # Fallback to old import path for older versions
     from homeassistant.components.dhcp import DhcpServiceInfo
 
-from .const import DEFAULT_PORT, DOMAIN
+from .const import DEFAULT_PORT, DOMAIN, DEFAULT_SCAN_INTERVAL, CONF_SCAN_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -119,6 +119,7 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
                     data_schema=vol.Schema({
                         vol.Required(CONF_HOST): str,
                         vol.Required(CONF_PORT, default=DEFAULT_PORT): int,
+                        vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): int,
                     }),
                     errors=errors,
                 )
@@ -160,9 +161,19 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
                 else:
                     title = user_input.get(CONF_NAME, f"Midnite Solar @ {user_input[CONF_HOST]}")
                 
+                # Separate scan_interval from data to store in options
+                entry_data = {
+                    CONF_HOST: user_input[CONF_HOST],
+                    CONF_PORT: user_input.get(CONF_PORT, DEFAULT_PORT),
+                }
+                entry_options = {}
+                if CONF_SCAN_INTERVAL in user_input:
+                    entry_options[CONF_SCAN_INTERVAL] = user_input[CONF_SCAN_INTERVAL]
+                
                 return self.async_create_entry(
                     title=title,
-                    data=user_input
+                    data=entry_data,
+                    options=entry_options
                 )
 
         # Show appropriate form based on discovery status
@@ -190,10 +201,33 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
                 data_schema=vol.Schema({
                     vol.Required(CONF_HOST): str,
                     vol.Required(CONF_PORT, default=DEFAULT_PORT): int,
+                    vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): int,
                 }),
                 errors=errors,
             )
             return result
+
+    async def async_step_options(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Handle options update."""
+        if user_input is not None:
+            return self.async_create_entry(
+                title="",
+                data=user_input,
+            )
+        
+        # Get current options from the config entry
+        entry = self._get_current_entries()[0]
+        current_options = entry.options
+        
+        return self.async_show_form(
+            step_id="options",
+            data_schema=vol.Schema({
+                vol.Optional(
+                    CONF_SCAN_INTERVAL, 
+                    default=current_options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+                ): int,
+            }),
+        )
 
     async def async_step_import(self, user_input: dict[str, Any]) -> ConfigFlowResult:
         """Handle import from YAML configuration."""

@@ -1,118 +1,167 @@
-# Implementation Summary: Connection Management Fix
+# Implementation Summary: Configurable Sensor Update Interval
 
-## Problem Statement
-After restarting Home Assistant, the Midnite Solar integration would experience connection issues for approximately 40 minutes before stabilizing. Errors included:
-- "Connection reset by peer"
-- "Bad file descriptor"
-- "Modbus Error: [Input/Output] byte_count 2 > length of packet 1"
-- Multiple connection-related errors
+## Objective
+Make the sensor update interval configurable by users through the Home Assistant configuration flow.
 
-## Root Causes Identified
+## Files Modified
 
-1. **Aggressive retry timing**: Fixed 2-second delays between retries overwhelmed the device
-2. **No exponential backoff**: Retry intervals didn't increase over time
-3. **Poor connection state management**: No tracking of connection state or concurrent attempts
-4. **Short timeout values**: 5-second timeout was too aggressive for Modbus devices
-5. **Improper socket cleanup**: Led to "bad file descriptor" errors
-6. **Excessive logging**: INFO-level logs for every operation created noise
+### 1. `custom_components/midnite/const.py`
+**Changes:**
+- Added `CONF_SCAN_INTERVAL = "scan_interval"` (line 6)
+- Added `DEFAULT_SCAN_INTERVAL = 15` (line 7)
 
-## Solution Implemented
+**Purpose:** Define constants for the scan interval configuration.
 
-### 1. New ConnectionManager Class
-Created a dedicated `ConnectionManager` class that:
-- Encapsulates all connection logic
-- Tracks connection state (CONNECTED, DISCONNECTED, RECONNECTING)
-- Implements exponential backoff with jitter
-- Uses async locks to prevent concurrent connection attempts
-- Provides proper socket cleanup
+### 2. `custom_components/midnite/config_flow.py`
+**Changes:**
+- Line 21: Imported new constants
+- Lines 122, 204: Added optional scan_interval field to manual configuration forms
+- Lines 168-175: Modified entry creation to store scan_interval in options instead of data
+- Lines 219-235: Added `async_step_options` method for post-setup configuration updates
 
-### 2. Exponential Backoff Algorithm
-```python
-Retry schedule:
-- Attempt 1: 0s delay (immediate)
-- Attempt 2: 2s ± 20% jitter
-- Attempt 3: 4s ± 20% jitter
-- Attempt 4: 8s ± 20% jitter
-- Attempt 5+: 16s, 32s, 64s (capped at 120s max)
+**Purpose:** 
+- Allow users to set scan interval during initial setup
+- Enable users to update scan interval after setup via UI
+- Store user preferences in config entry options
+
+### 3. `custom_components/midnite/__init__.py`
+**Changes:**
+- Line 31: Read scan_interval from entry.options
+- Line 55: Register update_listener for handling options changes
+- Lines 70-74: Added update_listener function to reload integration on options change
+
+**Purpose:**
+- Use the configured scan interval when initializing the coordinator
+- Automatically reload integration when user updates options
+
+## Key Features
+
+### 1. User Configurable Interval
+- Users can set any integer value for scan interval in seconds
+- Default value is 15 seconds (maintained for backward compatibility)
+- Available during both manual setup and DHCP discovery flows
+
+### 2. Post-Setup Configuration
+- Users can update the scan interval after initial setup
+- No need to remove and re-add the integration
+- Changes take effect immediately with automatic reload
+
+### 3. Proper Data Structure
+- Configuration data (host, port) stored in `entry.data`
+- User preferences (scan_interval) stored in `entry.options`
+- Follows Home Assistant best practices for config entry structure
+
+### 4. Automatic Reload
+- Integration automatically reloads when options are updated
+- New coordinator created with updated interval
+- Seamless transition without manual intervention
+
+## Validation
+
+Run the validation script to verify all changes:
+```bash
+python validate_changes.py
 ```
 
-### 3. Connection Health Monitoring
-- Added `ensure_connected()` method that verifies connection health
-- Implements connection ping by reading a register before operations
-- Automatically reconnects when needed
+Expected output:
+```
+======================================================================
+VALIDATING SCAN_INTERVAL CONFIGURATION CHANGES
+======================================================================
+Checking constants.py...
+  ✓ CONF_SCAN_INTERVAL = scan_interval
+  ✓ DEFAULT_SCAN_INTERVAL = 15
 
-### 4. Improved Configuration
-- Increased timeout from 5 to 10 seconds
-- Better default retry settings (3 retries)
+Checking config_flow.py...
+  ✓ Imports constants
+  ✓ Has scan_interval in form
+  ✓ Has options flow method
+  ✓ Stores scan_interval in options
 
-### 5. Logging Improvements
-- Reduced verbose INFO logs to DEBUG level
-- Kept critical connection events at INFO level
-- Added more detailed error logging
+Checking __init__.py...
+  ✓ Reads scan_interval from options
+  ✓ Registers update listener
+  ✓ Has update_listener function
 
-## Code Changes
+======================================================================
+SUMMARY
+======================================================================
+Constants: ✓ PASSED
+Config Flow: ✓ PASSED
+Init File: ✓ PASSED
+======================================================================
 
-### Modified Files
-- `custom_components/midnite/__init__.py` - Main implementation file
+✓ ALL VALIDATION CHECKS PASSED!
+```
 
-### Key Changes
-1. Added imports: `random`, `Optional` type hint
-2. Added connection state constants
-3. Created `ConnectionManager` class with:
-   - `__init__`: Initializes client and connection tracking
-   - `connect()`: Connects with exponential backoff
-   - `_calculate_backoff()`: Computes retry delay with jitter
-   - `ensure_connected()`: Verifies and ensures healthy connection
-   - `close()`: Properly closes connection
-4. Updated `MidniteAPI` class:
-   - Now takes `host` and `port` instead of client instance
-   - Uses `ConnectionManager` for all connection operations
-5. Updated `async_setup_entry()`:
-   - Simplified to use new ConnectionManager
-6. Updated `async_unload_entry()`:
-   - Uses connection manager's close method
-7. Updated `read_holding_registers()`:
-   - Uses `ensure_connected()` before operations
-   - Reduced logging verbosity
-8. Updated `write_register()`:
-   - Uses `ensure_connected()` before operations
-9. Updated `_execute()`:
-   - Uses connection manager for connection verification
-10. Updated `read_device_info()`:
-    - Reduced logging verbosity
+## User Experience Flow
 
-## Expected Outcomes
+### Initial Setup (Manual)
+1. User navigates to Home Assistant Settings > Devices & Services
+2. Clicks "Add Integration" and selects Midnite Solar
+3. Enters host, port, and optionally scan interval
+4. Saves configuration
+5. Integration is set up with specified scan interval
 
-1. **Faster stabilization**: Connections should stabilize within minutes instead of 40+ minutes
-2. **Reduced error logs**: Better connection handling means fewer transient errors
-3. **More respectful to device**: Exponential backoff prevents overwhelming the device
-4. **Better resource management**: Proper socket cleanup prevents "bad file descriptor" errors
-5. **Improved reliability**: Connection verification ensures we don't use stale connections
-6. **Cleaner logs**: DEBUG-level logging reduces noise while keeping critical events visible
+### Initial Setup (DHCP Discovery)
+1. Device is discovered automatically via DHCP
+2. User confirms discovery in Home Assistant UI
+3. Scan interval defaults to 15 seconds
+4. Integration is set up
+
+### Updating After Setup
+1. User navigates to Settings > Devices & Services
+2. Finds Midnite Solar integration and clicks "Configure"
+3. Sees options form with current scan interval value
+4. Updates the scan interval as needed
+5. Saves changes
+6. Integration automatically reloads with new settings
+
+## Technical Implementation Details
+
+### Coordinator Initialization
+The `MidniteSolarUpdateCoordinator` receives the interval and uses it to set the update frequency:
+```python
+def __init__(self, hass, host, port, interval=15):
+    super().__init__(
+        hass,
+        _LOGGER,
+        name=DOMAIN,
+        update_interval=timedelta(seconds=interval)
+    )
+```
+
+### Options Management
+- **Reading options:** `entry.options.get("scan_interval", 15)`
+- **Storing options:** Passed to `async_create_entry` via the `options` parameter
+- **Updating options:** Handled by `async_step_options` method
+- **Reloading on change:** Managed by `update_listener` function
+
+## Benefits
+
+1. **Flexibility**: Users can optimize polling frequency for their specific needs
+2. **Performance**: Reduce network load with longer intervals or get real-time data with shorter intervals
+3. **User-Friendly**: Intuitive configuration through Home Assistant UI
+4. **Persistent**: Settings survive restarts and updates
+5. **Dynamic**: Changes can be made without service interruption
+6. **Backward Compatible**: Existing installations continue to work with default 15-second interval
 
 ## Testing Recommendations
 
-1. **Restart Home Assistant** and monitor connection logs
-2. Verify that errors stop within a few minutes (not 40)
-3. Check for proper exponential backoff in logs:
-   - "Waiting X.X seconds before connection attempt Y"
-   - Delays should follow: ~2s, ~4s, ~8s pattern
-4. Ensure no "bad file descriptor" errors appear
-5. Verify all sensors still update correctly after connection issues
-6. Check that the integration recovers from network interruptions
-7. Monitor CPU/memory usage to ensure no resource leaks
+1. **Manual Setup Test**:
+   - Add integration manually with custom scan interval
+   - Verify coordinator uses the specified interval
+   
+2. **DHCP Discovery Test**:
+   - Discover device via DHCP
+   - Verify default 15-second interval is used
+   - Update via options flow and verify change takes effect
+   
+3. **Options Update Test**:
+   - Change scan interval after setup
+   - Verify integration reloads automatically
+   - Confirm new interval is active in logs
 
-## Backward Compatibility
+## Conclusion
 
-The changes are fully backward compatible:
-- No changes to configuration schema
-- No changes to entity names or IDs
-- No changes to platform implementations (sensor, button, number)
-- Existing configurations will work without modification
-
-## Rollback Plan
-
-If issues arise:
-1. Revert the `__init__.py` file to the previous version
-2. The integration will fall back to the original connection behavior
-3. No data loss or configuration changes occur during rollback
+The implementation successfully adds user-configurable sensor update intervals to the Midnite Solar integration while maintaining backward compatibility and following Home Assistant best practices for configuration management.

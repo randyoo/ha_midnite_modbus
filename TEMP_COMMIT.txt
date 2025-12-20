@@ -1,0 +1,31 @@
+Add device model to device_info and implement temperature sanity checks
+
+## Changes Made
+
+### 1. Device Info Enhancement (sensor.py, button.py, number.py)
+- Added 'model' field to device_info property using UNIT_ID register
+- Device type is now properly displayed in Home Assistant device registry
+- Example: "Classic 250" instead of just showing as a sensor value
+
+### 2. Temperature Sanity Checks (sensor.py)
+- Added rate-of-change detection for all three temperature sensors:
+  - BatteryTemperatureSensor
+  - FETTemperatureSensor  
+  - PCBTemperatureSensor
+- Detects sudden changes >0.5°C per second
+- Logs detailed warnings when wild fluctuations are detected
+- Filters out invalid readings to prevent false data
+- Example: 82.9°C -> 106.7°C in 4 seconds would trigger a warning and be ignored
+
+### 3. Implementation Details
+- Added _last_temp and _last_time instance variables to track previous readings
+- Uses time.time() for precise timing measurements
+- Calculates temperature change rate: |temp_diff| / time_diff
+- Threshold of 0.5°C/s is conservative but catches obvious sensor errors
+- Maintains existing range validation (-50°C to 150°C)
+
+## Benefits
+✅ Device model now appears in device registry (not just as a sensor)
+✅ Prevents wild temperature fluctuations from being displayed
+✅ Detailed logging helps diagnose sensor issues
+✅ More reliable data for home automation systems

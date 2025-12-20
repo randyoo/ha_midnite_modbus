@@ -51,6 +51,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await hass.config_entries.async_forward_entry_setups(entry, _PLATFORMS)
 
+    # Register update listener to handle options changes
+    entry.add_update_listener(update_listener)
+
     return True
 
 
@@ -62,3 +65,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await hass.async_add_executor_job(coordinator.api.disconnect)
 
     return unload_ok
+
+
+async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Handle options updates."""
+    _LOGGER.info("Options updated, reloading Midnite Solar integration")
+    
+    await hass.config_entries.async_reload(entry.entry_id)
+    return True

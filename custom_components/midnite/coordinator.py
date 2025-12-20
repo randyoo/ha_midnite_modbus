@@ -105,6 +105,8 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self) -> Dict[str, Any]:
         """Fetch all device and sensor data from api."""
+        import asyncio
+        
         data = {}
         unavailable_entities = {}
 
@@ -113,31 +115,47 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.debug("Connection not active, attempting to reconnect")
             try:
                 await self.hass.async_add_executor_job(self.api.connect)
+                # Add delay after connect to allow device to respond
+                await asyncio.sleep(0.5)
             except Exception as e:
                 _LOGGER.error(f"Failed to connect: {e}")
                 raise UpdateFailed(f"Cannot connect to device: {e}") from e
         
         # Test connection with a simple read before proceeding
+        # Made less aggressive - only retry once and provide detailed logging
         try:
+            _LOGGER.debug(f"Testing connection by reading UNIT_ID register ({REGISTER_MAP['UNIT_ID']})")
             test_result = await self.hass.async_add_executor_job(
                 self.api.read_holding_registers, REGISTER_MAP["UNIT_ID"], 1
             )
             if test_result is None or test_result.isError():
-                _LOGGER.error("Connection test failed - device not responding")
+                _LOGGER.error(f"Connection test failed - device not responding. Result: {test_result}")
                 raise UpdateFailed("Device not responding to connection test")
+            else:
+                unit_id = test_result.registers[0] if test_result.registers else None
+                _LOGGER.debug(f"Connection test successful. UNIT_ID: {unit_id}")
         except Exception as e:
-            _LOGGER.error(f"Connection test failed: {e}")
-            # Try to reconnect once more
+            _LOGGER.error(f"Connection test failed with exception: {e}", exc_info=True)
+            # Try to reconnect once more with detailed logging
             try:
+                _LOGGER.debug("Attempting reconnect...")
                 await self.hass.async_add_executor_job(self.api.disconnect)
+                await asyncio.sleep(0.3)  # Brief pause before reconnect
                 await self.hass.async_add_executor_job(self.api.connect)
+                await asyncio.sleep(0.5)  # Allow device to respond after reconnect
+                
+                _LOGGER.debug("Testing connection again after reconnect...")
                 test_result = await self.hass.async_add_executor_job(
                     self.api.read_holding_registers, REGISTER_MAP["UNIT_ID"], 1
                 )
                 if test_result is None or test_result.isError():
+                    _LOGGER.error(f"Connection test still failing after reconnect. Result: {test_result}")
                     raise UpdateFailed("Device not responding after reconnect attempt")
+                else:
+                    unit_id = test_result.registers[0] if test_result.registers else None
+                    _LOGGER.debug(f"Reconnect successful. UNIT_ID: {unit_id}")
             except Exception as e2:
-                _LOGGER.error(f"Reconnect failed: {e2}")
+                _LOGGER.error(f"Reconnect failed: {e2}", exc_info=True)
                 raise UpdateFailed(f"Cannot communicate with device: {e2}") from e2
 
         # Read all register groups
@@ -162,25 +180,34 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
         }
 
     async def _read_register_group(self, registers: List[int]) -> Optional[Dict[int, Any]]:
-        """Read a group of registers."""
+        """Read a group of registers with enhanced debug logging."""
         if not registers:
             return None
 
         # Sort and deduplicate registers
         sorted_regs = sorted(set(registers))
         result_data = {}
+        failed_registers = []
 
         for reg in sorted_regs:
             try:
+                _LOGGER.debug(f"Reading register {reg} (group: {REGISTER_MAP.get(reg, 'unknown')})")
                 result = await self.hass.async_add_executor_job(
                     self.api.read_holding_registers, reg, 1
                 )
                 if result is not None and not result.isError():
-                    result_data[reg] = result.registers[0]
+                    value = result.registers[0]
+                    result_data[reg] = value
+                    _LOGGER.debug(f"Successfully read register {reg}: {value}")
                 else:
-                    _LOGGER.debug(f"Failed to read register {reg}")
+                    _LOGGER.warning(f"Failed to read register {reg} (group: {REGISTER_MAP.get(reg, 'unknown')})")
+                    failed_registers.append(reg)
             except Exception as e:
-                _LOGGER.debug(f"Exception reading register {reg}: {e}")
+                _LOGGER.warning(f"Exception reading register {reg}: {e}", exc_info=True)
+                failed_registers.append(reg)
+
+        if failed_registers:
+            _LOGGER.debug(f"Failed to read registers: {failed_registers}")
 
         return result_data if result_data else None
 

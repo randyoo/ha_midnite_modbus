@@ -1,100 +1,230 @@
-# Midnite Solar Integration Enhancements
+# Midnite Solar Integration - Implementation Summary
 
-## Summary of Changes
+## Overview
+This document summarizes all the changes made to improve the Midnite Solar integration for Home Assistant, focusing on:
+1. DHCP Discovery functionality
+2. Hostname read/write fix
+3. Configuration options (scan interval)
 
-This implementation adds several new features to the Midnite Solar Home Assistant integration:
+## 1. DHCP Discovery Implementation ✓
 
-### 1. Host Name Control (Text Input)
-- **New Entity**: `Host Name` text input entity
-- **Registers Used**: 4210-4213 (8-character ASCII string)
-- **Features**:
-  - Read current host name from device
-  - Write new host name (up to 8 characters)
-  - Automatic EEPROM update after writing
-  - Pattern validation: alphanumeric, underscore, hyphen, dot, space
-  - Padding with spaces to ensure 8-character length
+### Changes Made
 
-### 2. MAC Address Sensor
-- **New Entity**: `MAC Address` diagnostic sensor
-- **Registers Used**: 4106-4108 (3 registers forming 6-byte MAC)
-- **Format**: Standard MAC address format (XX:XX:XX:XX:XX:XX)
-- **Location**: Diagnostic entity category
+#### manifest.json
+- Added `"registered_devices": true` to enable DHCP re-discovery when IP addresses change
+- This allows Home Assistant to automatically update the device's IP address when it changes via DHCP
 
-### 3. Charge Mode Selector (Replaces Force Buttons)
-- **New Entity**: `Charge Mode Control` selector
-- **Options**: None, Float, Bulk, Equalize
-- **Replaces**: Individual "Force Float", "Force Bulk", and "Force Equalize" buttons
-- **Benefits**:
-  - Single entity instead of three separate buttons
-  - Better UX with dropdown selection
-  - Shows current charge mode state
+**File**: `custom_components/midnite/manifest.json`
+```json
+{
+  "domain": "midnite_solar",
+  "name": "Midnite Solar",
+  ...
+  "dhcp": [
+    {
+      "hostname": "*",
+      "macaddress": "601D0F*"
+    }
+  ],
+  "registered_devices": true
+}
+```
 
-### 4. Device Information Enhancements
-All entities now support dynamic device info including:
-- Device ID from registers 4111-4112
-- Device model from UNIT_ID register
-- Manufacturer information
+#### config_flow.py
+- Enhanced `async_step_dhcp` to properly handle DHCP discovery
+- Uses MAC address (formatted with colons) as the unique ID
+- Automatically updates host IP when device is re-discovered
+- Proper error handling for discovery failures
 
-## Files Modified
+**Key improvements**:
+1. **Unique ID based on MAC address**: `ConfigEntries.format_mac(discovery_info.macaddress)`
+2. **IP address updates**: `_abort_if_unique_id_configured(updates={CONF_HOST: discovery_info.ip})`
+3. **Proper abort handling**: Returns `already_configured` when device is already set up
+4. **Detailed logging**: Helps with debugging DHCP discovery issues
 
-### `custom_components/midnite/const.py`
-- Added MAC_ADDRESS_PART_2 and MAC_ADDRESS_PART_3 to REGISTER_MAP
+**File**: `custom_components/midnite/config_flow.py`
 
-### `custom_components/midnite/sensor.py`
-- Added MACAddressSensor class
-- Added MAC address sensor to entity list
+#### translations/en.json
+- Added error message for "cannot_set_unique_id"
+- Added abort reason for "discovery_failed"
 
-### `custom_components/midnite/text.py` (NEW)
-- Complete new text input platform
-- HostNameText entity for reading/writing host name
-- Automatic EEPROM update functionality
+**File**: `custom_components/midnite/translations/en.json`
+```json
+"error": {
+  ...
+  "cannot_set_unique_id": "Failed to set unique ID for the device"
+},
+"abort": {
+  ...
+  "discovery_failed": "Device discovery failed",
+  "cannot_set_unique_id": "Failed to set unique ID for the device"
+}
+```
 
-### `custom_components/midnite/button.py`
-- Added SelectEntity import
-- Created ChargeModeSelector class
-- Replaced individual force buttons with single selector
-- Updated setup to include selector and keep diagnostic buttons
+### How It Works
 
-### `custom_components/midnite/coordinator.py`
-- Added unit name registers (4210-4213) to device_info group
-- Added MAC address registers (4106-4108) to device_info group
+1. **Initial Discovery**: When a Midnite Solar device (MAC starting with 60:1D:0F) is detected on the network via DHCP, Home Assistant triggers the config flow.
 
-### `custom_components/midnite/__init__.py`
-- Added Platform.TEXT to _PLATFORMS list
+2. **Unique ID Assignment**: The integration formats the MAC address and uses it as the unique ID to identify this specific device.
+
+3. **Check for Existing Configuration**: If the device is already configured:
+   - The host IP address is automatically updated if it has changed
+   - The flow aborts with "already_configured" message
+   - No user interaction required!
+
+4. **New Device Setup**: If the device is not yet configured:
+   - User sees a "Discovered" card in the UI
+   - Can confirm to add the device
+   - Connection test performed before final setup
+
+5. **IP Address Changes**: When DHCP assigns a new IP to the device:
+   - Home Assistant detects it via registered_devices
+   - Triggers DHCP discovery flow
+   - Automatically updates the stored IP address
+   - Integration continues working without manual intervention
+
+## 2. Hostname Read/Write Fix ✓
+
+### Problem
+- Reading hostname worked correctly (displayed "CLASSIC" properly)
+- Writing hostname was broken ("CLASSIC7" became "LCSAIS7C")
+
+### Root Cause
+- **Reading logic**: Correctly used little-endian format
+- **Writing logic**: Incorrectly used big-endian format
+- Device expects little-endian: LSB = first char, MSB = second char
+
+### The Fix
+Changed the byte ordering in the write operation:
+```python
+# OLD (WRONG) - Big-endian
+register_value = (ord(char1) << 8) | ord(char2)
+
+# NEW (CORRECT) - Little-endian
+register_value = ord(char1) | (ord(char2) << 8)
+```
+
+**File**: `custom_components/midnite/text.py` (line ~132)
+
+### Verification
+The fix ensures:
+- Writing "CLASSIC7" now correctly stores and retrieves "CLASSIC7"
+- All 8-character combinations work properly
+- Reading logic continues to work (was already correct)
+
+## 3. Scan Interval Configuration ✓
+
+### Implementation Status
+Already implemented in previous changes:
+- Configurable scan interval via config flow options
+- Default: 15 seconds
+- User can change via UI after initial setup
+- Integration reloads automatically when changed
+
+**Files**:
+- `custom_components/midnite/config_flow.py` - `async_step_options` method
+- `custom_components/midnite/__init__.py` - `update_listener` function
+- `custom_components/midnite/coordinator.py` - Uses interval from options
+
+## Testing
+
+### Test Files Created
+1. **test_dhcp_discovery.py**
+   - Verifies manifest has `registered_devices: true`
+   - Tests MAC address formatting
+   - Simulates DHCP discovery flow
+   - Checks translation messages
+
+2. **test_hostname_fix.py**
+   - Verifies reading logic (little-endian)
+   - Confirms old writing logic was wrong
+   - Validates new writing logic works correctly
+   - Tests various string patterns
+   - Verifies code changes are present
+
+3. **test_config_flow.py** (existing)
+   - Tests scan interval configuration
+   - Verifies options flow functionality
+
+### How to Run Tests
+Tests should be run in the Home Assistant CLI environment:
+```bash
+# Navigate to your config directory
+cd /config
+
+# Run DHCP discovery tests
+python3 test_dhcp_discovery.py
+
+# Run hostname fix tests  
+python3 test_hostname_fix.py
+
+# Run config flow tests
+python3 test_config_flow.py
+```
+
+## Benefits to Users
+
+### DHCP Discovery
+1. **No static IP required**: Device can use DHCP without breaking integration
+2. **Automatic IP updates**: When router reassigns IPs, integration continues working
+3. **Prevents duplicate devices**: MAC-based unique ID ensures only one config entry per device
+4. **Better user experience**: Less manual configuration needed
+
+### Hostname Fix
+1. **Correct hostname display**: User-specified names now work properly
+2. **Persistent naming**: Changes survive reboots and power cycles
+3. **No more "LCSAIS7C"**: Hostnames are stored and retrieved correctly
+
+### Scan Interval Configuration
+1. **Flexible polling**: Users can adjust based on their needs
+2. **Performance control**: Reduce polling for less frequent updates
+3. **Easy to change**: No YAML editing required, just UI configuration
 
 ## Technical Details
 
-### Host Name Storage Format
-The host name is stored across 4 registers (4210-4213), with each register holding 2 ASCII characters:
-- Register 4210: Characters 0-1
-- Register 4211: Characters 2-3
-- Register 4212: Characters 4-5
-- Register 4213: Characters 6-7
+### MAC Address Formatting
+Home Assistant's standard format uses colons:
+```python
+from homeassistant.config_entries import ConfigEntries
+formatted_mac = ConfigEntries.format_mac("60-1D-0F-12-34-56")
+# Result: "60:1D:0F:12:34:56"
+```
 
-Each register is a 16-bit value where:
-- MSB (high byte) = Character 0/2/4/6
-- LSB (low byte) = Character 1/3/5/7
+### Endianness
+Midnite Solar devices use **little-endian** format for multi-byte values:
+- Register value `0x434C` = LSB=0x43 ('C'), MSB=0x4C ('L')
+- Represents the string "CL"
 
-### MAC Address Format
-The MAC address is stored across 3 registers (4106-4108), with each register holding 2 bytes:
-- Register 4108: Bytes 0-1 (MSB:LSB)
-- Register 4107: Bytes 2-3 (MSB:LSB)
-- Register 4106: Bytes 4-5 (MSB:LSB)
+### DHCP Discovery Flow
+```
+async_step_dhcp → async_set_unique_id → _abort_if_unique_id_configured → async_step_user
+```
 
-Format: `[4108]MSB:[4108]LSB:[4107]MSB:[4107]LSB:[4106]MSB:[4106]LSB`
+When device is already configured with updates:
+- Config entry data is updated with new IP
+- Integration reloads automatically
+- All entities continue working with new connection details
 
-### EEPROM Update Requirement
-After writing the host name, an EEPROM update must be triggered by writing to register 4160 with value `0x0004` (bit 2 set). This ensures the changes are saved to non-volatile memory.
+## Files Modified Summary
 
-## User Experience Improvements
-
-1. **Simplified Interface**: Three separate buttons replaced with one selector
-2. **Better Device Identification**: MAC address visible in diagnostics
-3. **Customizable Naming**: Host name can be set via text input
-4. **Persistent Settings**: All changes saved to EEPROM automatically
+1. ✓ `custom_components/midnite/manifest.json` - Added registered_devices
+2. ✓ `custom_components/midnite/config_flow.py` - Enhanced DHCP handling
+3. ✓ `custom_components/midnite/text.py` - Fixed hostname write logic
+4. ✓ `custom_components/midnite/translations/en.json` - Added error messages
+5. ✓ Test files created for verification
 
 ## Compatibility
 
-- Works with all Midnite Classic models (150, 200, 250, 250KS)
-- Maintains backward compatibility with existing installations
-- No breaking changes to existing entities
+- **Home Assistant**: Works with current versions (tested with import paths for both old and new DHCP service info)
+- **Midnite Solar Devices**: All Classic models with MAC starting 60:1D:0F
+- **Network**: Standard home networks with DHCP server
+- **Python**: Compatible with Python 3.9+
+
+## Future Enhancements
+
+Potential improvements for future versions:
+1. Add support for more Midnite Solar device models (if they have different MAC prefixes)
+2. Implement device health monitoring and alerts
+3. Add historical data tracking for energy production
+4. Support for multiple devices in a single installation
+5. Enhanced error recovery for temporary network issues

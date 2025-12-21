@@ -61,6 +61,7 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
                 return self.async_abort(reason="cannot_set_unique_id")
             
             # 2. ABORT IF ALREADY CONFIGURED (prevents duplicate discovery cards)
+            # This will update the host IP if it has changed
             try:
                 _LOGGER.info("Checking if device is already configured...")
                 self._abort_if_unique_id_configured(
@@ -69,6 +70,8 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
                 _LOGGER.info("✓ Device is not already configured, continuing with discovery")
             except Exception as e:
                 _LOGGER.error(f"✗ Error checking for existing configuration: {e}", exc_info=True)
+                # If we get here, the device is already configured and IP was updated
+                return self.async_abort(reason="already_configured")
             
             # 3. STORE DISCOVERY INFO FOR USER CONFIRMATION
             self.discovery_info = discovery_info

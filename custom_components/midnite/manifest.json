@@ -13,5 +13,6 @@
       "hostname": "*",
       "macaddress": "601D0F*"
     }
-  ]
+  ],
+  "registered_devices": true
 }

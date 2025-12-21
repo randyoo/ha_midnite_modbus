@@ -15,12 +15,15 @@
     "error": {
       "cannot_connect": "Cannot connect to the device. Please check the IP address and port.",
       "cannot_read": "Cannot read from the device. Please verify the device is online and accessible.",
-      "unknown": "Unknown error occurred"
+      "unknown": "Unknown error occurred",
+      "cannot_set_unique_id": "Failed to set unique ID for the device"
     },
     "abort": {
       "already_configured": "This device is already configured",
       "cannot_connect": "Cannot connect to the device",
-      "cannot_read": "Cannot read from the device"
+      "cannot_read": "Cannot read from the device",
+      "discovery_failed": "Device discovery failed",
+      "cannot_set_unique_id": "Failed to set unique ID for the device"
     }
   },
   "options": {

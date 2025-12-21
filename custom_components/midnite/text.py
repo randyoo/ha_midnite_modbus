@@ -125,7 +125,8 @@ class MidniteSolarText(CoordinatorEntity[MidniteSolarUpdateCoordinator], TextEnt
                 char2 = padded_value[start_idx + 1]
                 
                 # Combine two characters into a 16-bit value
-                register_value = (ord(char1) << 8) | ord(char2)
+                # Device uses little-endian format: LSB = first char, MSB = second char
+                register_value = ord(char1) | (ord(char2) << 8)
                 
                 register_address = REGISTER_MAP[f"UNIT_NAME_{i}"]
                 result = await self.hass.async_add_executor_job(

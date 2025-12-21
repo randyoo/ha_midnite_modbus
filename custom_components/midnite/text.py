@@ -93,12 +93,13 @@ class MidniteSolarText(CoordinatorEntity[MidniteSolarUpdateCoordinator], TextEnt
                 
                 if all(r is not None for r in [reg_0, reg_1, reg_2, reg_3]):
                     # Each register contains 2 bytes of ASCII characters
-                    # Registers are little-endian, so we need to extract bytes properly
+                    # Registers are little-endian: LSB = char 0/2/4/6, MSB = char 1/3/5/7
                     chars = []
                     
                     def get_bytes(reg_value):
                         """Extract two bytes from a 16-bit register value."""
-                        return [(reg_value >> 8) & 0xFF, reg_value & 0xFF]
+                        # LSB (low byte) first, then MSB (high byte)
+                        return [reg_value & 0xFF, (reg_value >> 8) & 0xFF]
                     
                     chars.extend(get_bytes(reg_0))
                     chars.extend(get_bytes(reg_1))

@@ -86,12 +86,12 @@ class MidniteSolarButton(CoordinatorEntity[MidniteSolarUpdateCoordinator], Butto
 
 
 class ChargeModeSelector(MidniteSolarButton, SelectEntity):
-    """Selector for charge mode control."""
+    """Selector for force charge mode control."""
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the selector."""
         super().__init__(coordinator, entry)
-        self._attr_name = "Charge Mode Control"
+        self._attr_name = "Force Charge Mode"
         self._attr_unique_id = f"{entry.entry_id}_charge_mode_selector"
         self._attr_options = ["None", "Float", "Bulk", "Equalize"]
 

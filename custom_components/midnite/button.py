@@ -1,12 +1,11 @@
-"""Support for Midnite Solar button and selector platform."""
+"""Support for Midnite Solar button platform."""
 
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from homeassistant.components.button import ButtonEntity
-from homeassistant.components.select import SelectEntity
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -23,17 +22,16 @@ async def async_setup_entry(
     entry: Any,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up Midnite Solar buttons and selectors."""
+    """Set up Midnite Solar buttons."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
     
-    entities = [
-        ChargeModeSelector(coordinator, entry),
+    buttons = [
         ForceEEpromUpdateButton(coordinator, entry),
         ResetFaultsButton(coordinator, entry),
         ResetFlagsButton(coordinator, entry),
     ]
     
-    async_add_entities(entities)
+    async_add_entities(buttons)
 
 
 class MidniteSolarButton(CoordinatorEntity[MidniteSolarUpdateCoordinator], ButtonEntity):
@@ -83,68 +81,6 @@ class MidniteSolarButton(CoordinatorEntity[MidniteSolarUpdateCoordinator], Butto
             "name": self._entry.title,
             "manufacturer": "Midnite Solar",
         }
-
-
-class ChargeModeSelector(MidniteSolarButton, SelectEntity):
-    """Selector for force charge mode control."""
-
-    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
-        """Initialize the selector."""
-        super().__init__(coordinator, entry)
-        self._attr_name = "Force Charge Mode"
-        self._attr_unique_id = f"{entry.entry_id}_charge_mode_selector"
-        self._attr_options = ["None", "Float", "Bulk", "Equalize"]
-
-    @property
-    def current_option(self) -> Optional[str]:
-        """Return the currently selected option."""
-        # Check which force flag is active by reading the charge stage
-        if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                raw_value = status_data.get(REGISTER_MAP["COMBO_CHARGE_STAGE"])
-                if raw_value is not None:
-                    # Extract MSB (high byte) for charge stage
-                    charge_stage_value = (raw_value >> 8) & 0xFF
-                    
-                    # Map charge stages to mode names
-                    if charge_stage_value == 5:  # Float
-                        return "Float"
-                    elif charge_stage_value == 4:  # BulkMPPT
-                        return "Bulk"
-                    elif charge_stage_value == 7:  # Equalize
-                        return "Equalize"
-        
-        return "None"
-
-    async def async_select_option(self, option: str) -> None:
-        """Change the selected option."""
-        if option == "None":
-            _LOGGER.info("Charge mode control: No action")
-            return
-        
-        # Map option to force flag
-        flag_map = {
-            "Float": FORCE_FLAGS["ForceFloat"],
-            "Bulk": FORCE_FLAGS["ForceBulk"],
-            "Equalize": FORCE_FLAGS["ForceEqualize"],
-        }
-        
-        flag_bit = flag_map.get(option)
-        if flag_bit is not None:
-            flag_value = 1 << flag_bit
-            _LOGGER.info(f"Forcing {option} mode with value: {flag_value} (0x{flag_value:x})")
-            try:
-                result = await self.hass.async_add_executor_job(
-                    self.coordinator.api.write_register, REGISTER_MAP["FORCE_FLAG_BITS"], flag_value
-                )
-                if not result or result.isError():
-                    _LOGGER.error(f"Failed to write {option} mode to force register")
-            except Exception as e:
-                _LOGGER.error(f"Error writing {option} mode to force register: {e}")
-        
-        # Request a refresh after changing mode
-        await self.coordinator.async_request_refresh()
 
 
 class ForceEEpromUpdateButton(MidniteSolarButton):

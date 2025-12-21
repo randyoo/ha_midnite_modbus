@@ -1,11 +1,12 @@
-"""Support for Midnite Solar button platform."""
+"""Support for Midnite Solar button and selector platform."""
 
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Optional
 
 from homeassistant.components.button import ButtonEntity
+from homeassistant.components.select import SelectEntity
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -22,19 +23,17 @@ async def async_setup_entry(
     entry: Any,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up Midnite Solar buttons."""
+    """Set up Midnite Solar buttons and selectors."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
     
-    buttons = [
-        ForceFloatButton(coordinator, entry),
-        ForceBulkButton(coordinator, entry),
-        ForceEqualizeButton(coordinator, entry),
+    entities = [
+        ChargeModeSelector(coordinator, entry),
         ForceEEpromUpdateButton(coordinator, entry),
         ResetFaultsButton(coordinator, entry),
         ResetFlagsButton(coordinator, entry),
     ]
     
-    async_add_entities(buttons)
+    async_add_entities(entities)
 
 
 class MidniteSolarButton(CoordinatorEntity[MidniteSolarUpdateCoordinator], ButtonEntity):
@@ -86,73 +85,66 @@ class MidniteSolarButton(CoordinatorEntity[MidniteSolarUpdateCoordinator], Butto
         }
 
 
-class ForceFloatButton(MidniteSolarButton):
-    """Button to force the device into float mode."""
+class ChargeModeSelector(MidniteSolarButton, SelectEntity):
+    """Selector for charge mode control."""
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
-        """Initialize the button."""
+        """Initialize the selector."""
         super().__init__(coordinator, entry)
-        self._attr_name = "Force Float"
-        self._attr_unique_id = f"{entry.entry_id}_force_float"
+        self._attr_name = "Charge Mode Control"
+        self._attr_unique_id = f"{entry.entry_id}_charge_mode_selector"
+        self._attr_options = ["None", "Float", "Bulk", "Equalize"]
 
-    async def async_press(self) -> None:
-        """Press the button."""
-        flag_value = 1 << FORCE_FLAGS["ForceFloat"]
-        _LOGGER.info(f"Forcing Float mode with value: {flag_value} (0x{flag_value:x})")
-        try:
-            result = await self.hass.async_add_executor_job(
-                self.coordinator.api.write_register, REGISTER_MAP["FORCE_FLAG_BITS"], flag_value
-            )
-            if not result or result.isError():
-                _LOGGER.error("Failed to write to force register")
-        except Exception as e:
-            _LOGGER.error(f"Error writing to force register: {e}")
+    @property
+    def current_option(self) -> Optional[str]:
+        """Return the currently selected option."""
+        # Check which force flag is active by reading the charge stage
+        if self.coordinator.data and "data" in self.coordinator.data:
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                raw_value = status_data.get(REGISTER_MAP["COMBO_CHARGE_STAGE"])
+                if raw_value is not None:
+                    # Extract MSB (high byte) for charge stage
+                    charge_stage_value = (raw_value >> 8) & 0xFF
+                    
+                    # Map charge stages to mode names
+                    if charge_stage_value == 5:  # Float
+                        return "Float"
+                    elif charge_stage_value == 4:  # BulkMPPT
+                        return "Bulk"
+                    elif charge_stage_value == 7:  # Equalize
+                        return "Equalize"
+        
+        return "None"
 
-
-class ForceBulkButton(MidniteSolarButton):
-    """Button to force the device into bulk mode."""
-
-    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
-        """Initialize the button."""
-        super().__init__(coordinator, entry)
-        self._attr_name = "Force Bulk"
-        self._attr_unique_id = f"{entry.entry_id}_force_bulk"
-
-    async def async_press(self) -> None:
-        """Press the button."""
-        flag_value = 1 << FORCE_FLAGS["ForceBulk"]
-        _LOGGER.info(f"Forcing Bulk mode with value: {flag_value} (0x{flag_value:x})")
-        try:
-            result = await self.hass.async_add_executor_job(
-                self.coordinator.api.write_register, REGISTER_MAP["FORCE_FLAG_BITS"], flag_value
-            )
-            if not result or result.isError():
-                _LOGGER.error("Failed to write to force register")
-        except Exception as e:
-            _LOGGER.error(f"Error writing to force register: {e}")
-
-
-class ForceEqualizeButton(MidniteSolarButton):
-    """Button to force the device into equalize mode."""
-
-    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
-        """Initialize the button."""
-        super().__init__(coordinator, entry)
-        self._attr_name = "Force Equalize"
-        self._attr_unique_id = f"{entry.entry_id}_force_equalize"
-
-    async def async_press(self) -> None:
-        """Press the button."""
-        flag_value = 1 << FORCE_FLAGS["ForceEqualize"]
-        _LOGGER.info(f"Forcing Equalize mode with value: {flag_value} (0x{flag_value:x})")
-        try:
-            result = await self.hass.async_add_executor_job(
-                self.coordinator.api.write_register, REGISTER_MAP["FORCE_FLAG_BITS"], flag_value
-            )
-            if not result or result.isError():
-                _LOGGER.error("Failed to write to force register")
-        except Exception as e:
-            _LOGGER.error(f"Error writing to force register: {e}")
+    async def async_select_option(self, option: str) -> None:
+        """Change the selected option."""
+        if option == "None":
+            _LOGGER.info("Charge mode control: No action")
+            return
+        
+        # Map option to force flag
+        flag_map = {
+            "Float": FORCE_FLAGS["ForceFloat"],
+            "Bulk": FORCE_FLAGS["ForceBulk"],
+            "Equalize": FORCE_FLAGS["ForceEqualize"],
+        }
+        
+        flag_bit = flag_map.get(option)
+        if flag_bit is not None:
+            flag_value = 1 << flag_bit
+            _LOGGER.info(f"Forcing {option} mode with value: {flag_value} (0x{flag_value:x})")
+            try:
+                result = await self.hass.async_add_executor_job(
+                    self.coordinator.api.write_register, REGISTER_MAP["FORCE_FLAG_BITS"], flag_value
+                )
+                if not result or result.isError():
+                    _LOGGER.error(f"Failed to write {option} mode to force register")
+            except Exception as e:
+                _LOGGER.error(f"Error writing {option} mode to force register: {e}")
+        
+        # Request a refresh after changing mode
+        await self.coordinator.async_request_refresh()
 
 
 class ForceEEpromUpdateButton(MidniteSolarButton):

@@ -57,6 +57,7 @@ async def async_setup_entry(
         FloatTimeTodaySensor(coordinator, entry),
         AbsorbTimeRemainingSensor(coordinator, entry),
         EqualizeTimeRemainingSensor(coordinator, entry),
+        MACAddressSensor(coordinator, entry),
     ]
     
     async_add_entities(sensors)
@@ -752,3 +753,37 @@ class EqualizeTimeRemainingSensor(MidniteSolarSensor):
                     attrs["seconds"] = seconds
                     attrs["hours"] = (seconds / 60.0) / 60.0
         return attrs
+
+
+class MACAddressSensor(MidniteSolarSensor):
+    """Representation of MAC address sensor."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "MAC Address"
+        self._attr_unique_id = f"{entry.entry_id}_mac_address"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    @property
+    def native_value(self) -> Optional[str]:
+        """Return the state of the sensor."""
+        if self.coordinator.data and "data" in self.coordinator.data:
+            device_info_data = self.coordinator.data["data"].get("device_info")
+            if device_info_data:
+                part1 = device_info_data.get(REGISTER_MAP["MAC_ADDRESS_PART_1"])
+                part2 = device_info_data.get(REGISTER_MAP["MAC_ADDRESS_PART_2"])
+                part3 = device_info_data.get(REGISTER_MAP["MAC_ADDRESS_PART_3"])
+                if part1 is not None and part2 is not None and part3 is not None:
+                    # MAC address format: [4108]MSB:[4108]LSB:[4107]MSB:[4107]LSB:[4106]MSB:[4106]LSB
+                    # Each register contains 2 bytes (16 bits)
+                    mac_bytes = [
+                        (part3 >> 8) & 0xFF,      # MSB of part3 (register 4108)
+                        part3 & 0xFF,              # LSB of part3 (register 4108)
+                        (part2 >> 8) & 0xFF,      # MSB of part2 (register 4107)
+                        part2 & 0xFF,              # LSB of part2 (register 4107)
+                        (part1 >> 8) & 0xFF,      # MSB of part1 (register 4106)
+                        part1 & 0xFF,              # LSB of part1 (register 4106)
+                    ]
+                    return ":".join(f"{byte:02X}" for byte in mac_bytes)
+        return None

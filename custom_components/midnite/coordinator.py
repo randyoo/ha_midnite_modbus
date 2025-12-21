@@ -33,6 +33,15 @@ REGISTER_GROUPS = {
         # This is more reliable than SERIAL_NUMBER registers (20492/20493)
         REGISTER_MAP["DEVICE_ID_LSW"],
         REGISTER_MAP["DEVICE_ID_MSW"],
+        # Unit name (8 characters from 4 registers, each holding 2 bytes)
+        REGISTER_MAP["UNIT_NAME_0"],
+        REGISTER_MAP["UNIT_NAME_1"],
+        REGISTER_MAP["UNIT_NAME_2"],
+        REGISTER_MAP["UNIT_NAME_3"],
+        # MAC address (registers 4106-4108)
+        REGISTER_MAP["MAC_ADDRESS_PART_1"],
+        REGISTER_MAP["MAC_ADDRESS_PART_2"],
+        REGISTER_MAP["MAC_ADDRESS_PART_3"],
     ],
     "status": [
         REGISTER_MAP["DISP_AVG_VBATT"],

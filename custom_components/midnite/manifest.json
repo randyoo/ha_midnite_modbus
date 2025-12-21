@@ -10,7 +10,8 @@
   "version": "1.0.0",
   "dhcp": [
     {
-      "macaddress": "60:1D:0F:*"
+      "hostname": "*",
+      "macaddress": "601D0F*"
     }
   ]
 }

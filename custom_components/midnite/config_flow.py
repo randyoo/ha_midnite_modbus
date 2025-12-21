@@ -50,9 +50,9 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
             
             # 1. SET UNIQUE ID (Crucial step - use MAC address)
             # Format the MAC address properly for unique ID using Home Assistant's standard format
-            from homeassistant.config_entries import ConfigEntries
+            from homeassistant.helpers.device_registry import format_mac
             try:
-                formatted_mac = ConfigEntries.format_mac(discovery_info.macaddress)
+                formatted_mac = format_mac(discovery_info.macaddress)
                 _LOGGER.info(f"Setting unique ID: {formatted_mac}")
                 await self.async_set_unique_id(formatted_mac, raise_on_progress=False)
                 _LOGGER.info("✓ Unique ID set successfully")

@@ -35,57 +35,33 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_dhcp(self, discovery_info: DhcpServiceInfo) -> ConfigFlowResult:
         """Handle DHCP discovery."""
-        try:
-            _LOGGER.info("========================================")
-            _LOGGER.info("DHCP DISCOVERY TRIGGERED!")
-            _LOGGER.info(f"Device IP: {discovery_info.ip}")
-            _LOGGER.info(f"MAC Address: {discovery_info.macaddress}")
-            if hasattr(discovery_info, 'hostname'):
-                _LOGGER.info(f"Hostname: {discovery_info.hostname}")
-            _LOGGER.info("========================================")
-            
-            # Detailed debugging
-            _LOGGER.debug(f"Discovery info type: {type(discovery_info)}")
-            _LOGGER.debug(f"Discovery info attributes: {dir(discovery_info)}")
-            
-            # 1. SET UNIQUE ID (Crucial step - use MAC address)
-            # Format the MAC address properly for unique ID using Home Assistant's standard format
-            from homeassistant.helpers.device_registry import format_mac
-            try:
-                formatted_mac = format_mac(discovery_info.macaddress)
-                _LOGGER.info(f"Setting unique ID: {formatted_mac}")
-                await self.async_set_unique_id(formatted_mac, raise_on_progress=False)
-                _LOGGER.info("✓ Unique ID set successfully")
-            except Exception as e:
-                _LOGGER.error(f"✗ Error setting unique ID: {e}", exc_info=True)
-                return self.async_abort(reason="cannot_set_unique_id")
-            
-            # 2. ABORT IF ALREADY CONFIGURED (prevents duplicate discovery cards)
-            # This will update the host IP if it has changed
-            try:
-                _LOGGER.info("Checking if device is already configured...")
-                self._abort_if_unique_id_configured(
-                    updates={CONF_HOST: discovery_info.ip}
-                )
-                _LOGGER.info("✓ Device is not already configured, continuing with discovery")
-            except Exception as e:
-                _LOGGER.error(f"✗ Error checking for existing configuration: {e}", exc_info=True)
-                # If we get here, the device is already configured and IP was updated
-                return self.async_abort(reason="already_configured")
-            
-            # 3. STORE DISCOVERY INFO FOR USER CONFIRMATION
-            self.discovery_info = discovery_info
-            self.context["title_placeholders"] = {"ip": discovery_info.ip}
-            _LOGGER.info(f"✓ Discovery info stored, proceeding to user confirmation step")
-            
-            # 4. TRIGGER USER FLOW TO SHOW "DISCOVERED" CARD
-            _LOGGER.info("Triggering user flow to show discovery card...")
-            result = await self.async_step_user()
-            _LOGGER.info(f"✓ User flow triggered, result type: {type(result)}")
-            return result
-        except Exception as e:
-            _LOGGER.error(f"Unexpected error in async_step_dhcp: {e}", exc_info=True)
-            return self.async_abort(reason="discovery_failed")
+        _LOGGER.info("========================================")
+        _LOGGER.info("DHCP DISCOVERY TRIGGERED!")
+        _LOGGER.info(f"Device IP: {discovery_info.ip}")
+        _LOGGER.info(f"MAC Address: {discovery_info.macaddress}")
+        if hasattr(discovery_info, 'hostname'):
+            _LOGGER.info(f"Hostname: {discovery_info.hostname}")
+        _LOGGER.info("========================================")
+        
+        # Format the MAC address properly for unique ID using Home Assistant's standard format
+        from homeassistant.helpers.device_registry import format_mac
+        formatted_mac = format_mac(discovery_info.macaddress)
+        
+        # Set unique ID to prevent duplicate setups
+        await self.async_set_unique_id(formatted_mac, raise_on_progress=False)
+        
+        # Abort if device is already configured (this will also update IP if it changed)
+        self._abort_if_unique_id_configured(updates={CONF_HOST: discovery_info.ip})
+        
+        # Store discovery info for user confirmation
+        self.discovery_info = discovery_info
+        self.context["title_placeholders"] = {"ip": discovery_info.ip}
+        
+        # Show user confirmation
+        return self.async_show_form(
+            step_id="user",
+            description_placeholders={"ip": discovery_info.ip},
+        )
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -262,4 +238,40 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
                 CONF_HOST: user_input[CONF_HOST],
                 CONF_PORT: user_input.get(CONF_PORT, DEFAULT_PORT),
             },
+        )
+
+    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Handle reconfiguration of an existing entry."""
+        config_entry = self._get_reconfigure_entry()
+        
+        if user_input is not None:
+            # Update the config entry with new data
+            self.async_set_unique_id(config_entry.unique_id)
+            self._abort_if_unique_id_mismatch()
+            
+            # Separate scan_interval from data to store in options
+            entry_data = {
+                CONF_HOST: user_input[CONF_HOST],
+                CONF_PORT: user_input.get(CONF_PORT, DEFAULT_PORT),
+            }
+            entry_options = {}
+            if CONF_SCAN_INTERVAL in user_input:
+                entry_options[CONF_SCAN_INTERVAL] = user_input[CONF_SCAN_INTERVAL]
+            
+            return self.async_update_reload_and_abort(
+                config_entry,
+                data_updates=entry_data,
+                options_updates=entry_options
+            )
+        
+        # Pre-fill the form with current values
+        data_schema = vol.Schema({
+            vol.Required(CONF_HOST, default=config_entry.data.get(CONF_HOST)): str,
+            vol.Required(CONF_PORT, default=config_entry.data.get(CONF_PORT, DEFAULT_PORT)): int,
+            vol.Optional(CONF_SCAN_INTERVAL, default=config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)): int,
+        })
+        
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=data_schema,
         )

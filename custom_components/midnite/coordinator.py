@@ -131,18 +131,24 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
                 raise UpdateFailed(f"Cannot connect to device: {e}") from e
         
         # Test connection with a simple read before proceeding
-        # Made less aggressive - only retry once and provide detailed logging
+        # Try multiple registers to handle temporary communication issues
         try:
             _LOGGER.debug(f"Testing connection by reading UNIT_ID register ({REGISTER_MAP['UNIT_ID']})")
             test_result = await self.hass.async_add_executor_job(
                 self.api.read_holding_registers, REGISTER_MAP["UNIT_ID"], 1
             )
             if test_result is None or test_result.isError():
-                _LOGGER.error(f"Connection test failed - device not responding. Result: {test_result}")
-                raise UpdateFailed("Device not responding to connection test")
-            else:
-                unit_id = test_result.registers[0] if test_result.registers else None
-                _LOGGER.debug(f"Connection test successful. UNIT_ID: {unit_id}")
+                _LOGGER.warning(f"Connection test failed on UNIT_ID. Trying alternative register...")
+                # Try a different register that might be more stable
+                test_result = await self.hass.async_add_executor_job(
+                    self.api.read_holding_registers, REGISTER_MAP["DISP_AVG_VBATT"], 1
+                )
+                if test_result is None or test_result.isError():
+                    _LOGGER.error(f"Connection tests failed. Device not responding.")
+                    raise UpdateFailed("Device not responding to connection tests")
+            
+            unit_id = test_result.registers[0] if test_result.registers else None
+            _LOGGER.debug(f"Connection test successful. UNIT_ID: {unit_id}")
         except Exception as e:
             _LOGGER.error(f"Connection test failed with exception: {e}", exc_info=True)
             # Try to reconnect once more with detailed logging

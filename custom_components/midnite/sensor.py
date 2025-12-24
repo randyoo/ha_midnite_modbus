@@ -348,8 +348,8 @@ class BatteryTemperatureSensor(MidniteSolarSensor):
                 if value is not None:
                     temp_value = value / 10.0
                     # Check for negative temperature (two's complement)
-                    if temp_value > 32767:
-                        temp_value = temp_value - 65536
+                    if value > 32767:
+                        temp_value = (value - 65536) / 10.0
                     
                     # Validate temperature range (-50°C to 150°C is reasonable for batteries)
                     if temp_value < -50 or temp_value > 150:
@@ -403,8 +403,8 @@ class FETTemperatureSensor(MidniteSolarSensor):
                 if value is not None:
                     temp_value = value / 10.0
                     # Check for negative temperature (two's complement)
-                    if temp_value > 32767:
-                        temp_value = temp_value - 65536
+                    if value > 32767:
+                        temp_value = (value - 65536) / 10.0
                     
                     # Validate temperature range (-50°C to 150°C is reasonable)
                     if temp_value < -50 or temp_value > 150:
@@ -458,8 +458,8 @@ class PCBTemperatureSensor(MidniteSolarSensor):
                 if value is not None:
                     temp_value = value / 10.0
                     # Check for negative temperature (two's complement)
-                    if temp_value > 32767:
-                        temp_value = temp_value - 65536
+                    if value > 32767:
+                        temp_value = (value - 65536) / 10.0
                     
                     # Validate temperature range (-50°C to 150°C is reasonable)
                     if temp_value < -50 or temp_value > 150:

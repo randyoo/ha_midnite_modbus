@@ -1,3 +1,17 @@
+# ⚠️ WARNING: USE AT YOUR OWN RISK ⚠️
+
+**IMPORTANT SAFETY NOTICE:** This integration allows you to read and **write settings** to your Midnite Solar MPPT charge controller. Incorrect configuration can result in:
+- Damage to your MPPT charge controller
+- Damage to your battery bank
+- Overcharging or undercharging of batteries
+- Potential fire hazard
+
+**You are solely responsible for any consequences that may result from using this integration.** The authors and contributors accept no liability for any damage, loss, or injury caused by the use of this software.
+
+**Always verify your settings before applying them to your charge controller.**
+
+---
+
 # Midnite Solar Integration for Home Assistant
 
 This custom integration provides support for Midnite Solar Classic charge controllers via Modbus TCP.

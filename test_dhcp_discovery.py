@@ -22,7 +22,7 @@ print("=" * 60)
 print("\nTest 1: Manifest Configuration")
 try:
     import json
-    with open('custom_components/midnite/manifest.json', 'r') as f:
+    with open('custom_components/midnite_solar/manifest.json', 'r') as f:
         manifest = json.load(f)
     
     assert 'registered_devices' in manifest, "registered_devices not found in manifest"
@@ -72,7 +72,7 @@ except Exception as e:
 print("\nTest 4: Translation Messages")
 try:
     import json
-    with open('custom_components/midnite/translations/en.json', 'r') as f:
+    with open('custom_components/midnite_solar/translations/en.json', 'r') as f:
         translations = json.load(f)
     
     errors = translations.get('config', {}).get('error', {})

@@ -323,7 +323,98 @@ class RestReasonSensor(MidniteSolarSensor):
         return None
 
 
-class BatteryTemperatureSensor(MidniteSolarSensor):
+class TemperatureSensorBase(MidniteSolarSensor):
+    """Base class for temperature sensors with shared validation logic."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry)
+        self._last_temp: Optional[float] = None
+        self._last_time: Optional[float] = None
+        # Track recent valid readings for statistical analysis
+        self._recent_readings: list[float] = []
+        self._max_recent_readings = 20  # Keep last 20 valid readings
+        self._spike_count = 0  # Track consecutive spikes
+
+    def _validate_temperature(self, value: int, sensor_name: str) -> Optional[float]:
+        """
+        Validate temperature reading with range, rate-of-change, and statistical checks.
+        
+        Args:
+            value: Raw register value (scaled by 10)
+            sensor_name: Name of the sensor for logging
+            
+        Returns:
+            Validated temperature in Celsius, or None if invalid
+        """
+        # Convert raw value to temperature
+        temp_value = value / 10.0
+        # Check for negative temperature (two's complement)
+        if value > 32767:
+            temp_value = (value - 65536) / 10.0
+        
+        current_time = time.time()
+        
+        # Validate temperature range (-50°C to 150°C is reasonable)
+        if temp_value < -50 or temp_value > 150:
+            _LOGGER.warning(f"Invalid {sensor_name} reading: {temp_value}°C. Ignoring.")
+            self._spike_count += 1
+            return None
+        
+        # Check for sudden temperature changes (>0.5°C per second)
+        if self._last_temp is not None and self._last_time is not None:
+            time_diff = current_time - self._last_time
+            if time_diff > 0:  # Avoid division by zero
+                temp_change_rate = abs(temp_value - self._last_temp) / time_diff
+                if temp_change_rate > 0.5:  # More than 0.5°C per second
+                    _LOGGER.warning(
+                        f"Sudden {sensor_name} change detected: {self._last_temp}°C -> {temp_value}°C "
+                        f"({temp_change_rate:.2f}°C/s over {time_diff:.1f}s). Possible sensor error. Ignoring reading."
+                    )
+                    self._spike_count += 1
+                    return None
+        
+        # Statistical outlier detection using recent readings
+        if len(self._recent_readings) > 0:
+            mean_temp = sum(self._recent_readings) / len(self._recent_readings)
+            variance = sum((x - mean_temp) ** 2 for x in self._recent_readings) / len(self._recent_readings)
+            std_dev = variance ** 0.5 if variance > 0 else 0
+            
+            # Check if reading is more than 4 standard deviations from mean (more conservative)
+            if std_dev > 0:
+                z_score = abs(temp_value - mean_temp) / std_dev
+                if z_score > 4:
+                    _LOGGER.warning(
+                        f"{sensor_name} outlier detected: {temp_value}°C (mean={mean_temp:.2f}°C, "
+                        f"stddev={std_dev:.2f}°C, z-score={z_score:.2f}). Possible sensor error. Ignoring reading."
+                    )
+                    self._spike_count += 1
+                    return None
+        
+        # If we have consecutive spikes, be more conservative
+        if self._spike_count >= 3:
+            _LOGGER.warning(
+                f"Multiple {sensor_name} anomalies detected in succession. "
+                f"Current reading: {temp_value}°C. Retrying with previous value."
+            )
+            return None
+        
+        # Reset spike counter if we get a valid reading
+        self._spike_count = 0
+        
+        # Update recent readings (keep only the last N valid readings)
+        self._recent_readings.append(temp_value)
+        if len(self._recent_readings) > self._max_recent_readings:
+            self._recent_readings.pop(0)
+        
+        # Update last values
+        self._last_temp = temp_value
+        self._last_time = current_time
+        
+        return temp_value
+
+
+class BatteryTemperatureSensor(TemperatureSensorBase):
     """Representation of a battery temperature sensor."""
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
@@ -335,8 +426,6 @@ class BatteryTemperatureSensor(MidniteSolarSensor):
         self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
-        self._last_temp: Optional[float] = None
-        self._last_time: Optional[float] = None
 
     @property
     def native_value(self) -> Optional[float]:
@@ -346,38 +435,11 @@ class BatteryTemperatureSensor(MidniteSolarSensor):
             if temps_data:
                 value = temps_data.get(REGISTER_MAP["BATT_TEMPERATURE"])
                 if value is not None:
-                    temp_value = value / 10.0
-                    # Check for negative temperature (two's complement)
-                    if value > 32767:
-                        temp_value = (value - 65536) / 10.0
-                    
-                    # Validate temperature range (-50°C to 150°C is reasonable for batteries)
-                    if temp_value < -50 or temp_value > 150:
-                        _LOGGER.warning(f"Invalid battery temperature reading: {temp_value}°C. Ignoring.")
-                        return None
-                    
-                    # Check for sudden temperature changes (>0.5°C per second)
-                    current_time = time.time()
-                    if self._last_temp is not None and self._last_time is not None:
-                        time_diff = current_time - self._last_time
-                        if time_diff > 0:  # Avoid division by zero
-                            temp_change_rate = abs(temp_value - self._last_temp) / time_diff
-                            if temp_change_rate > 0.5:  # More than 0.5°C per second
-                                _LOGGER.warning(
-                                    f"Sudden battery temperature change detected: {self._last_temp}°C -> {temp_value}°C "
-                                    f"({temp_change_rate:.2f}°C/s over {time_diff:.1f}s). Possible sensor error. Ignoring reading."
-                                )
-                                return None
-                    
-                    # Update last values
-                    self._last_temp = temp_value
-                    self._last_time = current_time
-                    
-                    return temp_value
+                    return self._validate_temperature(value, "battery temperature")
         return None
 
 
-class FETTemperatureSensor(MidniteSolarSensor):
+class FETTemperatureSensor(TemperatureSensorBase):
     """Representation of a FET temperature sensor."""
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
@@ -390,8 +452,6 @@ class FETTemperatureSensor(MidniteSolarSensor):
         self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
-        self._last_temp: Optional[float] = None
-        self._last_time: Optional[float] = None
 
     @property
     def native_value(self) -> Optional[float]:
@@ -401,38 +461,11 @@ class FETTemperatureSensor(MidniteSolarSensor):
             if temps_data:
                 value = temps_data.get(REGISTER_MAP["FET_TEMPERATURE"])
                 if value is not None:
-                    temp_value = value / 10.0
-                    # Check for negative temperature (two's complement)
-                    if value > 32767:
-                        temp_value = (value - 65536) / 10.0
-                    
-                    # Validate temperature range (-50°C to 150°C is reasonable)
-                    if temp_value < -50 or temp_value > 150:
-                        _LOGGER.warning(f"Invalid FET temperature reading: {temp_value}°C. Ignoring.")
-                        return None
-                    
-                    # Check for sudden temperature changes (>0.5°C per second)
-                    current_time = time.time()
-                    if self._last_temp is not None and self._last_time is not None:
-                        time_diff = current_time - self._last_time
-                        if time_diff > 0:  # Avoid division by zero
-                            temp_change_rate = abs(temp_value - self._last_temp) / time_diff
-                            if temp_change_rate > 0.5:  # More than 0.5°C per second
-                                _LOGGER.warning(
-                                    f"Sudden FET temperature change detected: {self._last_temp}°C -> {temp_value}°C "
-                                    f"({temp_change_rate:.2f}°C/s over {time_diff:.1f}s). Possible sensor error. Ignoring reading."
-                                )
-                                return None
-                    
-                    # Update last values
-                    self._last_temp = temp_value
-                    self._last_time = current_time
-                    
-                    return temp_value
+                    return self._validate_temperature(value, "FET temperature")
         return None
 
 
-class PCBTemperatureSensor(MidniteSolarSensor):
+class PCBTemperatureSensor(TemperatureSensorBase):
     """Representation of a PCB temperature sensor."""
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
@@ -445,8 +478,6 @@ class PCBTemperatureSensor(MidniteSolarSensor):
         self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
-        self._last_temp: Optional[float] = None
-        self._last_time: Optional[float] = None
 
     @property
     def native_value(self) -> Optional[float]:
@@ -456,34 +487,7 @@ class PCBTemperatureSensor(MidniteSolarSensor):
             if temps_data:
                 value = temps_data.get(REGISTER_MAP["PCB_TEMPERATURE"])
                 if value is not None:
-                    temp_value = value / 10.0
-                    # Check for negative temperature (two's complement)
-                    if value > 32767:
-                        temp_value = (value - 65536) / 10.0
-                    
-                    # Validate temperature range (-50°C to 150°C is reasonable)
-                    if temp_value < -50 or temp_value > 150:
-                        _LOGGER.warning(f"Invalid PCB temperature reading: {temp_value}°C. Ignoring.")
-                        return None
-                    
-                    # Check for sudden temperature changes (>0.5°C per second)
-                    current_time = time.time()
-                    if self._last_temp is not None and self._last_time is not None:
-                        time_diff = current_time - self._last_time
-                        if time_diff > 0:  # Avoid division by zero
-                            temp_change_rate = abs(temp_value - self._last_temp) / time_diff
-                            if temp_change_rate > 0.5:  # More than 0.5°C per second
-                                _LOGGER.warning(
-                                    f"Sudden PCB temperature change detected: {self._last_temp}°C -> {temp_value}°C "
-                                    f"({temp_change_rate:.2f}°C/s over {time_diff:.1f}s). Possible sensor error. Ignoring reading."
-                                )
-                                return None
-                    
-                    # Update last values
-                    self._last_temp = temp_value
-                    self._last_time = current_time
-                    
-                    return temp_value
+                    return self._validate_temperature(value, "PCB temperature")
         return None
 
 

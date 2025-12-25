@@ -335,6 +335,7 @@ class TemperatureSensorBase(MidniteSolarSensor):
         self._recent_readings: list[float] = []
         self._max_recent_readings = 20  # Keep last 20 valid readings
         self._spike_count = 0  # Track consecutive spikes
+        self._last_spike_time: Optional[float] = None  # Track when last spike occurred
 
     def _validate_temperature(self, value: int, sensor_name: str) -> Optional[float]:
         """
@@ -359,6 +360,7 @@ class TemperatureSensorBase(MidniteSolarSensor):
         if temp_value < -50 or temp_value > 150:
             _LOGGER.warning(f"Invalid {sensor_name} reading: {temp_value}°C. Ignoring.")
             self._spike_count += 1
+            self._last_spike_time = current_time
             return None
         
         # Check for sudden temperature changes (>0.5°C per second)
@@ -372,35 +374,48 @@ class TemperatureSensorBase(MidniteSolarSensor):
                         f"({temp_change_rate:.2f}°C/s over {time_diff:.1f}s). Possible sensor error. Ignoring reading."
                     )
                     self._spike_count += 1
+                    self._last_spike_time = current_time
                     return None
         
         # Statistical outlier detection using recent readings
-        if len(self._recent_readings) > 0:
+        # Only apply statistical filtering if we have enough data points
+        if len(self._recent_readings) >= 5:
             mean_temp = sum(self._recent_readings) / len(self._recent_readings)
             variance = sum((x - mean_temp) ** 2 for x in self._recent_readings) / len(self._recent_readings)
             std_dev = variance ** 0.5 if variance > 0 else 0
             
-            # Check if reading is more than 4 standard deviations from mean (more conservative)
+            # Use a more lenient threshold (z-score > 6 instead of 4)
+            # This allows legitimate temperature changes while still catching true outliers
             if std_dev > 0:
                 z_score = abs(temp_value - mean_temp) / std_dev
-                if z_score > 4:
+                if z_score > 6:
                     _LOGGER.warning(
                         f"{sensor_name} outlier detected: {temp_value}°C (mean={mean_temp:.2f}°C, "
                         f"stddev={std_dev:.2f}°C, z-score={z_score:.2f}). Possible sensor error. Ignoring reading."
                     )
                     self._spike_count += 1
+                    self._last_spike_time = current_time
                     return None
         
-        # If we have consecutive spikes, be more conservative
-        if self._spike_count >= 3:
-            _LOGGER.warning(
-                f"Multiple {sensor_name} anomalies detected in succession. "
-                f"Current reading: {temp_value}°C. Retrying with previous value."
-            )
-            return None
+        # If we have consecutive spikes, reset counter after 30 seconds of no valid readings
+        # This prevents permanent lockout while still being cautious with rapid changes
+        if self._last_spike_time is not None and (current_time - self._last_spike_time) > 30:
+            _LOGGER.info(f"Resetting {sensor_name} spike counter after timeout.")
+            self._spike_count = 0
+            self._last_spike_time = None
         
-        # Reset spike counter if we get a valid reading
-        self._spike_count = 0
+        # If we have too many consecutive spikes, allow the reading through with a warning
+        # This prevents permanent lockout from legitimate temperature changes
+        if self._spike_count >= 5:
+            _LOGGER.warning(
+                f"Multiple {sensor_name} anomalies detected. Allowing reading: {temp_value}°C "
+                f"(spike count: {self._spike_count})."
+            )
+            # Don't increment spike counter, allow this reading through
+        else:
+            # Reset spike counter if we get a valid reading (but not too many in a row)
+            self._spike_count = 0
+            self._last_spike_time = None
         
         # Update recent readings (keep only the last N valid readings)
         self._recent_readings.append(temp_value)

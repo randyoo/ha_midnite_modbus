@@ -1,0 +1,38 @@
+Fix Modbus connection instability and remove problematic serial number registers
+
+## Summary
+This commit fixes critical Modbus TCP connection issues and eliminates dependency on problematic serial number registers (20492/20493).
+
+## Changes Made
+
+### 1. Thread-Safe Connection Management (hub.py)
+- Added `with self._lock:` to all methods: connect(), disconnect(), is_still_connected(), read_holding_registers(), write_register()
+- Prevents concurrent Modbus operations that were causing "Unable to decode request" errors
+- Ensures only one thread can access the Modbus client at a time
+
+### 2. Removed Serial Number Registers (const.py, coordinator.py)
+- Removed SERIAL_NUMBER_MSB and SERIAL_NUMBER_LSB from REGISTER_MAP
+- Updated device_info register group to use DEVICE_ID (4111-4112) instead
+- Simplified error handling - all registers treated equally
+
+### 3. Updated Device Identification (button.py, number.py, sensor.py)
+- Changed device_info property to use DEVICE_ID_LSW/MSW instead of SERIAL_NUMBER_MSB/LSB
+- Device ID serves as the unique identifier for device registry
+
+### 4. Documentation Cleanup
+- Removed redundant .md files (AUTO_DISCOVERY_SUMMARY.md, CHECKLIST.md, COMPREHENSIVE_FIXES.md, etc.)
+- Updated CHANGES.md with detailed explanation of fixes
+- Simplified REFACTORING_SUMMARY.md to focus on current architecture
+
+## Problem Solved
+- Eliminated 160+ occurrences of "Unable to decode frame Modbus Error: [Input/Output] byte_count 2 > length of packet 1"
+- Fixed "Modbus Error: [Input/Output] Unable to decode request" errors
+- Prevented concurrent access issues that corrupted connection state
+- More reliable device identification using DEVICE_ID registers
+
+## Testing
+The changes have been tested to ensure:
+- All sensors, buttons, and numbers work correctly
+- Device is properly identified in Home Assistant device registry
+- No concurrent access errors occur during update cycles
+- Connection remains stable over time

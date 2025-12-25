@@ -26,13 +26,27 @@ async def async_setup_entry(
     coordinator = hass.data[DOMAIN][entry.entry_id]
     
     numbers = [
-        AbsorbVoltageNumber(coordinator, entry),
-        FloatVoltageNumber(coordinator, entry),
-        EqualizeVoltageNumber(coordinator, entry),
-        BatteryCurrentLimitNumber(coordinator, entry),
-        AbsorbTimeNumber(coordinator, entry),
-        EqualizeTimeNumber(coordinator, entry),
-        EqualizeIntervalDaysNumber(coordinator, entry),
+        MINUTE_LOG_INTERVAL_SECNumber(coordinator, entry),
+        MODBUS_PORT_REGISTERNumber(coordinator, entry),
+        BATTERY_OUTPUT_CURRENT_LIMITNumber(coordinator, entry),
+        ABSORB_SETPOINT_VOLTAGENumber(coordinator, entry),
+        FLOAT_VOLTAGE_SETPOINTNumber(coordinator, entry),
+        EQUALIZE_VOLTAGE_SETPOINTNumber(coordinator, entry),
+        ABSORB_TIME_EEPROMNumber(coordinator, entry),
+        MAX_BATTERY_TEMP_COMP_VOLTAGENumber(coordinator, entry),
+        MIN_BATTERY_TEMP_COMP_VOLTAGENumber(coordinator, entry),
+        BATTERY_TEMP_COMP_VALUENumber(coordinator, entry),
+        EQUALIZE_TIME_EEPROMNumber(coordinator, entry),
+        EQUALIZE_INTERVAL_DAYS_EEPROMNumber(coordinator, entry),
+        AUX1_VOLTS_LO_ABSNumber(coordinator, entry),
+        AUX1_DELAY_T_MSNumber(coordinator, entry),
+        AUX1_HOLD_T_MSNumber(coordinator, entry),
+        AUX2_PWM_VWIDTHNumber(coordinator, entry),
+        AUX1_VOLTS_HI_ABSNumber(coordinator, entry),
+        AUX2_VOLTS_HI_ABSNumber(coordinator, entry),
+        VBATT_OFFSETNumber(coordinator, entry),
+        VPV_OFFSETNumber(coordinator, entry),
+        FACTORY_VBATT_OFFSET_EEPANumber(coordinator, entry),
     ]
     
     async_add_entities(numbers)
@@ -94,188 +108,482 @@ class MidniteSolarNumber(CoordinatorEntity[MidniteSolarUpdateCoordinator], Numbe
     @property
     def native_value(self) -> float | None:
         """Return the current value."""
+        return None
+
+
+class MINUTE_LOG_INTERVAL_SECNumber(MidniteSolarNumber):
+    """Representation of a data logging interval (min 60 s) number."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "MINUTE_LOG_INTERVAL_SEC"
+        self._attr_unique_id = f"{entry.entry_id}_minute_log_interval_sec_number"
+        self.register_address = 4136
+        self._attr_device_class = "duration"
+        self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
+        self._attr_icon = "mdi:clock"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
         # Get the raw register value from coordinator data
         value = self.coordinator.get_register_value(self.register_address)
         if value is not None:
-            # Convert from register value (divide by 10 for voltage/current)
-            # Time values should NOT be divided by 10
-            if hasattr(self, 'is_time_value') and self.is_time_value:
-                return float(value)
-            else:
-                return float(value) / 10.0
+            return value
         return None
 
-    async def _async_set_value(self, value: float) -> None:
-        """Set the value on the device."""
-        # Convert to register value (multiply by 10 for voltage/current)
-        # Time values should NOT be multiplied by 10
-        if hasattr(self, 'is_time_value') and self.is_time_value:
-            register_value = int(value)
-        else:
-            register_value = int(value * 10)
-        try:
-            result = await self.hass.async_add_executor_job(
-                self.coordinator.api.write_register, self.register_address, register_value
-            )
-            if not result or result.isError():
-                _LOGGER.error(f"Failed to write value {value} to register {self.register_address}")
-                return False
-        except Exception as e:
-            _LOGGER.error(f"Error writing to register {self.register_address}: {e}")
-            return False
-        
-        # Request a refresh after writing
-        await self.coordinator.async_request_refresh()
-        return True
 
-
-class AbsorbVoltageNumber(MidniteSolarNumber):
-    """Number to set absorb voltage."""
+class MODBUS_PORT_REGISTERNumber(MidniteSolarNumber):
+    """Representation of a modbus tcp port (default 502) number."""
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "Absorb Voltage Setpoint"
-        self._attr_unique_id = f"{entry.entry_id}_absorb_voltage"
-        self._attr_native_unit_of_measurement = "V"
-        self._attr_mode = NumberMode.BOX
-        self.register_address = REGISTER_MAP["ABSORB_SETPOINT_VOLTAGE"]
-        # Voltage range: 10V to 65V (typical for 12V, 24V, and 48V systems)
-        # Register can theoretically go up to 655.3V but practical max is 65V
-        self._attr_native_min_value = 10.0
-        self._attr_native_max_value = 65.0
-        self._attr_native_step = 0.1
+        self._attr_name = "MODBUS_PORT_REGISTER"
+        self._attr_unique_id = f"{entry.entry_id}_modbus_port_register_number"
+        self.register_address = 4137
+        self._attr_icon = "mdi:lan"
 
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
-
-class FloatVoltageNumber(MidniteSolarNumber):
-    """Number to set float voltage."""
-
-    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
-        """Initialize the number."""
-        super().__init__(coordinator, entry)
-        self._attr_name = "Float Voltage Setpoint"
-        self._attr_unique_id = f"{entry.entry_id}_float_voltage"
-        self._attr_native_unit_of_measurement = "V"
-        self._attr_mode = NumberMode.BOX
-        self.register_address = REGISTER_MAP["FLOAT_VOLTAGE_SETPOINT"]
-        # Voltage range: 10V to 65V (typical for 12V, 24V, and 48V systems)
-        # Register can theoretically go up to 655.3V but practical max is 65V
-        self._attr_native_min_value = 10.0
-        self._attr_native_max_value = 65.0
-        self._attr_native_step = 0.1
-
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        # Get the raw register value from coordinator data
+        value = self.coordinator.get_register_value(self.register_address)
+        if value is not None:
+            return value
+        return None
 
 
-class EqualizeVoltageNumber(MidniteSolarNumber):
-    """Number to set equalize voltage."""
+class BATTERY_OUTPUT_CURRENT_LIMITNumber(MidniteSolarNumber):
+    """Representation of a battery current limit (e.g., 23.4 a = 234) number."""
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "Equalize Voltage Setpoint"
-        self._attr_unique_id = f"{entry.entry_id}_equalize_voltage"
-        self._attr_native_unit_of_measurement = "V"
-        self._attr_mode = NumberMode.BOX
-        self.register_address = REGISTER_MAP["EQUALIZE_VOLTAGE_SETPOINT"]
-        # Voltage range: 10V to 65V (typical for 12V, 24V, and 48V systems)
-        # Register can theoretically go up to 655.3V but practical max is 65V
-        self._attr_native_min_value = 10.0
-        self._attr_native_max_value = 65.0
-        self._attr_native_step = 0.1
-
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
-
-class BatteryCurrentLimitNumber(MidniteSolarNumber):
-    """Number to set battery output current limit."""
-
-    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
-        """Initialize the number."""
-        super().__init__(coordinator, entry)
-        self._attr_name = "Battery Current Limit"
-        self._attr_unique_id = f"{entry.entry_id}_current_limit"
+        self._attr_name = "BATTERY_OUTPUT_CURRENT_LIMIT"
+        self._attr_unique_id = f"{entry.entry_id}_battery_output_current_limit_number"
+        self.register_address = 4148
+        self._attr_device_class = "current"
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
-        self._attr_mode = NumberMode.BOX
-        self.register_address = REGISTER_MAP["BATTERY_OUTPUT_CURRENT_LIMIT"]
-        # Typical current limits
-        self._attr_native_min_value = 1.0
-        self._attr_native_max_value = 100.0
-        self._attr_native_step = 1.0
+        self._attr_icon = "mdi:current-dc"
 
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        # Get the raw register value from coordinator data
+        value = self.coordinator.get_register_value(self.register_address)
+        if value is not None:
+            return value / 10.0
+        return None
 
 
-class AbsorbTimeNumber(MidniteSolarNumber):
-    """Number to set absorb time."""
+class ABSORB_SETPOINT_VOLTAGENumber(MidniteSolarNumber):
+    """Representation of a battery absorb stage set point voltage number."""
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "Absorb Time (seconds)"
-        self._attr_unique_id = f"{entry.entry_id}_absorb_time"
+        self._attr_name = "ABSORB_SETPOINT_VOLTAGE"
+        self._attr_unique_id = f"{entry.entry_id}_absorb_setpoint_voltage_number"
+        self.register_address = 4149
+        self._attr_device_class = "voltage"
+        self._attr_native_unit_of_measurement = "V"
+        self._attr_icon = "mdi:tune"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        # Get the raw register value from coordinator data
+        value = self.coordinator.get_register_value(self.register_address)
+        if value is not None:
+            return value / 10.0
+        return None
+
+
+class FLOAT_VOLTAGE_SETPOINTNumber(MidniteSolarNumber):
+    """Representation of a battery float stage set point voltage number."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "FLOAT_VOLTAGE_SETPOINT"
+        self._attr_unique_id = f"{entry.entry_id}_float_voltage_setpoint_number"
+        self.register_address = 4150
+        self._attr_device_class = "voltage"
+        self._attr_native_unit_of_measurement = "V"
+        self._attr_icon = "mdi:tune"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        # Get the raw register value from coordinator data
+        value = self.coordinator.get_register_value(self.register_address)
+        if value is not None:
+            return value / 10.0
+        return None
+
+
+class EQUALIZE_VOLTAGE_SETPOINTNumber(MidniteSolarNumber):
+    """Representation of a battery equalize stage set point voltage number."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "EQUALIZE_VOLTAGE_SETPOINT"
+        self._attr_unique_id = f"{entry.entry_id}_equalize_voltage_setpoint_number"
+        self.register_address = 4151
+        self._attr_device_class = "voltage"
+        self._attr_native_unit_of_measurement = "V"
+        self._attr_icon = "mdi:tune"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        # Get the raw register value from coordinator data
+        value = self.coordinator.get_register_value(self.register_address)
+        if value is not None:
+            return value / 10.0
+        return None
+
+
+class ABSORB_TIME_EEPROMNumber(MidniteSolarNumber):
+    """Representation of a absorb setpoint time for batteries number."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "ABSORB_TIME_EEPROM"
+        self._attr_unique_id = f"{entry.entry_id}_absorb_time_eeprom_number"
+        self.register_address = 4154
+        self._attr_device_class = "duration"
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
-        self._attr_mode = NumberMode.BOX
-        self.register_address = REGISTER_MAP["ABSORB_TIME_EEPROM"]
-        # Typical absorb times (0 = disabled)
-        self._attr_native_min_value = 0
-        self._attr_native_max_value = 7200  # 2 hours
-        self._attr_native_step = 60  # 1 minute increments
-        self.is_time_value = True  # Don't divide by 10
+        self._attr_icon = "mdi:clock-edit"
 
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        # Get the raw register value from coordinator data
+        value = self.coordinator.get_register_value(self.register_address)
+        if value is not None:
+            return value
+        return None
 
 
-class EqualizeTimeNumber(MidniteSolarNumber):
-    """Number to set equalize time."""
+class MAX_BATTERY_TEMP_COMP_VOLTAGENumber(MidniteSolarNumber):
+    """Representation of a highest charge voltage limited when using temp sensor number."""
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "Equalize Time (seconds)"
-        self._attr_unique_id = f"{entry.entry_id}_equalize_time"
+        self._attr_name = "MAX_BATTERY_TEMP_COMP_VOLTAGE"
+        self._attr_unique_id = f"{entry.entry_id}_max_battery_temp_comp_voltage_number"
+        self.register_address = 4155
+        self._attr_device_class = "voltage"
+        self._attr_native_unit_of_measurement = "V"
+        self._attr_icon = "mdi:thermometer-plus"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        # Get the raw register value from coordinator data
+        value = self.coordinator.get_register_value(self.register_address)
+        if value is not None:
+            return value / 10.0
+        return None
+
+
+class MIN_BATTERY_TEMP_COMP_VOLTAGENumber(MidniteSolarNumber):
+    """Representation of a lowest charge voltage limited when using temp sensor number."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "MIN_BATTERY_TEMP_COMP_VOLTAGE"
+        self._attr_unique_id = f"{entry.entry_id}_min_battery_temp_comp_voltage_number"
+        self.register_address = 4156
+        self._attr_device_class = "voltage"
+        self._attr_native_unit_of_measurement = "V"
+        self._attr_icon = "mdi:thermometer-minus"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        # Get the raw register value from coordinator data
+        value = self.coordinator.get_register_value(self.register_address)
+        if value is not None:
+            return value / 10.0
+        return None
+
+
+class BATTERY_TEMP_COMP_VALUENumber(MidniteSolarNumber):
+    """Representation of a temperature compensation value per 2 v cell number."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "BATTERY_TEMP_COMP_VALUE"
+        self._attr_unique_id = f"{entry.entry_id}_battery_temp_comp_value_number"
+        self.register_address = 4157
+        self._attr_device_class = "voltage"
+        self._attr_native_unit_of_measurement = "V"
+        self._attr_icon = "mdi:snowflake-thermometer"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        # Get the raw register value from coordinator data
+        value = self.coordinator.get_register_value(self.register_address)
+        if value is not None:
+            return value / 10.0
+        return None
+
+
+class EQUALIZE_TIME_EEPROMNumber(MidniteSolarNumber):
+    """Representation of a initialize equalize stage duration number."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "EQUALIZE_TIME_EEPROM"
+        self._attr_unique_id = f"{entry.entry_id}_equalize_time_eeprom_number"
+        self.register_address = 4162
+        self._attr_device_class = "duration"
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
-        self._attr_mode = NumberMode.BOX
-        self.register_address = REGISTER_MAP["EQUALIZE_TIME_EEPROM"]
-        # Typical equalize times (0 = disabled)
-        self._attr_native_min_value = 0
-        self._attr_native_max_value = 7200  # 2 hours
-        self._attr_native_step = 60  # 1 minute increments
-        self.is_time_value = True  # Don't divide by 10
+        self._attr_icon = "mdi:clock-edit"
 
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        # Get the raw register value from coordinator data
+        value = self.coordinator.get_register_value(self.register_address)
+        if value is not None:
+            return value
+        return None
 
 
-class EqualizeIntervalDaysNumber(MidniteSolarNumber):
-    """Number to set equalize interval in days."""
+class EQUALIZE_INTERVAL_DAYS_EEPROMNumber(MidniteSolarNumber):
+    """Representation of a days between equalize stages (auto eq) number."""
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "Equalize Interval (days)"
-        self._attr_unique_id = f"{entry.entry_id}_equalize_interval"
-        self._attr_native_unit_of_measurement = UnitOfTime.DAYS
-        self._attr_mode = NumberMode.BOX
-        self.register_address = REGISTER_MAP["EQUALIZE_INTERVAL_DAYS_EEPROM"]
-        # Typical equalize intervals
-        self._attr_native_min_value = 0
-        self._attr_native_max_value = 365  # 1 year
-        self._attr_native_step = 1
+        self._attr_name = "EQUALIZE_INTERVAL_DAYS_EEPROM"
+        self._attr_unique_id = f"{entry.entry_id}_equalize_interval_days_eeprom_number"
+        self.register_address = 4163
+        self._attr_native_unit_of_measurement = "days"
+        self._attr_icon = "mdi:calendar-range"
 
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        # Get the raw register value from coordinator data
+        value = self.coordinator.get_register_value(self.register_address)
+        if value is not None:
+            return value
+        return None
+
+
+class AUX1_VOLTS_LO_ABSNumber(MidniteSolarNumber):
+    """Representation of a aux 1 low absolute threshold voltage number."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "AUX1_VOLTS_LO_ABS"
+        self._attr_unique_id = f"{entry.entry_id}_aux1_volts_lo_abs_number"
+        self.register_address = 4166
+        self._attr_device_class = "voltage"
+        self._attr_native_unit_of_measurement = "V"
+        self._attr_icon = "mdi:gauge-low"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        # Get the raw register value from coordinator data
+        value = self.coordinator.get_register_value(self.register_address)
+        if value is not None:
+            return value / 10.0
+        return None
+
+
+class AUX1_DELAY_T_MSNumber(MidniteSolarNumber):
+    """Representation of a aux 1 delay before asserting number."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "AUX1_DELAY_T_MS"
+        self._attr_unique_id = f"{entry.entry_id}_aux1_delay_t_ms_number"
+        self.register_address = 4167
+        self._attr_device_class = "duration"
+        self._attr_native_unit_of_measurement = "ms"
+        self._attr_icon = "mdi:timer-sand"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        # Get the raw register value from coordinator data
+        value = self.coordinator.get_register_value(self.register_address)
+        if value is not None:
+            return value
+        return None
+
+
+class AUX1_HOLD_T_MSNumber(MidniteSolarNumber):
+    """Representation of a aux 1 hold before de-asserting number."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "AUX1_HOLD_T_MS"
+        self._attr_unique_id = f"{entry.entry_id}_aux1_hold_t_ms_number"
+        self.register_address = 4168
+        self._attr_device_class = "duration"
+        self._attr_native_unit_of_measurement = "ms"
+        self._attr_icon = "mdi:timer-sand"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        # Get the raw register value from coordinator data
+        value = self.coordinator.get_register_value(self.register_address)
+        if value is not None:
+            return value
+        return None
+
+
+class AUX2_PWM_VWIDTHNumber(MidniteSolarNumber):
+    """Representation of a voltage range for aux 2 pwm (0-5 v) number."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "AUX2_PWM_VWIDTH"
+        self._attr_unique_id = f"{entry.entry_id}_aux2_pwm_vwidth_number"
+        self.register_address = 4169
+        self._attr_device_class = "voltage"
+        self._attr_native_unit_of_measurement = "V"
+        self._attr_icon = "mdi:sine-wave"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        # Get the raw register value from coordinator data
+        value = self.coordinator.get_register_value(self.register_address)
+        if value is not None:
+            return value / 10.0
+        return None
+
+
+class AUX1_VOLTS_HI_ABSNumber(MidniteSolarNumber):
+    """Representation of a aux 1 high absolute threshold voltage number."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "AUX1_VOLTS_HI_ABS"
+        self._attr_unique_id = f"{entry.entry_id}_aux1_volts_hi_abs_number"
+        self.register_address = 4172
+        self._attr_device_class = "voltage"
+        self._attr_native_unit_of_measurement = "V"
+        self._attr_icon = "mdi:gauge-high"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        # Get the raw register value from coordinator data
+        value = self.coordinator.get_register_value(self.register_address)
+        if value is not None:
+            return value / 10.0
+        return None
+
+
+class AUX2_VOLTS_HI_ABSNumber(MidniteSolarNumber):
+    """Representation of a aux 2 high absolute threshold voltage number."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "AUX2_VOLTS_HI_ABS"
+        self._attr_unique_id = f"{entry.entry_id}_aux2_volts_hi_abs_number"
+        self.register_address = 4173
+        self._attr_device_class = "voltage"
+        self._attr_native_unit_of_measurement = "V"
+        self._attr_icon = "mdi:gauge-high"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        # Get the raw register value from coordinator data
+        value = self.coordinator.get_register_value(self.register_address)
+        if value is not None:
+            return value / 10.0
+        return None
+
+
+class VBATT_OFFSETNumber(MidniteSolarNumber):
+    """Representation of a battery voltage offset tweak (signed) number."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "VBATT_OFFSET"
+        self._attr_unique_id = f"{entry.entry_id}_vbatt_offset_number"
+        self.register_address = 4189
+        self._attr_device_class = "voltage"
+        self._attr_native_unit_of_measurement = "V"
+        self._attr_icon = "mdi:tune-vertical"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        # Get the raw register value from coordinator data
+        value = self.coordinator.get_register_value(self.register_address)
+        if value is not None:
+            return value / 10.0
+        return None
+
+
+class VPV_OFFSETNumber(MidniteSolarNumber):
+    """Representation of a pv input voltage offset tweak (signed) number."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "VPV_OFFSET"
+        self._attr_unique_id = f"{entry.entry_id}_vpv_offset_number"
+        self.register_address = 4190
+        self._attr_device_class = "voltage"
+        self._attr_native_unit_of_measurement = "V"
+        self._attr_icon = "mdi:tune-vertical"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        # Get the raw register value from coordinator data
+        value = self.coordinator.get_register_value(self.register_address)
+        if value is not None:
+            return value / 10.0
+        return None
+
+
+class FACTORY_VBATT_OFFSET_EEPANumber(MidniteSolarNumber):
+    """Representation of a factory v battery offset calibration number."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "FACTORY_VBATT_OFFSET_EEPA"
+        self._attr_unique_id = f"{entry.entry_id}_factory_vbatt_offset_eepa_number"
+        self.register_address = 4300
+        self._attr_icon = "mdi:tune"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        # Get the raw register value from coordinator data
+        value = self.coordinator.get_register_value(self.register_address)
+        if value is not None:
+            return value
+        return None

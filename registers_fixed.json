@@ -250,36 +250,22 @@
   ],
   "tables": {
     "INFO_FLAGS_BITS3": [
-      {"bit":0,"name":"Classic Over Temperature","description":"Battery over‑temperature"},
-      
-    ],
+      {"bit":0,"name":"Classic Over Temperature","description":"Battery over‑temperature"}],
     "ENABLE_FLAGS3": [
-      {"bit":1,"name":"Rem2DwnStrmBus","description":"Forward Remote to Downstream bus"},
-      
-    ],
+      {"bit":1,"name":"Rem2DwnStrmBus","description":"Forward Remote to Downstream bus"}],
     "ENABLE_FLAGS2": [
-      {"bit":0,"name":"DCclipperEn","description":"Aux 2 Clipper runs at lower freq"},
-      
-    ],
+      {"bit":0,"name":"DCclipperEn","description":"Aux 2 Clipper runs at lower freq"}],
     "MPPT_MODE": [
       {"value":"0x0001","name":"PV_Uset"},
       {"value":"0x0003","name":"DYNAMIC"},
-      {"value":"0x0005","name":"WIND_TRACK"},
-      
-    ],
+      {"value":"0x0005","name":"WIND_TRACK"}],
     "AUX1_FUNCTION": [
       {"value":"0","name":"Off"},
-      {"value":"1","name":"Auto"},
-      
-    ],
+      {"value":"1","name":"Auto"}],
     "AUX2_FUNCTION": [
-      {"value":"0","name":"Off"},
-      
-    ],
+      {"value":"0","name":"Off"}],
     "REASON_FOR_RESET": [
-      {"value":"1","description":"Anti‑Click"},
-      
-    ],
+      {"value":"1","description":"Anti‑Click"}],
     "IP_SETTINGS_FLAGS": [
       {"bit":0,"name":"DHCP","description":"Enable DHCP"},
       {"bit":1,"name":"Web Access","description":"HTTP access to Classic"}

@@ -85,6 +85,50 @@ REGISTER_GROUPS = {
         REGISTER_MAP["EQUALIZE_TIME_EEPROM"],
         REGISTER_MAP["EQUALIZE_INTERVAL_DAYS_EEPROM"],
     ],
+    # Advanced status registers
+    "advanced_status": [
+        REGISTER_MAP["MATCH_POINT_SHADOW"],
+        REGISTER_MAP["MINUTE_LOG_INTERVAL_SEC"],
+        REGISTER_MAP["MODBUS_PORT_REGISTER"],
+        REGISTER_MAP["MPP_W_LAST"],
+    ],
+    # Advanced configuration registers
+    "advanced_config": [
+        REGISTER_MAP["MPPT_MODE"],
+        REGISTER_MAP["AUX_1_AND_2_FUNCTION"],
+        REGISTER_MAP["VARIMAX"],
+        REGISTER_MAP["ENABLE_FLAGS3"],
+        REGISTER_MAP["ENABLE_FLAGS2"],
+        REGISTER_MAP["ENABLE_FLAGS_BITS"],
+    ],
+    # AUX control registers
+    "aux_control": [
+        REGISTER_MAP["AUX1_VOLTS_LO_ABS"],
+        REGISTER_MAP["AUX1_VOLTS_HI_ABS"],
+        REGISTER_MAP["AUX1_DELAY_T_MS"],
+        REGISTER_MAP["AUX1_HOLD_T_MS"],
+        REGISTER_MAP["AUX2_PWM_VWIDTH"],
+        REGISTER_MAP["AUX1_VOLTS_LO_REL"],
+        REGISTER_MAP["AUX1_VOLTS_HI_REL"],
+        REGISTER_MAP["AUX2_VOLTS_LO_REL"],
+        REGISTER_MAP["AUX2_VOLTS_HI_REL"],
+        REGISTER_MAP["AUX1_VOLTS_LO_PV_ABS"],
+        REGISTER_MAP["AUX1_VOLTS_HI_PV_ABS"],
+        REGISTER_MAP["AUX2_VOLTS_HI_PV_ABS"],
+    ],
+    # Voltage offset registers
+    "voltage_offsets": [
+        REGISTER_MAP["VBATT_OFFSET"],
+        REGISTER_MAP["VPV_OFFSET"],
+        REGISTER_MAP["VPV_TARGET_RD"],
+        REGISTER_MAP["VPV_TARGET_WR"],
+    ],
+    # Temperature compensation registers
+    "temp_comp": [
+        REGISTER_MAP["MAX_BATTERY_TEMP_COMP_VOLTAGE"],
+        REGISTER_MAP["MIN_BATTERY_TEMP_COMP_VOLTAGE"],
+        REGISTER_MAP["BATTERY_TEMP_COMP_VALUE"],
+    ],
 }
 
 

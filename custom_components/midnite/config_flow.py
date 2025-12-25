@@ -205,6 +205,18 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
                     CONF_SCAN_INTERVAL, 
                     default=current_options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
                 ): int,
+                vol.Optional(
+                    CONF_ENABLE_ADVANCED,
+                    default=current_options.get(CONF_ENABLE_ADVANCED, False)
+                ): bool,
+                vol.Optional(
+                    CONF_ENABLE_DEBUG,
+                    default=current_options.get(CONF_ENABLE_DEBUG, False)
+                ): bool,
+                vol.Optional(
+                    CONF_ENABLE_WRITES,
+                    default=current_options.get(CONF_ENABLE_WRITES, False)
+                ): bool,
             }),
         )
 
@@ -257,6 +269,12 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
             entry_options = {}
             if CONF_SCAN_INTERVAL in user_input:
                 entry_options[CONF_SCAN_INTERVAL] = user_input[CONF_SCAN_INTERVAL]
+            if CONF_ENABLE_ADVANCED in user_input:
+                entry_options[CONF_ENABLE_ADVANCED] = user_input[CONF_ENABLE_ADVANCED]
+            if CONF_ENABLE_DEBUG in user_input:
+                entry_options[CONF_ENABLE_DEBUG] = user_input[CONF_ENABLE_DEBUG]
+            if CONF_ENABLE_WRITES in user_input:
+                entry_options[CONF_ENABLE_WRITES] = user_input[CONF_ENABLE_WRITES]
             
             return self.async_update_reload_and_abort(
                 config_entry,
@@ -269,6 +287,9 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
             vol.Required(CONF_HOST, default=config_entry.data.get(CONF_HOST)): str,
             vol.Required(CONF_PORT, default=config_entry.data.get(CONF_PORT, DEFAULT_PORT)): int,
             vol.Optional(CONF_SCAN_INTERVAL, default=config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)): int,
+            vol.Optional(CONF_ENABLE_ADVANCED, default=config_entry.options.get(CONF_ENABLE_ADVANCED, False)): bool,
+            vol.Optional(CONF_ENABLE_DEBUG, default=config_entry.options.get(CONF_ENABLE_DEBUG, False)): bool,
+            vol.Optional(CONF_ENABLE_WRITES, default=config_entry.options.get(CONF_ENABLE_WRITES, False)): bool,
         })
         
         return self.async_show_form(

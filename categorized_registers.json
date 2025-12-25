@@ -1,0 +1,1155 @@
+{
+  "categories": {
+    "default": "Basic functionality - always enabled",
+    "advanced": "Advanced features for power users",
+    "debug": "Debugging and diagnostic information"
+  },
+  "registers": {
+    "default": [],
+    "advanced": [
+      {
+        "address": 4109,
+        "name": "JrAmpHourNET",
+        "access": "R/W",
+        "description": "Whizbang Jr. Net amp\u2011hours (temporary clone of 4369)",
+        "category": "advanced"
+      },
+      {
+        "address": 4111,
+        "name": "DEVICE_ID",
+        "access": "R/W",
+        "description": "Device ID (clone of 4360)",
+        "category": "advanced"
+      },
+      {
+        "address": 4124,
+        "name": "MATCH_POINT_SHADOW",
+        "access": "R",
+        "description": "Current wind power curve step (1\u201116)",
+        "category": "advanced"
+      },
+      {
+        "address": 4130,
+        "name": "INFO_FLAGS_BITS2_1",
+        "access": "R",
+        "description": "32\u2011bit info flags (read as hex 0xXXXX XXXX)",
+        "category": "advanced"
+      },
+      {
+        "address": 4131,
+        "name": "INFO_FLAGS_BITS2_0",
+        "access": "R",
+        "description": "High word of 32\u2011bit info flags",
+        "category": "advanced"
+      },
+      {
+        "address": 4136,
+        "name": "MINUTE_LOG_INTERVAL_SEC",
+        "access": "R/W",
+        "description": "Data logging interval",
+        "category": "advanced"
+      },
+      {
+        "address": 4137,
+        "name": "MODBUS_PORT_REGISTER",
+        "access": "R/W",
+        "description": "Modbus TCP port (default 502)",
+        "category": "advanced"
+      },
+      {
+        "address": 4141,
+        "name": "PWM_READONLY",
+        "access": "R",
+        "description": "Duty cycle command of PWM (not percent)",
+        "category": "advanced"
+      },
+      {
+        "address": 4145,
+        "name": "MPP_W_LAST",
+        "access": "R/W",
+        "description": "Internal watts reference (~10\u202f% of last MPP)",
+        "category": "advanced"
+      },
+      {
+        "address": 4146,
+        "name": "USB_COMM_MODE",
+        "access": "R/W EEprom",
+        "description": "USB function # (see table 4146\u20111)",
+        "category": "advanced"
+      },
+      {
+        "address": 4147,
+        "name": "NO_DOUBLE_CLICK_TIMER",
+        "access": "R/W",
+        "description": "Internal forced time between manual sweeps",
+        "category": "advanced"
+      },
+      {
+        "address": 4152,
+        "name": "SLIDING_CURRENT_LIMIT",
+        "access": "R/W",
+        "description": "Sliding current limit (varies with V/Temp)",
+        "category": "advanced"
+      },
+      {
+        "address": 4153,
+        "name": "MIN_ABSORB_TIME",
+        "access": "R/W EEprom",
+        "description": "Minimum absorb time (usually unused)",
+        "category": "advanced"
+      },
+      {
+        "address": 4155,
+        "name": "MAX_BATTERY_TEMP_COMP_VOLTAGE",
+        "access": "R/W EEprom",
+        "description": "Highest charge voltage limited when using temp sensor",
+        "category": "advanced"
+      },
+      {
+        "address": 4156,
+        "name": "MIN_BATTERY_TEMP_COMP_VOLTAGE",
+        "access": "R/W EEprom",
+        "description": "Lowest charge voltage limited when using temp sensor",
+        "category": "advanced"
+      },
+      {
+        "address": 4157,
+        "name": "BATTERY_TEMP_COMP_VALUE",
+        "access": "R/W EEprom",
+        "description": "Temperature compensation value per 2\u202fV cell",
+        "category": "advanced"
+      },
+      {
+        "address": 4158,
+        "name": "GENERAL_PURPOSE_WORD",
+        "access": "R/W EEprom",
+        "description": "Stored & retrieved with other EEprom (was battery type)",
+        "category": "advanced"
+      },
+      {
+        "address": 4159,
+        "name": "EQUALIZE_RETRY_DAYS",
+        "access": "R/W EEprom",
+        "description": "Auto EQ retry days until giving up",
+        "category": "advanced"
+      },
+      {
+        "address": 4164,
+        "name": "MPPT_MODE",
+        "access": "R/W EEprom",
+        "description": "Solar, Wind, etc. (bit\u202f0 = ON/OFF) \u2013 see table 4164\u20111",
+        "category": "advanced"
+      },
+      {
+        "address": 4165,
+        "name": "AUX_1_AND_2_FUNCTION",
+        "access": "R/W EEprom",
+        "description": "Combined Aux\u202f1 &\u202f2 function + ON/OFF \u2013 see tables 4165\u20111, \u20112 & \u20113",
+        "category": "advanced"
+      },
+      {
+        "address": 4166,
+        "name": "AUX1_VOLTS_LO_ABS",
+        "access": "R/W EEprom",
+        "description": "Aux\u202f1 low absolute threshold voltage",
+        "category": "advanced"
+      },
+      {
+        "address": 4167,
+        "name": "AUX1_DELAY_T_MS",
+        "access": "R/W EEprom",
+        "description": "Aux\u202f1 delay before asserting",
+        "category": "advanced"
+      },
+      {
+        "address": 4168,
+        "name": "AUX1_HOLD_T_MS",
+        "access": "R/W EEprom",
+        "description": "Aux\u202f1 hold before de\u2011asserting",
+        "category": "advanced"
+      },
+      {
+        "address": 4169,
+        "name": "AUX2_PWM_VWIDTH",
+        "access": "R/W EEprom",
+        "description": "Voltage range for Aux\u202f2 PWM (0\u20115\u202fV)",
+        "category": "advanced"
+      },
+      {
+        "address": 4172,
+        "name": "AUX1_VOLTS_HI_ABS",
+        "access": "R/W EEprom",
+        "description": "Aux\u202f1 high absolute threshold voltage",
+        "category": "advanced"
+      },
+      {
+        "address": 4173,
+        "name": "AUX2_VOLTS_HI_ABS",
+        "access": "R/W EEprom",
+        "description": "Aux\u202f2 high absolute threshold voltage",
+        "category": "advanced"
+      },
+      {
+        "address": 4174,
+        "name": "AUX1_VOLTS_LO_REL",
+        "access": "R/W EEprom",
+        "description": "Aux\u202f1 waste\u2011not relative lower voltage",
+        "category": "advanced"
+      },
+      {
+        "address": 4175,
+        "name": "AUX1_VOLTS_HI_REL",
+        "access": "R/W EEprom",
+        "description": "Aux\u202f1 waste\u2011not relative upper voltage",
+        "category": "advanced"
+      },
+      {
+        "address": 4176,
+        "name": "AUX2_VOLTS_LO_REL",
+        "access": "R/W EEprom",
+        "description": "Aux\u202f2 waste\u2011not relative lower voltage",
+        "category": "advanced"
+      },
+      {
+        "address": 4177,
+        "name": "AUX2_VOLTS_HI_REL",
+        "access": "R/W EEprom",
+        "description": "Aux\u202f2 waste\u2011not relative upper voltage",
+        "category": "advanced"
+      },
+      {
+        "address": 4178,
+        "name": "AUX1_VOLTS_LO_PV_ABS",
+        "access": "R/W EEprom",
+        "description": "Aux\u202f1 lower PV absolute threshold voltage",
+        "category": "advanced"
+      },
+      {
+        "address": 4179,
+        "name": "AUX1_VOLTS_HI_PV_ABS",
+        "access": "R/W EEprom",
+        "description": "Aux\u202f1 higher PV absolute threshold voltage",
+        "category": "advanced"
+      },
+      {
+        "address": 4180,
+        "name": "VARIMAX",
+        "access": "R/W EEprom",
+        "description": "Variable maximum current & voltage differential",
+        "category": "advanced"
+      },
+      {
+        "address": 4181,
+        "name": "AUX2_VOLTS_HI_PV_ABS",
+        "access": "R/W EEprom",
+        "description": "Aux\u202f2 higher PV absolute threshold voltage",
+        "category": "advanced"
+      },
+      {
+        "address": 4182,
+        "name": "ENABLE_FLAGS3",
+        "access": "R/W EEprom",
+        "description": "Enable forwarding of Modbus traffic (follow\u2011me)",
+        "category": "advanced"
+      },
+      {
+        "address": 4183,
+        "name": "ARC_FAULT_SENSITIVITY",
+        "access": "R/W EEprom",
+        "description": "Arc fault protection sensitivity \u2013 set via Time/Sense/Mode fields",
+        "category": "advanced"
+      },
+      {
+        "address": 4186,
+        "name": "ENABLE_FLAGS2",
+        "access": "R/W EEprom",
+        "description": "Various feature flags",
+        "category": "advanced"
+      },
+      {
+        "address": 4187,
+        "name": "ENABLE_FLAGS_BITS",
+        "access": "R/W EEprom",
+        "description": "Legacy flags moved to EnableFlags2",
+        "category": "advanced"
+      },
+      {
+        "address": 4189,
+        "name": "VBATT_OFFSET",
+        "access": "R/W EEprom",
+        "description": "Battery voltage offset tweak (signed)",
+        "category": "advanced"
+      },
+      {
+        "address": 4190,
+        "name": "VPV_OFFSET",
+        "access": "R/W EEprom",
+        "description": "PV input voltage offset tweak (signed)",
+        "category": "advanced"
+      },
+      {
+        "address": 4191,
+        "name": "VPV_TARGET_RD",
+        "access": "R",
+        "description": "PV input target (usually Vmpp)",
+        "category": "advanced"
+      },
+      {
+        "address": 4192,
+        "name": "VPV_TARGET_WR",
+        "access": "R/W EEprom",
+        "description": "Writeable PV target command",
+        "category": "advanced"
+      },
+      {
+        "address": 4197,
+        "name": "SWEEP_INTERVAL_SECS_EEPROM",
+        "access": "R/W EEprom",
+        "description": "Legacy P&O sweep interval (seconds)",
+        "category": "advanced"
+      },
+      {
+        "address": 4198,
+        "name": "MIN_SWP_VOLTAGE_EEPROM",
+        "access": "R/W EEprom",
+        "description": "Minimum input voltage for hydro MPPT mode sweep",
+        "category": "advanced"
+      },
+      {
+        "address": 4199,
+        "name": "MAX_INPUT_CURRENT_EEPROM",
+        "access": "R/W EEprom",
+        "description": "Maximum input current limit (default 99\u202fA)",
+        "category": "advanced"
+      },
+      {
+        "address": 4200,
+        "name": "SWEEP_DEPTH",
+        "access": "R/W EEprom",
+        "description": "Legacy/Hydro mode sweep depth as % of current MPP",
+        "category": "advanced"
+      },
+      {
+        "address": 4201,
+        "name": "NEGATIVE_CURRENT_ADJ",
+        "access": "R/W EEprom",
+        "description": "Factory calibration \u2013 do not change",
+        "category": "advanced"
+      },
+      {
+        "address": 4202,
+        "name": "CLIPPER_CMD_VOLTS",
+        "access": "R/W EEprom",
+        "description": "Aux clipper reference varies with stage and headroom",
+        "category": "advanced"
+      },
+      {
+        "address": 4203,
+        "name": "WIND_NUMBER_OF_POLES_EEPROM",
+        "access": "R/W EEprom",
+        "description": "Number of turbine alternator poles (unused)",
+        "category": "advanced"
+      },
+      {
+        "address": 4204,
+        "name": "MPP_PERCENT_VOC_EEPROM",
+        "access": "R/W EEprom",
+        "description": "% of Voc for U\u2011Set mode",
+        "category": "advanced"
+      },
+      {
+        "address": 4205,
+        "name": "WIND_TABLE_TO_USE_EEPROM",
+        "access": "R/W EEprom",
+        "description": "Future power curve select",
+        "category": "advanced"
+      },
+      {
+        "address": 4207,
+        "name": "LED_MODE_EEPROM",
+        "access": "R/W EEprom",
+        "description": "See table 4207\u20111",
+        "category": "advanced"
+      },
+      {
+        "address": 4210,
+        "name": "ID_NAME_PARTS_0_TO_3",
+        "access": "R/W EEprom",
+        "description": "8\u2011char ASCII unit name \u2013 stored in four 16\u2011bit words (LSB first)",
+        "category": "advanced"
+      },
+      {
+        "address": 4214,
+        "name": "CTI_ME0",
+        "access": "R/W EEprom",
+        "description": "Consolidated time register 0 (seconds since epoch)",
+        "category": "advanced"
+      },
+      {
+        "address": 4216,
+        "name": "CTI_ME1",
+        "access": "R/W EEprom",
+        "description": "Consolidated time register 1 (minutes)",
+        "category": "advanced"
+      },
+      {
+        "address": 4218,
+        "name": "CTI_ME2",
+        "access": "R/W EEprom",
+        "description": "Consolidated time register 2 (epoch days)",
+        "category": "advanced"
+      },
+      {
+        "address": 4220,
+        "name": "REMOTE_MENU_MODE",
+        "access": "R/W EEprom",
+        "description": "Remote menu sent from MNGP",
+        "category": "advanced"
+      },
+      {
+        "address": 4221,
+        "name": "REMOTE_BUTTONS",
+        "access": "R/W EEprom",
+        "description": "MNGP buttons pressed \u2013 see table 4221\u20111",
+        "category": "advanced"
+      },
+      {
+        "address": 4224,
+        "name": "PREVOC",
+        "access": "R/W EEprom",
+        "description": "Voc before relay",
+        "category": "advanced"
+      },
+      {
+        "address": 4226,
+        "name": "AUX2_A2D_D2A",
+        "access": "R/W EEprom",
+        "description": "Aux\u202f2 A/D and D/A value",
+        "category": "advanced"
+      },
+      {
+        "address": 4231,
+        "name": "VOC_RD",
+        "access": "R/W EEprom",
+        "description": "Last VOC reading",
+        "category": "advanced"
+      },
+      {
+        "address": 4236,
+        "name": "ABSORB_TIME_DUPLICATE",
+        "access": "R/W EEprom",
+        "description": "Duplicate absorb time counter",
+        "category": "advanced"
+      },
+      {
+        "address": 4238,
+        "name": "SIESTA_TIME_SEC",
+        "access": "R/W EEprom",
+        "description": "Sleep timer (max 5\u202fmin)",
+        "category": "advanced"
+      },
+      {
+        "address": 4239,
+        "name": "SIESTA_ABORT_VOC_ADJ",
+        "access": "R/W EEprom",
+        "description": "Voc difference to abort Siesta",
+        "category": "advanced"
+      },
+      {
+        "address": 4241,
+        "name": "FLAGS_RD_32BIT",
+        "access": "R/W EEprom",
+        "description": "Internal status flags (32\u2011bit)",
+        "category": "advanced"
+      },
+      {
+        "address": 4244,
+        "name": "VBATT_REG_SET_P_TEMP_COMP",
+        "access": "R/W EEprom",
+        "description": "Battery regulation target voltage, temp\u2011compensated",
+        "category": "advanced"
+      },
+      {
+        "address": 4245,
+        "name": "VBATT_NOMINAL_EEPROM",
+        "access": "R/W EEprom",
+        "description": "Nominal battery bank voltage (12\u202fV, 24\u202fV, etc.)",
+        "category": "advanced"
+      },
+      {
+        "address": 4246,
+        "name": "ENDING_AMPES_EEPROM",
+        "access": "R/W EEprom",
+        "description": "End of absorb amps threshold (float if reached)",
+        "category": "advanced"
+      },
+      {
+        "address": 4247,
+        "name": "ENDING_SOC_EEPROM",
+        "access": "R/W EEprom",
+        "description": "SOC to end absorb (future SOC use)",
+        "category": "advanced"
+      },
+      {
+        "address": 4249,
+        "name": "REBUCK_VOLTS_EEPROM",
+        "access": "R/W EEprom",
+        "description": "Re\u2011bulk if battery drops below this for >\u202f90\u202fs",
+        "category": "advanced"
+      },
+      {
+        "address": 4252,
+        "name": "DAYS_BTW_BULK_ABS_EEPROM",
+        "access": "R/W EEprom",
+        "description": "Days between bulk/absorb cycles",
+        "category": "advanced"
+      },
+      {
+        "address": 4254,
+        "name": "DAY_LOG_COMB_CAT_INDEX",
+        "access": "R/W EEprom",
+        "description": "Daily logs combined category / day index",
+        "category": "advanced"
+      },
+      {
+        "address": 4256,
+        "name": "MIN_LOG_COMB_CAT_INDEX",
+        "access": "R/W EEprom",
+        "description": "Minute logs combined category / sample offset",
+        "category": "advanced"
+      },
+      {
+        "address": 4257,
+        "name": "REBUCK_TIMER_SEC_EEPROM",
+        "access": "R/W EEprom",
+        "description": "Re\u2011bulk interval timer seconds",
+        "category": "advanced"
+      },
+      {
+        "address": 4265,
+        "name": "VOC_QUALIFY_TIMER_MS_EEPROM",
+        "access": "R/W EEprom",
+        "description": "Qualifying time till turn\u2011on (ms)",
+        "category": "advanced"
+      },
+      {
+        "address": 4266,
+        "name": "IPV_MINUS_RAW",
+        "access": "R/W EEprom",
+        "description": "Raw PV negative current from ADC (1\u202fcount = 0.1\u202fA)",
+        "category": "advanced"
+      },
+      {
+        "address": 4271,
+        "name": "RESTART_TIME_MS2",
+        "access": "R/W EEprom",
+        "description": "Countdown time to wake up (\u2264\u202f500\u202fms)",
+        "category": "advanced"
+      },
+      {
+        "address": 4272,
+        "name": "IBATT_RAW_A",
+        "access": "R/W EEprom",
+        "description": "Battery current, unfiltered",
+        "category": "advanced"
+      },
+      {
+        "address": 4276,
+        "name": "OUTPUT_VBATT_RAW",
+        "access": "R/W EEprom",
+        "description": "Battery voltage, unfiltered",
+        "category": "advanced"
+      },
+      {
+        "address": 4277,
+        "name": "INPUT_VPV_RAW",
+        "access": "R/W EEprom",
+        "description": "PV voltage, unfiltered",
+        "category": "advanced"
+      },
+      {
+        "address": 4280,
+        "name": "PK_HOLD_VPV_STAMP",
+        "access": "R/W EEprom",
+        "description": "Solar MPPT internal variable",
+        "category": "advanced"
+      },
+      {
+        "address": 4283,
+        "name": "VPV_TARGET_RD_TMP",
+        "access": "R/W EEprom",
+        "description": "Temporary PV target voltage",
+        "category": "advanced"
+      },
+      {
+        "address": 4284,
+        "name": "SWP_DEEP_TIMEOUT_SEC",
+        "access": "R/W EEprom",
+        "description": "Solar MPPT internal variable",
+        "category": "advanced"
+      },
+      {
+        "address": 4286,
+        "name": "LOW_WATTS_EEPA",
+        "access": "R/W EEprom",
+        "description": "Classic rests when watts < this for >\u202f90\u202fs (non-wind)",
+        "category": "advanced"
+      },
+      {
+        "address": 4287,
+        "name": "WIND_LOW_WATTS_EEPA",
+        "access": "R/W EEprom",
+        "description": "Wind low watts threshold (default 50\u202fW)",
+        "category": "advanced"
+      },
+      {
+        "address": 4288,
+        "name": "WIND_WINDOW_WATTS_REF_EEPA",
+        "access": "R/W EEprom",
+        "description": "Wind power window reference to keep running",
+        "category": "advanced"
+      },
+      {
+        "address": 4289,
+        "name": "WINDOW_WATTS_RO_DELTA_EEPA",
+        "access": "R/W EEprom",
+        "description": "Delta watts below WindLowWatts for power wiggling",
+        "category": "advanced"
+      },
+      {
+        "address": 4290,
+        "name": "WIND_TIMEOUT_REF_EEPA",
+        "access": "R/W EEprom",
+        "description": "Wind power low timeout to go resting (default 90\u202fs)",
+        "category": "advanced"
+      },
+      {
+        "address": 4291,
+        "name": "WIND_TIMEOUT2_REF_EEPA",
+        "access": "R/W EEprom",
+        "description": "Half\u2011hour wind timeout reference (default 1800\u202fs)",
+        "category": "advanced"
+      },
+      {
+        "address": 4292,
+        "name": "WIND_TIMEOUT_SECONDS",
+        "access": "R/W EEprom",
+        "description": "Wind timeout counter \u2013 >\u202fWIND_TIMEOUT_REF -> rest",
+        "category": "advanced"
+      },
+      {
+        "address": 4293,
+        "name": "WIND_TIMEOUT2_SECONDS",
+        "access": "R/W EEprom",
+        "description": "Wind timeout counter 2 \u2013 >\u202fWIND_TIMEOUT2_REF -> rest",
+        "category": "advanced"
+      },
+      {
+        "address": 4294,
+        "name": "MIN_VPV_TURN_ON",
+        "access": "R/W EEprom",
+        "description": "Minimum input voltage to exit Resting",
+        "category": "advanced"
+      },
+      {
+        "address": 4295,
+        "name": "VPV_B4_TURN_OFF",
+        "access": "R EEprom",
+        "description": "Internal reference of Vpv when going to Resting",
+        "category": "advanced"
+      },
+      {
+        "address": 4296,
+        "name": "H2O_SWEEP_AMPS_10TIME6_EEPA",
+        "access": "R/W EEprom",
+        "description": "Hydro sweep speed reference",
+        "category": "advanced"
+      },
+      {
+        "address": 4297,
+        "name": "ENDING_AMPS_TIMER_SEC",
+        "access": "R/W EEprom",
+        "description": "Timer for ending amps (60\u202fs reference)",
+        "category": "advanced"
+      },
+      {
+        "address": 4298,
+        "name": "PK_AMPS_OVER_LIMIT_HI_EEPA",
+        "access": "R/W EEprom",
+        "description": "Factory calibration \u2013 leave as is",
+        "category": "advanced"
+      },
+      {
+        "address": 4299,
+        "name": "PK_AMPS_OVER_LIMIT_LO_EEPA",
+        "access": "R/W EEprom",
+        "description": "Factory calibration \u2013 leave as is",
+        "category": "advanced"
+      },
+      {
+        "address": 4300,
+        "name": "FACTORY_VBATT_OFFSET_EEPA",
+        "access": "R/W EEprom",
+        "description": "Factory V battery offset calibration",
+        "category": "advanced"
+      },
+      {
+        "address": 4301,
+        "name": "WIND_POWER_TABLE_V_0_EEPA",
+        "access": "R/W EEprom",
+        "description": "Wind power curve step 0 (V cut\u2011in)",
+        "category": "advanced"
+      },
+      {
+        "address": 4302,
+        "name": "WIND_POWER_TABLE_V_1_EEPA",
+        "access": "R/W EEprom",
+        "description": "Wind power curve step 1",
+        "category": "advanced"
+      },
+      {
+        "address": 4303,
+        "name": "WIND_POWER_TABLE_V_2_EEPA",
+        "access": "R/W EEprom",
+        "description": "Wind power curve step 2",
+        "category": "advanced"
+      },
+      {
+        "address": 4304,
+        "name": "WIND_POWER_TABLE_V_3_EEPA",
+        "access": "R/W EEprom",
+        "description": "Wind power curve step 3",
+        "category": "advanced"
+      },
+      {
+        "address": 4305,
+        "name": "WIND_POWER_TABLE_V_4_EEPA",
+        "access": "R/W EEprom",
+        "description": "Wind power curve step 4",
+        "category": "advanced"
+      },
+      {
+        "address": 4306,
+        "name": "WIND_POWER_TABLE_V_5_EEPA",
+        "access": "R/W EEprom",
+        "description": "Wind power curve step 5",
+        "category": "advanced"
+      },
+      {
+        "address": 4307,
+        "name": "WIND_POWER_TABLE_V_6_EEPA",
+        "access": "R/W EEprom",
+        "description": "Wind power curve step 6",
+        "category": "advanced"
+      },
+      {
+        "address": 4308,
+        "name": "WIND_POWER_TABLE_V_7_EEPA",
+        "access": "R/W EEprom",
+        "description": "Wind power curve step 7",
+        "category": "advanced"
+      },
+      {
+        "address": 4309,
+        "name": "WIND_POWER_TABLE_I_0_EEPA",
+        "access": "R/W EEprom",
+        "description": "Wind power curve current step 0",
+        "category": "advanced"
+      },
+      {
+        "address": 4310,
+        "name": "WIND_POWER_TABLE_I_1_EEPA",
+        "access": "R/W EEprom",
+        "description": "Wind power curve current step 1",
+        "category": "advanced"
+      },
+      {
+        "address": 4311,
+        "name": "WIND_POWER_TABLE_I_2_EEPA",
+        "access": "R/W EEprom",
+        "description": "Wind power curve current step 2",
+        "category": "advanced"
+      },
+      {
+        "address": 4312,
+        "name": "WIND_POWER_TABLE_I_3_EEPA",
+        "access": "R/W EEprom",
+        "description": "Wind power curve current step 3",
+        "category": "advanced"
+      },
+      {
+        "address": 4313,
+        "name": "WIND_POWER_TABLE_I_4_EEPA",
+        "access": "R/W EEprom",
+        "description": "Wind power curve current step 4",
+        "category": "advanced"
+      },
+      {
+        "address": 4314,
+        "name": "WIND_POWER_TABLE_I_5_EEPA",
+        "access": "R/W EEprom",
+        "description": "Wind power curve current step 5",
+        "category": "advanced"
+      },
+      {
+        "address": 4315,
+        "name": "WIND_POWER_TABLE_I_6_EEPA",
+        "access": "R/W EEprom",
+        "description": "Wind power curve current step 6",
+        "category": "advanced"
+      },
+      {
+        "address": 4316,
+        "name": "WIND_POWER_TABLE_I_7_EEPA",
+        "access": "R/W EEprom",
+        "description": "Wind power curve current step 7",
+        "category": "advanced"
+      },
+      {
+        "address": 4318,
+        "name": "PK_AMPS_OVER_TRIP_EEPROM",
+        "access": "R/W EEprom",
+        "description": "Factory calibration \u2013 leave as is",
+        "category": "advanced"
+      },
+      {
+        "address": 4319,
+        "name": "MNGP_REVISION",
+        "access": "R EEprom",
+        "description": "Preliminary \u2013 shows unit connected",
+        "category": "advanced"
+      },
+      {
+        "address": 4320,
+        "name": "MNLP_REVISION",
+        "access": "R EEprom",
+        "description": "Preliminary \u2013 shows unit connected",
+        "category": "advanced"
+      },
+      {
+        "address": 4326,
+        "name": "CLASSIC_MODBUS_ADDR_EEPROM",
+        "access": "R/W EEprom",
+        "description": "Classic Modbus address (default 10)",
+        "category": "advanced"
+      },
+      {
+        "address": 4327,
+        "name": "BATTERY_TEMP_PASSED_EEPROM",
+        "access": "R EEprom",
+        "description": "Follow\u2011Me temperature sensor value",
+        "category": "advanced"
+      },
+      {
+        "address": 4330,
+        "name": "I_FLAGS_RO_HIGH",
+        "access": "R EEprom",
+        "description": "Follow\u2011Me high bits \u2013 charge stage coordination",
+        "category": "advanced"
+      },
+      {
+        "address": 4331,
+        "name": "MODBUS_CONTROL_EEPROM",
+        "access": "R/W EEprom",
+        "description": "Follow\u2011Me Modbus control",
+        "category": "advanced"
+      },
+      {
+        "address": 4332,
+        "name": "CLASSIC_FME_PASSED_BITS_EEPROM",
+        "access": "R/W EEprom",
+        "description": "Follow\u2011Me state bits",
+        "category": "advanced"
+      },
+      {
+        "address": 4333,
+        "name": "WIND_SYNCH_A_EEPROM",
+        "access": "R/W EEprom",
+        "description": "Wind power tracking amps",
+        "category": "advanced"
+      },
+      {
+        "address": 4334,
+        "name": "WIND_SYNCH_V_EEPROM",
+        "access": "R/W EEprom",
+        "description": "Wind power tracking volts",
+        "category": "advanced"
+      },
+      {
+        "address": 4335,
+        "name": "FOLLOW_ME_PASS_REF_EEPROM",
+        "access": "R/W EEprom",
+        "description": "Follow\u2011Me enabled if >\u202f0 \u2013 set to at least number of units in loop",
+        "category": "advanced"
+      },
+      {
+        "address": 4354,
+        "name": "CLEAR_LOGS_CAT",
+        "access": "R/W EEprom",
+        "description": "Clear various logging values \u2013 send 0x8000|Cat, wait \u2265\u202f750\u202fms, then 0x4000|Cat. Success = 0x0500, Failure = 0x0A00",
+        "category": "advanced"
+      },
+      {
+        "address": 4355,
+        "name": "CLEAR_LOGS_COUNTER_10MS",
+        "access": "R/W EEprom",
+        "description": "Timer for sending second ClearLogsCat command before timeout",
+        "category": "advanced"
+      },
+      {
+        "address": 4356,
+        "name": "USER_VARIABLE_02",
+        "access": "R/W EEprom",
+        "description": "General purpose user variable",
+        "category": "advanced"
+      },
+      {
+        "address": 4357,
+        "name": "WIZBANG_RX_BUFFER_TEMP_SH1",
+        "access": "R EEprom",
+        "description": "Raw Whizbang Junior buffer read 1",
+        "category": "advanced"
+      },
+      {
+        "address": 4358,
+        "name": "WIZBANG_RX_BUFFER_TEMP_SH2",
+        "access": "R EEprom",
+        "description": "Raw Whizbang Junior buffer read 2",
+        "category": "advanced"
+      },
+      {
+        "address": 4359,
+        "name": "WIZBANG_RX_BUFFER_TEMP_SH3",
+        "access": "R EEprom",
+        "description": "Raw Whizbang Junior buffer read 3",
+        "category": "advanced"
+      },
+      {
+        "address": 4360,
+        "name": "WIZBANG_RX_BUFFER_TEMP_SH4",
+        "access": "R EEprom",
+        "description": "Raw Whizbang Junior buffer read 4",
+        "category": "advanced"
+      },
+      {
+        "address": 4361,
+        "name": "WJRB_CMD_S_EEPROM",
+        "access": "R/W EEprom",
+        "description": "Whizbang Junior command \u2013 default 0x35",
+        "category": "advanced"
+      },
+      {
+        "address": 4362,
+        "name": "WJRB_RAW_CURRENT",
+        "access": "R EEprom",
+        "description": "Whizbang Junior raw current",
+        "category": "advanced"
+      },
+      {
+        "address": 4363,
+        "name": "WJRB_NUMERATOR_SS_EEPROM",
+        "access": "R/W EEprom",
+        "description": "Whizbang Junior gain adjustment \u2013 default 0",
+        "category": "advanced"
+      },
+      {
+        "address": 4365,
+        "name": "WJRB_AMP_HOUR_POSITIVE",
+        "access": "R EEprom",
+        "description": "Whizbang Jr. positive amp\u2011hours",
+        "category": "advanced"
+      },
+      {
+        "address": 4367,
+        "name": "WJRB_AMP_HOUR_NEGATIVE",
+        "access": "R EEprom",
+        "description": "Whizbang Jr. negative amp\u2011hours",
+        "category": "advanced"
+      },
+      {
+        "address": 4369,
+        "name": "WJRB_AMP_HOUR_NET",
+        "access": "R EEprom",
+        "description": "Whizbang Jr. net amp\u2011hours",
+        "category": "advanced"
+      },
+      {
+        "address": 4371,
+        "name": "WJRB_CURRENT_32_SIGNED_EEPROM",
+        "access": "R EEprom",
+        "description": "Whizbang Jr. amps (scaled & rounded) \u2013 signed \u00b1\u202f3,276.7\u202fA",
+        "category": "advanced"
+      },
+      {
+        "address": 4372,
+        "name": "WJRB_RAW_CRC_AND_TEMP",
+        "access": "R EEprom",
+        "description": "Raw CRC <<\u202f8 | Temp & 0xff + 50\u00b0C",
+        "category": "advanced"
+      },
+      {
+        "address": 20481,
+        "name": "IP_SETTINGS_FLAGS",
+        "access": "R/W EEprom",
+        "description": "Network settings flags \u2013 see table 20481\u20111 (DHCP, Web Access)",
+        "category": "advanced"
+      },
+      {
+        "address": 20482,
+        "name": "IP_ADDRESS_LSB_1",
+        "access": "R/W EEprom",
+        "description": "IP address part 1",
+        "category": "advanced"
+      },
+      {
+        "address": 20483,
+        "name": "IP_ADDRESS_LSB_2",
+        "access": "R/W EEprom",
+        "description": "IP address part 2",
+        "category": "advanced"
+      },
+      {
+        "address": 20484,
+        "name": "GATEWAY_ADDRESS_LSB_1",
+        "access": "R/W EEprom",
+        "description": "Gateway address part 1",
+        "category": "advanced"
+      },
+      {
+        "address": 20485,
+        "name": "GATEWAY_ADDRESS_LSB_2",
+        "access": "R/W EEprom",
+        "description": "Gateway address part 2",
+        "category": "advanced"
+      },
+      {
+        "address": 20486,
+        "name": "SUBNET_MASK_LSB_1",
+        "access": "R/W EEprom",
+        "description": "Subnet mask part 1",
+        "category": "advanced"
+      },
+      {
+        "address": 20487,
+        "name": "SUBNET_MASK_LSB_2",
+        "access": "R/W EEprom",
+        "description": "Subnet mask part 2",
+        "category": "advanced"
+      },
+      {
+        "address": 20488,
+        "name": "DNS_1_LSB_1",
+        "access": "R/W EEprom",
+        "description": "Primary DNS part 1",
+        "category": "advanced"
+      },
+      {
+        "address": 20489,
+        "name": "DNS_1_LSB_2",
+        "access": "R/W EEprom",
+        "description": "Primary DNS part 2",
+        "category": "advanced"
+      },
+      {
+        "address": 20490,
+        "name": "DNS_2_LSB_1",
+        "access": "R/W EEprom",
+        "description": "Secondary DNS part 1",
+        "category": "advanced"
+      },
+      {
+        "address": 20491,
+        "name": "DNS_2_LSB_2",
+        "access": "R/W EEprom",
+        "description": "Secondary DNS part 2",
+        "category": "advanced"
+      },
+      {
+        "address": 20492,
+        "name": "SERIAL_NUMBER_MSB",
+        "access": "R/W EEprom",
+        "description": "Classic serial number MSB \u2013 used to unlock Ethernet write",
+        "category": "advanced"
+      },
+      {
+        "address": 20493,
+        "name": "SERIAL_NUMBER_LSB",
+        "access": "R/W EEprom",
+        "description": "Classic serial number LSB \u2013 used to unlock Ethernet write",
+        "category": "advanced"
+      }
+    ],
+    "debug": [
+      {
+        "address": 4105,
+        "name": "RESERVED_4105",
+        "access": "R/W",
+        "description": "Unimplemented \u2013 avoid writing",
+        "category": "debug"
+      },
+      {
+        "address": 4171,
+        "name": "RESERVED_4171",
+        "access": "R/W",
+        "description": "Unimplemented",
+        "category": "debug"
+      },
+      {
+        "address": 4185,
+        "name": "RESERVED_4185",
+        "access": "R/W",
+        "description": "Unimplemented",
+        "category": "debug"
+      },
+      {
+        "address": 4188,
+        "name": "RESERVED_4188",
+        "access": "R/W EEprom",
+        "description": "Factory calibration \u2013 do not write",
+        "category": "debug"
+      },
+      {
+        "address": 4195,
+        "name": "RESERVED_4195",
+        "access": "R/W",
+        "description": "Unimplemented",
+        "category": "debug"
+      },
+      {
+        "address": 4196,
+        "name": "RESERVED_4196",
+        "access": "R/W",
+        "description": "Unimplemented",
+        "category": "debug"
+      },
+      {
+        "address": 4341,
+        "name": "DABT_U32_DEBUG_01",
+        "access": "R EEprom",
+        "description": "",
+        "category": "debug"
+      },
+      {
+        "address": 4342,
+        "name": "DABT_U32_DEBUG_02",
+        "access": "R EEprom",
+        "description": "",
+        "category": "debug"
+      },
+      {
+        "address": 4343,
+        "name": "DABT_U32_DEBUG_03",
+        "access": "R EEprom",
+        "description": "",
+        "category": "debug"
+      },
+      {
+        "address": 4344,
+        "name": "DABT_U32_DEBUG_04",
+        "access": "R EEprom",
+        "description": "",
+        "category": "debug"
+      }
+    ]
+  }
+}

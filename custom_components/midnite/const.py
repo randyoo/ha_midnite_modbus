@@ -9,9 +9,261 @@ CONF_ENABLE_ADVANCED = "enable_advanced"
 CONF_ENABLE_DEBUG = "enable_debug"
 CONF_ENABLE_WRITES = "enable_writes"
 
-# Register addresses from registers.json
+# Register categories for entity creation
+# B = Basic (always enabled), A = Advanced (opt-in), D = Debug (opt-in)
+REGISTER_CATEGORIES = {
+    # Base information - Basic
+    "UNIT_ID": "B",
+    "UNIT_SW_DATE_RO": "B",
+    "UNIT_SW_DATE_MONTH_DAY": "B",
+    "INFO_FLAGS_BITS3": "B",
+    "MAC_ADDRESS_PART_1": "B",
+    "MAC_ADDRESS_PART_2": "B",
+    "MAC_ADDRESS_PART_3": "B",
+    "STATUSROLL": "B",
+    "RESTART_TIME_MS": "B",
+    "DISP_AVG_VBATT": "B",
+    "DISP_AVG_VPV": "B",
+    "IBATT_DISPLAY_S": "B",
+    "KW_HOURS": "B",
+    "WATTS": "B",
+    "COMBO_CHARGE_STAGE": "B",
+    "PV_INPUT_CURRENT": "B",
+    "VOC_LAST_MEASURED": "B",
+    "HIGHEST_VINPUT_LOG": "B",
+    "AMP_HOURS_DAILY": "B",
+    "LIFETIME_KW_HOURS_1": "B",
+    "LIFETIME_KW_HOURS_1_HIGH": "B",
+    "LIFETIME_AMP_HOURS_1": "B",
+    "LIFETIME_AMP_HOURS_1_HIGH": "B",
+    "BATT_TEMPERATURE": "B",
+    "FET_TEMPERATURE": "B",
+    "PCB_TEMPERATURE": "B",
+    "NITE_MINUTES_NO_PWR": "B",
+    "FLOAT_TIME_TODAY_SEC": "B",
+    "ABSORB_TIME": "B",
+    "REASON_FOR_RESET": "B",
+    "EQUALIZE_TIME": "B",
+    "REASON_FOR_RESTING": "B",
+    # Setpoints - Basic
+    "ABSORB_SETPOINT_VOLTAGE": "B",
+    "FLOAT_VOLTAGE_SETPOINT": "B",
+    "EQUALIZE_VOLTAGE_SETPOINT": "B",
+    "BATTERY_OUTPUT_CURRENT_LIMIT": "B",
+    # Time settings - Basic
+    "ABSORB_TIME_EEPROM": "B",
+    "EQUALIZE_TIME_EEPROM": "B",
+    "EQUALIZE_INTERVAL_DAYS_EEPROM": "B",
+    # Force flags - Advanced (write operations)
+    "FORCE_FLAG_BITS": "A",
+    # Unit name - Basic
+    "UNIT_NAME_0": "B",
+    "UNIT_NAME_1": "B",
+    "UNIT_NAME_2": "B",
+    "UNIT_NAME_3": "B",
+    # Device ID - Basic
+    "DEVICE_ID_LSW": "B",
+    "DEVICE_ID_MSW": "B",
+    # Advanced status - Advanced
+    "MATCH_POINT_SHADOW": "A",
+    "MINUTE_LOG_INTERVAL_SEC": "A",
+    "MODBUS_PORT_REGISTER": "A",
+    "MPP_W_LAST": "A",
+    # Advanced config - Advanced
+    "MPPT_MODE": "A",
+    "AUX_1_AND_2_FUNCTION": "A",
+    "VARIMAX": "A",
+    "ENABLE_FLAGS3": "A",
+    "ENABLE_FLAGS2": "A",
+    "ENABLE_FLAGS_BITS": "A",
+    # AUX control - Advanced
+    "AUX1_VOLTS_LO_ABS": "A",
+    "AUX1_VOLTS_HI_ABS": "A",
+    "AUX1_DELAY_T_MS": "A",
+    "AUX1_HOLD_T_MS": "A",
+    "AUX2_PWM_VWIDTH": "A",
+    "RESERVED_4171": "D",
+    "AUX1_VOLTS_LO_REL": "A",
+    "AUX1_VOLTS_HI_REL": "A",
+    "AUX2_VOLTS_LO_REL": "A",
+    "AUX2_VOLTS_HI_REL": "A",
+    "AUX1_VOLTS_LO_PV_ABS": "A",
+    "AUX1_VOLTS_HI_PV_ABS": "A",
+    "VARIMAX": "A",
+    "AUX2_VOLTS_HI_PV_ABS": "A",
+    # Advanced settings - Advanced
+    "ARC_FAULT_SENSITIVITY": "A",
+    "RESERVED_4185": "D",
+    # Voltage offsets - Advanced
+    "VBATT_OFFSET": "A",
+    "VPV_OFFSET": "A",
+    "VPV_TARGET_RD": "A",
+    "VPV_TARGET_WR": "A",
+    # Temperature compensation - Advanced
+    "MAX_BATTERY_TEMP_COMP_VOLTAGE": "A",
+    "MIN_BATTERY_TEMP_COMP_VOLTAGE": "A",
+    "BATTERY_TEMP_COMP_VALUE": "A",
+    # Reserved registers - Debug
+    "RESERVED_4105": "D",
+    "RESERVED_4188": "D",
+    "RESERVED_4195": "D",
+    "RESERVED_4196": "D",
+    # Additional advanced registers
+    "USB_COMM_MODE": "A",
+    "NO_DOUBLE_CLICK_TIMER": "A",
+    "SLIDING_CURRENT_LIMIT": "A",
+    "MIN_ABSORB_TIME": "A",
+    "GENERAL_PURPOSE_WORD": "A",
+    "EQUALIZE_RETRY_DAYS": "A",
+    # Sweep settings - Advanced
+    "SWEEP_INTERVAL_SECS_EEPROM": "A",
+    "MIN_SWP_VOLTAGE_EEPROM": "A",
+    "MAX_INPUT_CURRENT_EEPROM": "A",
+    "SWEEP_DEPTH": "A",
+    # Calibration - Advanced
+    "NEGATIVE_CURRENT_ADJ": "A",
+    "CLIPPER_CMD_VOLTS": "A",
+    "WIND_NUMBER_OF_POLES_EEPROM": "A",
+    "MPP_PERCENT_VOC_EEPROM": "A",
+    "WIND_TABLE_TO_USE_EEPROM": "A",
+    "LED_MODE_EEPROM": "A",
+    # Time registers - Advanced
+    "CTI_ME0": "A",
+    "CTI_ME0_HIGH": "A",
+    "CTI_ME1": "A",
+    "CTI_ME1_HIGH": "A",
+    "CTI_ME2": "A",
+    # Remote control - Advanced
+    "REMOTE_MENU_MODE": "A",
+    "REMOTE_BUTTONS": "A",
+    # PV control - Advanced
+    "PREVOC": "A",
+    "AUX2_A2D_D2A": "A",
+    "VOC_RD": "A",
+    # Siesta - Advanced
+    "SIESTA_TIME_SEC": "A",
+    "SIESTA_ABORT_VOC_ADJ": "A",
+    # Flags - Advanced
+    "FLAGS_RD_32BIT": "A",
+    # Battery regulation - Advanced
+    "VBATT_REG_SET_P_TEMP_COMP": "A",
+    "VBATT_NOMINAL_EEPROM": "A",
+    "ENDING_AMPES_EEPROM": "A",
+    "ENDING_SOC_EEPROM": "A",
+    # Rebuck - Advanced
+    "REBUCK_VOLTS_EEPROM": "A",
+    "DAYS_BTW_BULK_ABS_EEPROM": "A",
+    "DAY_LOG_COMB_CAT_INDEX": "A",
+    "MIN_LOG_COMB_CAT_INDEX": "A",
+    "REBUCK_TIMER_SEC_EEPROM": "A",
+    # VOC qualify - Advanced
+    "VOC_QUALIFY_TIMER_MS_EEPROM": "A",
+    "VOC_QUALIFY_TIMER_MS_EEPROM_LOW": "A",
+    "IPV_MINUS_RAW": "A",
+    # Restart - Advanced
+    "RESTART_TIME_MS2": "A",
+    "IBATT_RAW_A": "A",
+    # Raw voltages - Advanced
+    "OUTPUT_VBATT_RAW": "A",
+    "INPUT_VPV_RAW": "A",
+    # PV targeting - Advanced
+    "PK_HOLD_VPV_STAMP": "A",
+    "VPV_TARGET_RD_TMP": "A",
+    "SWP_DEEP_TIMEOUT_SEC": "A",
+    # Wind settings - Advanced
+    "LOW_WATTS_EEPA": "A",
+    "WIND_LOW_WATTS_EEPA": "A",
+    "WIND_WINDOW_WATTS_REF_EEPA": "A",
+    "WINDOW_WATTS_RO_DELTA_EEPA": "A",
+    "WIND_TIMEOUT_REF_EEPA": "A",
+    "WIND_TIMEOUT2_REF_EEPA": "A",
+    "WIND_TIMEOUT_SECONDS": "A",
+    "WIND_TIMEOUT2_SECONDS": "A",
+    # Voltage thresholds - Advanced
+    "MIN_VPV_TURN_ON": "A",
+    "VPV_B4_TURN_OFF": "A",
+    # Hydro - Advanced
+    "H2O_SWEEP_AMPS_10TIME6_EEPA": "A",
+    "ENDING_AMPS_TIMER_SEC": "A",
+    # Calibration - Debug
+    "PK_AMPS_OVER_LIMIT_HI_EEPA": "D",
+    "PK_AMPS_OVER_LIMIT_LO_EEPA": "D",
+    "FACTORY_VBATT_OFFSET_EEPA": "D",
+    # Wind power tables - Advanced
+    "WIND_POWER_TABLE_V_0_EEPA": "A",
+    "WIND_POWER_TABLE_V_1_EEPA": "A",
+    "WIND_POWER_TABLE_V_2_EEPA": "A",
+    "WIND_POWER_TABLE_V_3_EEPA": "A",
+    "WIND_POWER_TABLE_V_4_EEPA": "A",
+    "WIND_POWER_TABLE_V_5_EEPA": "A",
+    "WIND_POWER_TABLE_V_6_EEPA": "A",
+    "WIND_POWER_TABLE_V_7_EEPA": "A",
+    "WIND_POWER_TABLE_I_0_EEPA": "A",
+    "WIND_POWER_TABLE_I_1_EEPA": "A",
+    "WIND_POWER_TABLE_I_2_EEPA": "A",
+    "WIND_POWER_TABLE_I_3_EEPA": "A",
+    "WIND_POWER_TABLE_I_4_EEPA": "A",
+    "WIND_POWER_TABLE_I_5_EEPA": "A",
+    "WIND_POWER_TABLE_I_6_EEPA": "A",
+    "WIND_POWER_TABLE_I_7_EEPA": "A",
+    # Calibration - Advanced
+    "PK_AMPS_OVER_TRIP_EEPROM": "A",
+    # Revisions - Basic (diagnostic)
+    "MNGP_REVISION": "B",
+    "MNLP_REVISION": "B",
+    # Modbus address - Advanced
+    "CLASSIC_MODBUS_ADDR_EEPROM": "A",
+    # Temperature - Basic (diagnostic)
+    "BATTERY_TEMP_PASSED_EEPROM": "B",
+    # Follow-me - Advanced
+    "I_FLAGS_RO_HIGH": "A",
+    "MODBUS_CONTROL_EEPROM": "A",
+    "CLASSIC_FME_PASSED_BITS_EEPROM": "A",
+    "WIND_SYNCH_A_EEPROM": "A",
+    "WIND_SYNCH_V_EEPROM": "A",
+    "FOLLOW_ME_PASS_REF_EEPROM": "A",
+    # Debug registers - Debug
+    "DABT_U32_DEBUG_01": "D",
+    "DABT_U32_DEBUG_02": "D",
+    "DABT_U32_DEBUG_03": "D",
+    "DABT_U32_DEBUG_04": "D",
+    # Logs - Advanced
+    "CLEAR_LOGS_CAT": "A",
+    "CLEAR_LOGS_COUNTER_10MS": "A",
+    # User variables - Advanced
+    "USER_VARIABLE_02": "A",
+    # Whizbang Jr - Advanced
+    "WIZBANG_RX_BUFFER_TEMP_SH1": "A",
+    "WIZBANG_RX_BUFFER_TEMP_SH2": "A",
+    "WIZBANG_RX_BUFFER_TEMP_SH3": "A",
+    "WIZBANG_RX_BUFFER_TEMP_SH4": "A",
+    "WJRB_CMD_S_EEPROM": "A",
+    "WJRB_RAW_CURRENT": "A",
+    "WJRB_NUMERATOR_SS_EEPROM": "A",
+    "WJRB_AMP_HOUR_POSITIVE": "A",
+    "WJRB_AMP_HOUR_POSITIVE_HIGH": "A",
+    "WJRB_AMP_HOUR_NEGATIVE": "A",
+    "WJRB_AMP_HOUR_NEGATIVE_HIGH": "A",
+    "WJRB_AMP_HOUR_NET": "A",
+    "WJRB_AMP_HOUR_NET_HIGH": "A",
+    "WJRB_CURRENT_32_SIGNED_EEPROM": "A",
+    "WJRB_RAW_CRC_AND_TEMP": "A",
+    # Network settings - Advanced
+    "IP_SETTINGS_FLAGS": "A",
+    "IP_ADDRESS_LSB_1": "A",
+    "IP_ADDRESS_LSB_2": "A",
+    "GATEWAY_ADDRESS_LSB_1": "A",
+    "GATEWAY_ADDRESS_LSB_2": "A",
+    "SUBNET_MASK_LSB_1": "A",
+    "SUBNET_MASK_LSB_2": "A",
+    "DNS_1_LSB_1": "A",
+    "DNS_1_LSB_2": "A",
+    "DNS_2_LSB_1": "A",
+    "DNS_2_LSB_2": "A",
+}
+
+# Register addresses from registers.json (sorted by address for easy reference)
 REGISTER_MAP = {
-    "UNIT_ID": 4101,
     "UNIT_SW_DATE_RO": 4102,
     "UNIT_SW_DATE_MONTH_DAY": 4103,
     "INFO_FLAGS_BITS3": 4104,

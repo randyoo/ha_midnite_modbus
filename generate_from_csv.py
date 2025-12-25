@@ -283,10 +283,12 @@ async def async_setup_entry(
     sensors = [
 '''
     
-    # Add sensor instances
+    # Add sensor instances (skip special registers that need custom handling)
+    special_registers = ['COMBO_CHARGE_STAGE', 'REASON_FOR_RESTING']
     for i, sensor in enumerate(sensors):
         name = sensor['Register Name']
-        content += f'        {name}Sensor(coordinator, entry),\n'
+        if name not in special_registers:
+            content += f'        {name}Sensor(coordinator, entry),\n'
     
     content += '''    ]
     
@@ -359,8 +361,9 @@ class MidniteSolarSensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], Senso
         description = sensor['Description']
         
         # Determine if this is a special sensor that needs custom logic
-        if name in ['COMBO_CHARGE_STAGE', 'DEVICE_ID_LSW', 'DEVICE_ID_MSW', 'UNIT_ID', 'REASON_FOR_RESTING']:
-            # Skip these as they have special handling
+        # These will be added separately after the generated sensors
+        if name in ['COMBO_CHARGE_STAGE', 'REASON_FOR_RESTING']:
+            # Skip these as they have special handling - will add manually
             continue
         
         content += f'''

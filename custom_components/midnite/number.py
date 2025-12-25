@@ -55,9 +55,9 @@ async def async_setup_entry(
 class MidniteSolarNumber(CoordinatorEntity[MidniteSolarUpdateCoordinator], NumberEntity):
     """Base class for all Midnite Solar numbers."""
 
-    _attr_native_min_value: float | None = None
-    _attr_native_max_value: float | None = None
-    _attr_native_step: float | None = None
+    _attr_native_min_value: float = 0
+    _attr_native_max_value: float = 100
+    _attr_native_step: float = 1
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""

@@ -56,7 +56,6 @@ async def async_setup_entry(
         IBATT_DISPLAY_SSensor(coordinator, entry),
         KW_HOURSSensor(coordinator, entry),
         WATTSSensor(coordinator, entry),
-        COMBO_CHARGE_STAGESensor(coordinator, entry),
         PV_INPUT_CURRENTSensor(coordinator, entry),
         VOC_LAST_MEASUREDSensor(coordinator, entry),
         HIGHEST_VINPUT_LOGSensor(coordinator, entry),
@@ -133,7 +132,6 @@ async def async_setup_entry(
         IPV_MINUS_RAWSensor(coordinator, entry),
         RESTART_TIME_MS2Sensor(coordinator, entry),
         IBATT_RAW_ASensor(coordinator, entry),
-        REASON_FOR_RESTINGSensor(coordinator, entry),
         OUTPUT_VBATT_RAWSensor(coordinator, entry),
         INPUT_VPV_RAWSensor(coordinator, entry),
         PK_HOLD_VPV_STAMPSensor(coordinator, entry),
@@ -211,6 +209,11 @@ async def async_setup_entry(
         DNS_1_LSB_2Sensor(coordinator, entry),
         DNS_2_LSB_1Sensor(coordinator, entry),
         DNS_2_LSB_2Sensor(coordinator, entry),
+
+        ChargeStageSensor(coordinator, entry),
+        InternalStateSensor(coordinator, entry),
+        DeviceTypeSensor(coordinator, entry),
+        RestReasonSensor(coordinator, entry),
     ]
     
     async_add_entities(sensors)
@@ -268,6 +271,28 @@ class MidniteSolarSensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], Senso
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         return None
+
+
+class UNIT_IDSensor(MidniteSolarSensor):
+    """Representation of a hardware revision & voltage category (pcb rev, unit type) sensor."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "UNIT_ID"
+        self._attr_unique_id = f"{entry.entry_id}_unit_id"
+        self._attr_icon = "mdi:identifier"
+
+    @property
+    def native_value(self) -> Optional[float]:
+        """Return the state of the sensor."""
+        if self.coordinator.data and "data" in self.coordinator.data:
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
+                if value is not None:
+                    return value
+                return None
 
 
 class UNIT_SW_DATE_ROSensor(MidniteSolarSensor):
@@ -449,6 +474,52 @@ class JrAmpHourNETSensor(MidniteSolarSensor):
                 value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value / 10.0
+                return None
+
+
+class DEVICE_ID_LSWSensor(MidniteSolarSensor):
+    """Representation of a device id (low word) sensor."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "DEVICE_ID_LSW"
+        self._attr_unique_id = f"{entry.entry_id}_device_id_lsw"
+        self._attr_suggested_display_precision = 0
+        self._attr_icon = "mdi:help-circle"
+
+    @property
+    def native_value(self) -> Optional[float]:
+        """Return the state of the sensor."""
+        if self.coordinator.data and "data" in self.coordinator.data:
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
+                if value is not None:
+                    return value
+                return None
+
+
+class DEVICE_ID_MSWSensor(MidniteSolarSensor):
+    """Representation of a device id (high word) sensor."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "DEVICE_ID_MSW"
+        self._attr_unique_id = f"{entry.entry_id}_device_id_msw"
+        self._attr_suggested_display_precision = 0
+        self._attr_icon = "mdi:help-circle"
+
+    @property
+    def native_value(self) -> Optional[float]:
+        """Return the state of the sensor."""
+        if self.coordinator.data and "data" in self.coordinator.data:
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
+                if value is not None:
+                    return value
                 return None
 
 
@@ -4383,3 +4454,102 @@ class DNS_2_LSB_2Sensor(MidniteSolarSensor):
                 if value is not None:
                     return value
                 return None
+
+
+
+# Special sensors that need custom logic (combining multiple registers, etc.)
+class ChargeStageSensor(MidniteSolarSensor):
+    """Representation of a charge stage sensor."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Charge Stage"
+        self._attr_unique_id = f"{entry.entry_id}_charge_stage"
+        self._attr_device_class = SensorDeviceClass.ENUM
+        self._attr_options = list(CHARGE_STAGES.values())
+
+    @property
+    def native_value(self) -> Optional[str]:
+        """Return the state of the sensor."""
+        if self.coordinator.data and "data" in self.coordinator.data:
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                raw_value = status_data.get(REGISTER_MAP["COMBO_CHARGE_STAGE"])
+                if raw_value is not None:
+                    # Extract MSB (high byte) for charge stage
+                    charge_stage_value = (raw_value >> 8) & 0xFF
+                    return CHARGE_STAGES.get(charge_stage_value, f"Unknown ({charge_stage_value})")
+        return None
+
+
+class InternalStateSensor(MidniteSolarSensor):
+    """Representation of an internal state sensor."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Internal State"
+        self._attr_unique_id = f"{entry.entry_id}_internal_state"
+        self._attr_device_class = SensorDeviceClass.ENUM
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+        self._attr_options = list(INTERNAL_STATES.values())
+
+    @property
+    def native_value(self) -> Optional[str]:
+        """Return the state of the sensor."""
+        if self.coordinator.data and "data" in self.coordinator.data:
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                raw_value = status_data.get(REGISTER_MAP["COMBO_CHARGE_STAGE"])
+                if raw_value is not None:
+                    # Extract LSB (low byte) for internal state
+                    internal_state_value = raw_value & 0xFF
+                    return INTERNAL_STATES.get(internal_state_value, f"Unknown ({internal_state_value})")
+        return None
+
+
+class DeviceTypeSensor(MidniteSolarSensor):
+    """Representation of the device type sensor."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Device Type"
+        self._attr_unique_id = f"{entry.entry_id}_device_type"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    @property
+    def native_value(self) -> Optional[str]:
+        """Return the state of the sensor."""
+        if self.coordinator.data and "data" in self.coordinator.data:
+            device_info_data = self.coordinator.data["data"].get("device_info")
+            if device_info_data:
+                value = device_info_data.get(REGISTER_MAP["UNIT_ID"])
+                if value is not None:
+                    # Register 4101: [4101]MSB → PCB Rev, [4101]LSB → Unit Type
+                    device_value = value & 0xFF  # Get LSB (unit type)
+                    return DEVICE_TYPES.get(device_value, f"Unknown ({device_value})")
+        return None
+
+
+class RestReasonSensor(MidniteSolarSensor):
+    """Representation of the rest reason sensor."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Rest Reason"
+        self._attr_unique_id = f"{entry.entry_id}_rest_reason"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    @property
+    def native_value(self) -> Optional[str]:
+        """Return the state of the sensor."""
+        if self.coordinator.data and "data" in self.coordinator.data:
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["REASON_FOR_RESTING"])
+                if value is not None:
+                    return REST_REASONS.get(value, f"Unknown ({value})")
+        return None

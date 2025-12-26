@@ -1,28 +1,12 @@
 #!/usr/bin/env python3
 """
-Find all sensors that need their data group lookups fixed.
-
-This script identifies sensors that are looking in the wrong coordinator data groups
-and also checks if they're applying the correct formulas from registers_clean.json.
+Simple analysis script to find sensors needing fixes.
+Uses hardcoded register-to-group mapping based on registers_clean.json analysis.
 """
 
 import re
-import json
 
-# Load register information from registers_clean.json
-with open('archive/registers_clean.json', 'r') as f:
-    REGISTER_INFO = json.load(f)
-
-# Create a map of register names to their info
-REGISTER_MAP = {}
-for reg in REGISTER_INFO['registers']:
-    REGISTER_MAP[reg['name']] = {
-        'address': reg['address'],
-        'formula': reg.get('formula', ''),
-        'unit': reg.get('unit', '')
-    }
-
-# Map of registers to their correct coordinator groups
+# Hardcoded mapping based on registers_clean.json analysis
 REGISTER_TO_GROUP = {
     # device_info group (registers 4103, 4106-4108, 4111-4120)
     'UNIT_ID': 'device_info',
@@ -46,7 +30,7 @@ REGISTER_TO_GROUP = {
     'INFO_FLAGS_BITS3': 'status',
     'WATTS': 'status',
     
-    # temperatures group (registers 4121-4123)
+    # temperatures group (registers 4121-4123) - need /10 formula
     'BATT_TEMPERATURE': 'temperatures',
     'FET_TEMPERATURE': 'temperatures',
     'PCB_TEMPERATURE': 'temperatures',
@@ -67,13 +51,13 @@ REGISTER_TO_GROUP = {
     # diagnostics group (register 4128)
     'REASON_FOR_RESTING': 'diagnostics',
     
-    # setpoints group (registers 4130-4133, 4148-4151)
+    # setpoints group (registers 4130-4133, 4148-4151) - need /10 formula
     'ABSORB_SETPOINT_VOLTAGE': 'setpoints',
     'FLOAT_VOLTAGE_SETPOINT': 'setpoints',
     'EQUALIZE_VOLTAGE_SETPOINT': 'setpoints',
     'BATTERY_OUTPUT_CURRENT_LIMIT': 'setpoints',
     
-    # eeprom_settings group (registers 4134-4136, 4154-4157)
+    # eeprom_settings group (registers 4134-4136, 4154-4157) - need /10 formula
     'ABSORB_TIME_EEPROM': 'eeprom_settings',
     'EQUALIZE_TIME_EEPROM': 'eeprom_settings',
     'EQUALIZE_INTERVAL_DAYS_EEPROM': 'eeprom_settings',
@@ -89,11 +73,27 @@ REGISTER_TO_GROUP = {
     'VARIMAX': 'advanced_config',
     'ENABLE_FLAGS3': 'advanced_config',
     
-    # aux_control group (registers 4150, 4166-4181)
+    # aux_control group (registers 4150, 4166-4181) - need /10 formula
     'AUX1_VOLTS_LO_ABS': 'aux_control',
     'AUX1_VOLTS_HI_ABS': 'aux_control',
     'AUX1_DELAY_T_MS': 'aux_control',
     'AUX1_HOLD_T_MS': 'aux_control',
+}
+
+# Registers that need division by 10 based on formulas in registers_clean.json
+REGISTERS_NEEDING_DIVISION_BY_10 = {
+    'BATT_TEMPERATURE', 'FET_TEMPERATURE', 'PCB_TEMPERATURE',
+    'DISP_AVG_VBATT', 'DISP_AVG_VPV', 'IBATT_DISPLAY_S', 'KW_HOURS',
+    'PV_INPUT_CURRENT', 'VOC_LAST_MEASURED', 'ABSORB_SETPOINT_VOLTAGE',
+    'FLOAT_VOLTAGE_SETPOINT', 'EQUALIZE_VOLTAGE_SETPOINT',
+    'BATTERY_OUTPUT_CURRENT_LIMIT', 'AUX1_VOLTS_LO_ABS', 'AUX1_VOLTS_HI_ABS',
+    'VBATT_OFFSET', 'VPV_OFFSET', 'VPV_TARGET_RD', 'VPV_TARGET_WR',
+    'MIN_SWP_VOLTAGE_EEPROM', 'MAX_INPUT_CURRENT_EEPROMS',
+}
+
+# Registers that need division by 100 based on formulas in registers_clean.json
+REGISTERS_NEEDING_DIVISION_BY_100 = {
+    'LIFETIME_KW_HOURS_1', 'LIFETIME_KW_HOURS_1_HIGH',
 }
 
 def analyze_sensors():
@@ -160,9 +160,8 @@ def analyze_sensors():
         needs_group_fix = current_group != correct_group
         
         # Check formula requirements
-        reg_info = REGISTER_MAP.get(reg_name, {})
-        formula = reg_info.get('formula', '')
-        needs_division_by_10 = '/10' in formula and 'return value / 10.0' not in native_value_code
+        needs_division_by_10 = reg_name in REGISTERS_NEEDING_DIVISION_BY_10 and 'return value / 10.0' not in native_value_code
+        needs_division_by_100 = reg_name in REGISTERS_NEEDING_DIVISION_BY_100 and 'return value / 100.0' not in native_value_code
         
         if needs_group_fix:
             sensors_needing_group_fix.append({
@@ -170,23 +169,22 @@ def analyze_sensors():
                 'register': reg_name,
                 'current_group': current_group,
                 'correct_group': correct_group,
-                'formula': formula,
-                'needs_division_by_10': needs_division_by_10
+                'needs_division_by_10': needs_division_by_10,
+                'needs_division_by_100': needs_division_by_100
             })
-        elif needs_division_by_10:
+        elif needs_division_by_10 or needs_division_by_100:
             sensors_needing_formula_fix.append({
                 'name': class_name,
                 'register': reg_name,
                 'current_group': current_group,
-                'formula': formula,
-                'needs_division_by_10': True
+                'needs_division_by_10': needs_division_by_10,
+                'needs_division_by_100': needs_division_by_100
             })
         else:
             sensors_already_correct.append({
                 'name': class_name,
                 'register': reg_name,
-                'group': current_group,
-                'formula': formula
+                'group': current_group
             })
     
     # Print results
@@ -194,19 +192,30 @@ def analyze_sensors():
     print("SENSORS NEEDING DATA GROUP FIX:")
     print("=" * 70)
     for sensor in sensors_needing_group_fix:
-        formula_note = f" (needs /10.0 division)" if sensor['needs_division_by_10'] else ""
+        formula_notes = []
+        if sensor['needs_division_by_10']:
+            formula_notes.append("/10.0 division")
+        if sensor['needs_division_by_100']:
+            formula_notes.append("/100.0 division")
+        
+        formula_note = f" (also needs: {', '.join(formula_notes)})" if formula_notes else ""
         print(f"  {sensor['name']} - uses {sensor['register']}")
-        print(f"    Current: {sensor['current_group']}, Should be: {sensor['correct_group']}")
-        print(f"    Formula: {sensor['formula']}{formula_note}")
+        print(f"    Current: {sensor['current_group']}, Should be: {sensor['correct_group']}{formula_note}")
         print()
     
     if sensors_needing_formula_fix:
         print("=" * 70)
-        print("SENSORS NEEDING FORMULA FIX (division by 10):")
+        print("SENSORS NEEDING FORMULA FIX:")
         print("=" * 70)
         for sensor in sensors_needing_formula_fix:
+            formula_notes = []
+            if sensor['needs_division_by_10']:
+                formula_notes.append("/10.0 division")
+            if sensor['needs_division_by_100']:
+                formula_notes.append("/100.0 division")
+            
             print(f"  {sensor['name']} - uses {sensor['register']}")
-            print(f"    Group: {sensor['current_group']}, Formula: {sensor['formula']}")
+            print(f"    Group: {sensor['current_group']}, Needs: {', '.join(formula_notes)}")
             print()
     
     if sensors_not_in_map:

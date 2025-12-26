@@ -1301,9 +1301,9 @@ class AUX1_VOLTS_LO_RELSensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["AUX1_VOLTS_LO_REL"])
+            aux_control_data = self.coordinator.data["data"].get("aux_control")
+            if aux_control_data:
+                value = aux_control_data.get(REGISTER_MAP["AUX1_VOLTS_LO_REL"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -1327,9 +1327,9 @@ class AUX1_VOLTS_HI_RELSensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["AUX1_VOLTS_HI_REL"])
+            aux_control_data = self.coordinator.data["data"].get("aux_control")
+            if aux_control_data:
+                value = aux_control_data.get(REGISTER_MAP["AUX1_VOLTS_HI_REL"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -1353,9 +1353,9 @@ class AUX2_VOLTS_LO_RELSensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["AUX2_VOLTS_LO_REL"])
+            aux_control_data = self.coordinator.data["data"].get("aux_control")
+            if aux_control_data:
+                value = aux_control_data.get(REGISTER_MAP["AUX2_VOLTS_LO_REL"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -1379,9 +1379,9 @@ class AUX2_VOLTS_HI_RELSensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["AUX2_VOLTS_HI_REL"])
+            aux_control_data = self.coordinator.data["data"].get("aux_control")
+            if aux_control_data:
+                value = aux_control_data.get(REGISTER_MAP["AUX2_VOLTS_HI_REL"])
                 if value is not None:
                     return value / 10.0
                 return None

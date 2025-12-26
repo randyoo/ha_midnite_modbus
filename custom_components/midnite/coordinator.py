@@ -111,6 +111,14 @@ REGISTER_GROUPS = {
         REGISTER_MAP["EQUALIZE_TIME_EEPROM"],
         REGISTER_MAP["EQUALIZE_INTERVAL_DAYS_EEPROM"],
     ],
+    # AUX control registers
+    "aux_control": [
+        REGISTER_MAP["AUX1_VOLTS_HI_REL"],
+        REGISTER_MAP["AUX1_VOLTS_LO_REL"],
+        REGISTER_MAP["AUX2_A2D_D2A"],
+        REGISTER_MAP["AUX2_VOLTS_HI_REL"],
+        REGISTER_MAP["AUX2_VOLTS_LO_REL"],
+    ],
     # Advanced status registers
     "advanced_status": [
         REGISTER_MAP["HIGHEST_VINPUT_LOG"],
@@ -122,7 +130,6 @@ REGISTER_GROUPS = {
         # Additional advanced status registers
         REGISTER_MAP["ABSORB_TIME_DUPLICATE"],
         REGISTER_MAP["ARC_FAULT_SENSITIVITY"],
-        REGISTER_MAP["AUX2_A2D_D2A"],
         REGISTER_MAP["BATTERY_TEMP_PASSED_EEPROM"],
         REGISTER_MAP["CLEAR_LOGS_CAT"],
         REGISTER_MAP["CLEAR_LOGS_COUNTER_10MS"],

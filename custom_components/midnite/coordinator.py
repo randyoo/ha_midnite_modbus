@@ -160,6 +160,11 @@ REGISTER_GROUPS = {
         REGISTER_MAP["CTI_ME2"],
         REGISTER_MAP["DAY_LOG_COMB_CAT_INDEX"],
         REGISTER_MAP["MIN_LOG_COMB_CAT_INDEX"],
+        # Debug registers
+        REGISTER_MAP["DABT_U32_DEBUG_01"],
+        REGISTER_MAP["DABT_U32_DEBUG_02"],
+        REGISTER_MAP["DABT_U32_DEBUG_03"],
+        REGISTER_MAP["DABT_U32_DEBUG_04"],
     ],
     # Advanced configuration registers
     "advanced_config": [

@@ -1527,9 +1527,9 @@ class ARC_FAULT_SENSITIVITYSensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["ARC_FAULT_SENSITIVITY"])
+            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
+            if advanced_status_data:
+                value = advanced_status_data.get(REGISTER_MAP["ARC_FAULT_SENSITIVITY"])
                 if value is not None:
                     return value
                 return None
@@ -1909,9 +1909,9 @@ class CTI_ME0Sensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["CTI_ME0"])
+            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
+            if advanced_status_data:
+                value = advanced_status_data.get(REGISTER_MAP["CTI_ME0"])
                 if value is not None:
                     return value
                 return None
@@ -1932,9 +1932,9 @@ class CTI_ME0_HIGHSensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["CTI_ME0_HIGH"])
+            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
+            if advanced_status_data:
+                value = advanced_status_data.get(REGISTER_MAP["CTI_ME0_HIGH"])
                 if value is not None:
                     return value
                 return None
@@ -1955,9 +1955,9 @@ class CTI_ME1Sensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["CTI_ME1"])
+            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
+            if advanced_status_data:
+                value = advanced_status_data.get(REGISTER_MAP["CTI_ME1"])
                 if value is not None:
                     return value
                 return None
@@ -1978,9 +1978,9 @@ class CTI_ME1_HIGHSensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["CTI_ME1_HIGH"])
+            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
+            if advanced_status_data:
+                value = advanced_status_data.get(REGISTER_MAP["CTI_ME1_HIGH"])
                 if value is not None:
                     return value
                 return None
@@ -2001,9 +2001,9 @@ class CTI_ME2Sensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["CTI_ME2"])
+            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
+            if advanced_status_data:
+                value = advanced_status_data.get(REGISTER_MAP["CTI_ME2"])
                 if value is not None:
                     return value
                 return None
@@ -3657,9 +3657,9 @@ class DABT_U32_DEBUG_01Sensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["DABT_U32_DEBUG_01"])
+            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
+            if advanced_status_data:
+                value = advanced_status_data.get(REGISTER_MAP["DABT_U32_DEBUG_01"])
                 if value is not None:
                     return value
                 return None
@@ -3680,9 +3680,9 @@ class DABT_U32_DEBUG_02Sensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["DABT_U32_DEBUG_02"])
+            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
+            if advanced_status_data:
+                value = advanced_status_data.get(REGISTER_MAP["DABT_U32_DEBUG_02"])
                 if value is not None:
                     return value
                 return None
@@ -3703,9 +3703,9 @@ class DABT_U32_DEBUG_03Sensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["DABT_U32_DEBUG_03"])
+            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
+            if advanced_status_data:
+                value = advanced_status_data.get(REGISTER_MAP["DABT_U32_DEBUG_03"])
                 if value is not None:
                     return value
                 return None
@@ -3726,9 +3726,9 @@ class DABT_U32_DEBUG_04Sensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["DABT_U32_DEBUG_04"])
+            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
+            if advanced_status_data:
+                value = advanced_status_data.get(REGISTER_MAP["DABT_U32_DEBUG_04"])
                 if value is not None:
                     return value
                 return None

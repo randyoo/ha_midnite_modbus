@@ -270,9 +270,9 @@ class UNIT_SW_DATE_ROSensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["UNIT_SW_DATE_RO"])
+            device_info_data = self.coordinator.data["data"].get("device_info")
+            if device_info_data:
+                value = device_info_data.get(REGISTER_MAP["UNIT_SW_DATE_RO"])
                 if value is not None:
                     return value
                 return None
@@ -293,9 +293,9 @@ class UNIT_SW_DATE_MONTH_DAYSensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["UNIT_SW_DATE_MONTH_DAY"])
+            device_info_data = self.coordinator.data["data"].get("device_info")
+            if device_info_data:
+                value = device_info_data.get(REGISTER_MAP["UNIT_SW_DATE_MONTH_DAY"])
                 if value is not None:
                     return value
                 return None
@@ -430,9 +430,9 @@ class JrAmpHourNETSensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["JrAmpHourNET"])
+            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
+            if advanced_status_data:
+                value = advanced_status_data.get(REGISTER_MAP["JrAmpHourNET"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -523,9 +523,9 @@ class RESTART_TIME_MSSensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["RESTART_TIME_MS"])
+            time_settings_data = self.coordinator.data["data"].get("time_settings")
+            if time_settings_data:
+                value = time_settings_data.get(REGISTER_MAP["RESTART_TIME_MS"])
                 if value is not None:
                     return value
                 return None
@@ -728,9 +728,9 @@ class HIGHEST_VINPUT_LOGSensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["HIGHEST_VINPUT_LOG"])
+            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
+            if advanced_status_data:
+                value = advanced_status_data.get(REGISTER_MAP["HIGHEST_VINPUT_LOG"])
                 if value is not None:
                     return value
                 return None
@@ -751,9 +751,9 @@ class MATCH_POINT_SHADOWSensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["MATCH_POINT_SHADOW"])
+            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
+            if advanced_status_data:
+                value = advanced_status_data.get(REGISTER_MAP["MATCH_POINT_SHADOW"])
                 if value is not None:
                     return value
                 return None

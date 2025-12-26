@@ -3493,9 +3493,9 @@ class CLASSIC_MODBUS_ADDR_EEPROMSensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["CLASSIC_MODBUS_ADDR_EEPROM"])
+            eeprom_config_data = self.coordinator.data["data"].get("eeprom_config")
+            if eeprom_config_data:
+                value = eeprom_config_data.get(REGISTER_MAP["CLASSIC_MODBUS_ADDR_EEPROM"])
                 if value is not None:
                     return value
                 return None
@@ -3519,9 +3519,9 @@ class BATTERY_TEMP_PASSED_EEPROMSensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["BATTERY_TEMP_PASSED_EEPROM"])
+            eeprom_config_data = self.coordinator.data["data"].get("eeprom_config")
+            if eeprom_config_data:
+                value = eeprom_config_data.get(REGISTER_MAP["BATTERY_TEMP_PASSED_EEPROM"])
                 if value is not None:
                     return value
                 return None
@@ -3565,9 +3565,9 @@ class CLASSIC_FME_PASSED_BITS_EEPROMSensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["CLASSIC_FME_PASSED_BITS_EEPROM"])
+            eeprom_config_data = self.coordinator.data["data"].get("eeprom_config")
+            if eeprom_config_data:
+                value = eeprom_config_data.get(REGISTER_MAP["CLASSIC_FME_PASSED_BITS_EEPROM"])
                 if value is not None:
                     return value
                 return None

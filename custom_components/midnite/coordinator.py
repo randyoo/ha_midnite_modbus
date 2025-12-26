@@ -132,6 +132,12 @@ REGISTER_GROUPS = {
         REGISTER_MAP["DNS_2_LSB_1"],
         REGISTER_MAP["DNS_2_LSB_2"],
     ],
+    # EEPROM configuration registers
+    "eeprom_config": [
+        REGISTER_MAP["BATTERY_TEMP_PASSED_EEPROM"],
+        REGISTER_MAP["CLASSIC_FME_PASSED_BITS_EEPROM"],
+        REGISTER_MAP["CLASSIC_MODBUS_ADDR_EEPROM"],
+    ],
     # Advanced status registers
     "advanced_status": [
         REGISTER_MAP["HIGHEST_VINPUT_LOG"],

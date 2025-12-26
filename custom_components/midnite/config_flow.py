@@ -18,7 +18,15 @@ except ImportError:
     # Fallback to old import path for older versions
     from homeassistant.components.dhcp import DhcpServiceInfo
 
-from .const import DEFAULT_PORT, DOMAIN, DEFAULT_SCAN_INTERVAL, CONF_SCAN_INTERVAL
+from .const import (
+    DEFAULT_PORT,
+    DOMAIN,
+    DEFAULT_SCAN_INTERVAL,
+    CONF_SCAN_INTERVAL,
+    CONF_ENABLE_ADVANCED,
+    CONF_ENABLE_DEBUG,
+    CONF_ENABLE_WRITES,
+)
 
 _LOGGER = logging.getLogger(__name__)
 

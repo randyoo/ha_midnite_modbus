@@ -41,12 +41,6 @@ async def async_setup_entry(
     
     async_add_entities(selectors)
 
-    @property
-    def options(self) -> list[str] | None:
-        """Return the select options."""
-        # Default implementation - subclasses should override this
-        return ["Option 1", "Option 2", "Option 3"]
-
 
 class MidniteSolarSelect(CoordinatorEntity[MidniteSolarUpdateCoordinator], SelectEntity):
     """Base class for all Midnite Solar selectors."""

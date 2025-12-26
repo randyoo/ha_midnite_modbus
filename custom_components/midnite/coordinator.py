@@ -74,6 +74,9 @@ REGISTER_GROUPS = {
         REGISTER_MAP["PREVOC"],
         REGISTER_MAP["PK_HOLD_VPV_STAMP"],
         REGISTER_MAP["IPV_MINUS_RAW"],
+        # Additional diagnostic registers
+        REGISTER_MAP["MNGP_REVISION"],
+        REGISTER_MAP["MNLP_REVISION"],
     ],
     "temperatures": [
         REGISTER_MAP["BATT_TEMPERATURE"],
@@ -119,6 +122,7 @@ REGISTER_GROUPS = {
     ],
     # Network configuration registers
     "network_config": [
+        REGISTER_MAP["IP_SETTINGS_FLAGS"],
         REGISTER_MAP["IP_ADDRESS_LSB_1"],
         REGISTER_MAP["IP_ADDRESS_LSB_2"],
         REGISTER_MAP["SUBNET_MASK_LSB_1"],
@@ -140,6 +144,22 @@ REGISTER_GROUPS = {
         REGISTER_MAP["ENDING_SOC_EEPROM"],
         # Modbus control EEPROM
         REGISTER_MAP["MODBUS_CONTROL_EEPROM"],
+        # Additional EEPROM configuration registers
+        REGISTER_MAP["FOLLOW_ME_PASS_REF_EEPROM"],
+        REGISTER_MAP["H2O_SWEEP_AMPS_10TIME6_EEPA"],
+        REGISTER_MAP["MAX_INPUT_CURRENT_EEPROM"],
+        REGISTER_MAP["MIN_SWP_VOLTAGE_EEPROM"],
+        REGISTER_MAP["MIN_VPV_TURN_ON"],
+        REGISTER_MAP["REBUCK_TIMER_SEC_EEPROM"],
+        REGISTER_MAP["REBUCK_VOLTS_EEPROM"],
+        REGISTER_MAP["VOC_QUALIFY_TIMER_MS_EEPROM"],
+        REGISTER_MAP["VOC_QUALIFY_TIMER_MS_EEPROM_LOW"],
+        REGISTER_MAP["VBATT_NOMINAL_EEPROM"],
+        REGISTER_MAP["VBATT_REG_SET_P_TEMP_COMP"],
+        REGISTER_MAP["PK_AMPS_OVER_LIMIT_HI_EEPA"],
+        REGISTER_MAP["PK_AMPS_OVER_LIMIT_LO_EEPA"],
+        REGISTER_MAP["PK_AMPS_OVER_TRIP_EEPROM"],
+        REGISTER_MAP["WIND_LOW_WATTS_EEPA"],
     ],
     # Advanced status registers
     "advanced_status": [
@@ -173,6 +193,19 @@ REGISTER_GROUPS = {
         # Additional diagnostic registers
         REGISTER_MAP["RESERVED_4105"],
         REGISTER_MAP["NITE_MINUTES_NO_PWR"],
+        # Additional advanced status registers
+        REGISTER_MAP["OUTPUT_VBATT_RAW"],
+        REGISTER_MAP["PREVOC"],
+        REGISTER_MAP["REMOTE_BUTTONS"],
+        REGISTER_MAP["SIESTA_TIME_SEC"],
+        REGISTER_MAP["SIESTA_ABORT_VOC_ADJ"],
+        REGISTER_MAP["SWEEP_DEPTH"],
+        REGISTER_MAP["SWEEP_INTERVAL_SECS_EEPROM"],
+        REGISTER_MAP["SWP_DEEP_TIMEOUT_SEC"],
+        REGISTER_MAP["USER_VARIABLE_02"],
+        REGISTER_MAP["VPV_B4_TURN_OFF"],
+        REGISTER_MAP["VPV_TARGET_RD"],
+        REGISTER_MAP["VPV_TARGET_RD_TMP"],
     ],
     # Advanced configuration registers
     "advanced_config": [
@@ -186,21 +219,6 @@ REGISTER_GROUPS = {
         REGISTER_MAP["LED_MODE_EEPROM"],
         REGISTER_MAP["USB_COMM_MODE"],
     ],
-    # AUX control registers
-    "aux_control": [
-        REGISTER_MAP["AUX1_VOLTS_LO_ABS"],
-        REGISTER_MAP["AUX1_VOLTS_HI_ABS"],
-        REGISTER_MAP["AUX1_DELAY_T_MS"],
-        REGISTER_MAP["AUX1_HOLD_T_MS"],
-        REGISTER_MAP["AUX2_PWM_VWIDTH"],
-        REGISTER_MAP["AUX1_VOLTS_LO_REL"],
-        REGISTER_MAP["AUX1_VOLTS_HI_REL"],
-        REGISTER_MAP["AUX2_VOLTS_LO_REL"],
-        REGISTER_MAP["AUX2_VOLTS_HI_REL"],
-        REGISTER_MAP["AUX1_VOLTS_LO_PV_ABS"],
-        REGISTER_MAP["AUX1_VOLTS_HI_PV_ABS"],
-        REGISTER_MAP["AUX2_VOLTS_HI_PV_ABS"],
-    ],
     # Voltage offset registers
     "voltage_offsets": [
         REGISTER_MAP["VBATT_OFFSET"],
@@ -213,20 +231,6 @@ REGISTER_GROUPS = {
         REGISTER_MAP["MAX_BATTERY_TEMP_COMP_VOLTAGE"],
         REGISTER_MAP["MIN_BATTERY_TEMP_COMP_VOLTAGE"],
         REGISTER_MAP["BATTERY_TEMP_COMP_VALUE"],
-    ],
-    # Network configuration registers
-    "network_config": [
-        REGISTER_MAP["IP_SETTINGS_FLAGS"],
-        REGISTER_MAP["IP_ADDRESS_LSB_1"],
-        REGISTER_MAP["IP_ADDRESS_LSB_2"],
-        REGISTER_MAP["GATEWAY_ADDRESS_LSB_1"],
-        REGISTER_MAP["GATEWAY_ADDRESS_LSB_2"],
-        REGISTER_MAP["SUBNET_MASK_LSB_1"],
-        REGISTER_MAP["SUBNET_MASK_LSB_2"],
-        REGISTER_MAP["DNS_1_LSB_1"],
-        REGISTER_MAP["DNS_1_LSB_2"],
-        REGISTER_MAP["DNS_2_LSB_1"],
-        REGISTER_MAP["DNS_2_LSB_2"],
     ],
 }
 

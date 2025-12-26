@@ -2118,9 +2118,9 @@ class ABSORB_TIME_DUPLICATESensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["ABSORB_TIME_DUPLICATE"])
+            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
+            if advanced_status_data:
+                value = advanced_status_data.get(REGISTER_MAP["ABSORB_TIME_DUPLICATE"])
                 if value is not None:
                     return value
                 return None
@@ -2241,9 +2241,9 @@ class ENDING_AMPES_EEPROMSensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["ENDING_AMPES_EEPROM"])
+            eeprom_config_data = self.coordinator.data["data"].get("eeprom_config")
+            if eeprom_config_data:
+                value = eeprom_config_data.get(REGISTER_MAP["ENDING_AMPES_EEPROM"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -2264,9 +2264,9 @@ class ENDING_SOC_EEPROMSensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["ENDING_SOC_EEPROM"])
+            eeprom_config_data = self.coordinator.data["data"].get("eeprom_config")
+            if eeprom_config_data:
+                value = eeprom_config_data.get(REGISTER_MAP["ENDING_SOC_EEPROM"])
                 if value is not None:
                     return value
                 return None
@@ -2930,9 +2930,9 @@ class ENDING_AMPS_TIMER_SECSensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["ENDING_AMPS_TIMER_SEC"])
+            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
+            if advanced_status_data:
+                value = advanced_status_data.get(REGISTER_MAP["ENDING_AMPS_TIMER_SEC"])
                 if value is not None:
                     return value / 10.0
                 return None

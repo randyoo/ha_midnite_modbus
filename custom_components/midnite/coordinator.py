@@ -137,6 +137,9 @@ REGISTER_GROUPS = {
         REGISTER_MAP["BATTERY_TEMP_PASSED_EEPROM"],
         REGISTER_MAP["CLASSIC_FME_PASSED_BITS_EEPROM"],
         REGISTER_MAP["CLASSIC_MODBUS_ADDR_EEPROM"],
+        # Ending condition EEPROM values
+        REGISTER_MAP["ENDING_AMPES_EEPROM"],
+        REGISTER_MAP["ENDING_SOC_EEPROM"],
     ],
     # Advanced status registers
     "advanced_status": [
@@ -165,6 +168,8 @@ REGISTER_GROUPS = {
         REGISTER_MAP["DABT_U32_DEBUG_02"],
         REGISTER_MAP["DABT_U32_DEBUG_03"],
         REGISTER_MAP["DABT_U32_DEBUG_04"],
+        # Ending condition timer values
+        REGISTER_MAP["ENDING_AMPS_TIMER_SEC"],
     ],
     # Advanced configuration registers
     "advanced_config": [

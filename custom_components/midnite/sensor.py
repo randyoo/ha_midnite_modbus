@@ -289,7 +289,7 @@ class UNIT_IDSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["UNIT_ID"])
                 if value is not None:
                     return value
                 return None
@@ -311,7 +311,7 @@ class UNIT_SW_DATE_ROSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["UNIT_SW_DATE_RO"])
                 if value is not None:
                     return value
                 return None
@@ -334,7 +334,7 @@ class UNIT_SW_DATE_MONTH_DAYSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["UNIT_SW_DATE_MONTH_DAY"])
                 if value is not None:
                     return value
                 return None
@@ -356,7 +356,7 @@ class INFO_FLAGS_BITS3Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["INFO_FLAGS_BITS3"])
                 if value is not None:
                     return value
                 return None
@@ -379,7 +379,7 @@ class RESERVED_4105Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["RESERVED_4105"])
                 if value is not None:
                     return value
                 return None
@@ -401,7 +401,7 @@ class MAC_ADDRESS_PART_1Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["MAC_ADDRESS_PART_1"])
                 if value is not None:
                     return value
                 return None
@@ -423,7 +423,7 @@ class MAC_ADDRESS_PART_2Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["MAC_ADDRESS_PART_2"])
                 if value is not None:
                     return value
                 return None
@@ -445,7 +445,7 @@ class MAC_ADDRESS_PART_3Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["MAC_ADDRESS_PART_3"])
                 if value is not None:
                     return value
                 return None
@@ -471,7 +471,7 @@ class JrAmpHourNETSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["JrAmpHourNET"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -494,7 +494,7 @@ class DEVICE_ID_LSWSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["DEVICE_ID_LSW"])
                 if value is not None:
                     return value
                 return None
@@ -517,7 +517,7 @@ class DEVICE_ID_MSWSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["DEVICE_ID_MSW"])
                 if value is not None:
                     return value
                 return None
@@ -539,7 +539,7 @@ class STATUSROLLSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["STATUSROLL"])
                 if value is not None:
                     return value
                 return None
@@ -564,7 +564,7 @@ class RESTART_TIME_MSSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["RESTART_TIME_MS"])
                 if value is not None:
                     return value
                 return None
@@ -590,7 +590,7 @@ class DISP_AVG_VBATTSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["DISP_AVG_VBATT"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -616,7 +616,7 @@ class DISP_AVG_VPVSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["DISP_AVG_VPV"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -642,7 +642,7 @@ class IBATT_DISPLAY_SSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["IBATT_DISPLAY_S"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -668,7 +668,7 @@ class KW_HOURSSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["KW_HOURS"])
                 if value is not None:
                     return value / 100.0
                 return None
@@ -694,7 +694,7 @@ class WATTSSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WATTS"])
                 if value is not None:
                     return value
                 return None
@@ -720,7 +720,7 @@ class PV_INPUT_CURRENTSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["PV_INPUT_CURRENT"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -746,7 +746,7 @@ class VOC_LAST_MEASUREDSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["VOC_LAST_MEASURED"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -769,7 +769,7 @@ class HIGHEST_VINPUT_LOGSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["HIGHEST_VINPUT_LOG"])
                 if value is not None:
                     return value
                 return None
@@ -792,7 +792,7 @@ class MATCH_POINT_SHADOWSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["MATCH_POINT_SHADOW"])
                 if value is not None:
                     return value
                 return None
@@ -818,7 +818,7 @@ class AMP_HOURS_DAILYSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["AMP_HOURS_DAILY"])
                 if value is not None:
                     return value
                 return None
@@ -844,7 +844,7 @@ class LIFETIME_KW_HOURS_1Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["LIFETIME_KW_HOURS_1"])
                 if value is not None:
                     return value / 100.0
                 return None
@@ -870,7 +870,7 @@ class LIFETIME_KW_HOURS_1_HIGHSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["LIFETIME_KW_HOURS_1_HIGH"])
                 if value is not None:
                     return value / 100.0
                 return None
@@ -896,7 +896,7 @@ class LIFETIME_AMP_HOURS_1Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["LIFETIME_AMP_HOURS_1"])
                 if value is not None:
                     return value
                 return None
@@ -922,7 +922,7 @@ class LIFETIME_AMP_HOURS_1_HIGHSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["LIFETIME_AMP_HOURS_1_HIGH"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -948,7 +948,7 @@ class BATT_TEMPERATURESensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["BATT_TEMPERATURE"])
                 if value is not None:
                     return value
                 return None
@@ -974,7 +974,7 @@ class FET_TEMPERATURESensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["FET_TEMPERATURE"])
                 if value is not None:
                     return value
                 return None
@@ -1000,7 +1000,7 @@ class PCB_TEMPERATURESensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["PCB_TEMPERATURE"])
                 if value is not None:
                     return value
                 return None
@@ -1025,7 +1025,7 @@ class NITE_MINUTES_NO_PWRSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["NITE_MINUTES_NO_PWR"])
                 if value is not None:
                     return value
                 return None
@@ -1050,7 +1050,7 @@ class FLOAT_TIME_TODAY_SECSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["FLOAT_TIME_TODAY_SEC"])
                 if value is not None:
                     return value
                 return None
@@ -1075,7 +1075,7 @@ class ABSORB_TIMESensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["ABSORB_TIME"])
                 if value is not None:
                     return value
                 return None
@@ -1098,7 +1098,7 @@ class PWM_READONLYSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["PWM_READONLY"])
                 if value is not None:
                     return value
                 return None
@@ -1121,7 +1121,7 @@ class REASON_FOR_RESETSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["REASON_FOR_RESET"])
                 if value is not None:
                     return value
                 return None
@@ -1146,7 +1146,7 @@ class EQUALIZE_TIMESensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["EQUALIZE_TIME"])
                 if value is not None:
                     return value
                 return None
@@ -1171,7 +1171,7 @@ class MPP_W_LASTSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["MPP_W_LAST"])
                 if value is not None:
                     return value
                 return None
@@ -1196,7 +1196,7 @@ class NO_DOUBLE_CLICK_TIMERSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["NO_DOUBLE_CLICK_TIMER"])
                 if value is not None:
                     return value
                 return None
@@ -1222,7 +1222,7 @@ class SLIDING_CURRENT_LIMITSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["SLIDING_CURRENT_LIMIT"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -1247,7 +1247,7 @@ class MIN_ABSORB_TIMESensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["MIN_ABSORB_TIME"])
                 if value is not None:
                     return value
                 return None
@@ -1270,7 +1270,7 @@ class GENERAL_PURPOSE_WORDSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["GENERAL_PURPOSE_WORD"])
                 if value is not None:
                     return value
                 return None
@@ -1293,7 +1293,7 @@ class EQUALIZE_RETRY_DAYSSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["EQUALIZE_RETRY_DAYS"])
                 if value is not None:
                     return value
                 return None
@@ -1316,7 +1316,7 @@ class FORCE_FLAG_BITSSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["FORCE_FLAG_BITS"])
                 if value is not None:
                     return value
                 return None
@@ -1342,7 +1342,7 @@ class AUX1_VOLTS_LO_RELSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["AUX1_VOLTS_LO_REL"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -1368,7 +1368,7 @@ class AUX1_VOLTS_HI_RELSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["AUX1_VOLTS_HI_REL"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -1394,7 +1394,7 @@ class AUX2_VOLTS_LO_RELSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["AUX2_VOLTS_LO_REL"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -1420,7 +1420,7 @@ class AUX2_VOLTS_HI_RELSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["AUX2_VOLTS_HI_REL"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -1446,7 +1446,7 @@ class AUX1_VOLTS_LO_PV_ABSSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["AUX1_VOLTS_LO_PV_ABS"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -1472,7 +1472,7 @@ class AUX1_VOLTS_HI_PV_ABSSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["AUX1_VOLTS_HI_PV_ABS"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -1497,7 +1497,7 @@ class VARIMAXSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["VARIMAX"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -1523,7 +1523,7 @@ class AUX2_VOLTS_HI_PV_ABSSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["AUX2_VOLTS_HI_PV_ABS"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -1545,7 +1545,7 @@ class ENABLE_FLAGS3Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["ENABLE_FLAGS3"])
                 if value is not None:
                     return value
                 return None
@@ -1568,7 +1568,7 @@ class ARC_FAULT_SENSITIVITYSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["ARC_FAULT_SENSITIVITY"])
                 if value is not None:
                     return value
                 return None
@@ -1591,7 +1591,7 @@ class VPV_TARGET_RDSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["VPV_TARGET_RD"])
                 if value is not None:
                     return value
                 return None
@@ -1614,7 +1614,7 @@ class VPV_TARGET_WRSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["VPV_TARGET_WR"])
                 if value is not None:
                     return value
                 return None
@@ -1639,7 +1639,7 @@ class SWEEP_INTERVAL_SECS_EEPROMSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["SWEEP_INTERVAL_SECS_EEPROM"])
                 if value is not None:
                     return value
                 return None
@@ -1665,7 +1665,7 @@ class MIN_SWP_VOLTAGE_EEPROMSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["MIN_SWP_VOLTAGE_EEPROM"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -1691,7 +1691,7 @@ class MAX_INPUT_CURRENT_EEPROMSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["MAX_INPUT_CURRENT_EEPROM"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -1714,7 +1714,7 @@ class SWEEP_DEPTHSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["SWEEP_DEPTH"])
                 if value is not None:
                     return value
                 return None
@@ -1740,7 +1740,7 @@ class NEGATIVE_CURRENT_ADJSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["NEGATIVE_CURRENT_ADJ"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -1766,7 +1766,7 @@ class CLIPPER_CMD_VOLTSSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["CLIPPER_CMD_VOLTS"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -1789,7 +1789,7 @@ class WIND_NUMBER_OF_POLES_EEPROMSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WIND_NUMBER_OF_POLES_EEPROM"])
                 if value is not None:
                     return value
                 return None
@@ -1812,7 +1812,7 @@ class MPP_PERCENT_VOC_EEPROMSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["MPP_PERCENT_VOC_EEPROM"])
                 if value is not None:
                     return value
                 return None
@@ -1835,7 +1835,7 @@ class WIND_TABLE_TO_USE_EEPROMSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WIND_TABLE_TO_USE_EEPROM"])
                 if value is not None:
                     return value
                 return None
@@ -1858,7 +1858,7 @@ class UNIT_NAME_0Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["UNIT_NAME_0"])
                 if value is not None:
                     return value
                 return None
@@ -1881,7 +1881,7 @@ class UNIT_NAME_1Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["UNIT_NAME_1"])
                 if value is not None:
                     return value
                 return None
@@ -1904,7 +1904,7 @@ class UNIT_NAME_2Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["UNIT_NAME_2"])
                 if value is not None:
                     return value
                 return None
@@ -1927,7 +1927,7 @@ class UNIT_NAME_3Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["UNIT_NAME_3"])
                 if value is not None:
                     return value
                 return None
@@ -1950,7 +1950,7 @@ class CTI_ME0Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["CTI_ME0"])
                 if value is not None:
                     return value
                 return None
@@ -1973,7 +1973,7 @@ class CTI_ME0_HIGHSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["CTI_ME0_HIGH"])
                 if value is not None:
                     return value
                 return None
@@ -1996,7 +1996,7 @@ class CTI_ME1Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["CTI_ME1"])
                 if value is not None:
                     return value
                 return None
@@ -2019,7 +2019,7 @@ class CTI_ME1_HIGHSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["CTI_ME1_HIGH"])
                 if value is not None:
                     return value
                 return None
@@ -2042,7 +2042,7 @@ class CTI_ME2Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["CTI_ME2"])
                 if value is not None:
                     return value
                 return None
@@ -2065,7 +2065,7 @@ class REMOTE_BUTTONSSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["REMOTE_BUTTONS"])
                 if value is not None:
                     return value
                 return None
@@ -2088,7 +2088,7 @@ class PREVOCSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["PREVOC"])
                 if value is not None:
                     return value
                 return None
@@ -2111,7 +2111,7 @@ class AUX2_A2D_D2ASensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["AUX2_A2D_D2A"])
                 if value is not None:
                     return value
                 return None
@@ -2134,7 +2134,7 @@ class VOC_RDSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["VOC_RD"])
                 if value is not None:
                     return value
                 return None
@@ -2159,7 +2159,7 @@ class ABSORB_TIME_DUPLICATESensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["ABSORB_TIME_DUPLICATE"])
                 if value is not None:
                     return value
                 return None
@@ -2184,7 +2184,7 @@ class SIESTA_TIME_SECSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["SIESTA_TIME_SEC"])
                 if value is not None:
                     return value
                 return None
@@ -2207,7 +2207,7 @@ class SIESTA_ABORT_VOC_ADJSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["SIESTA_ABORT_VOC_ADJ"])
                 if value is not None:
                     return value
                 return None
@@ -2233,7 +2233,7 @@ class VBATT_REG_SET_P_TEMP_COMPSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["VBATT_REG_SET_P_TEMP_COMP"])
                 if value is not None:
                     return value
                 return None
@@ -2256,7 +2256,7 @@ class VBATT_NOMINAL_EEPROMSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["VBATT_NOMINAL_EEPROM"])
                 if value is not None:
                     return value
                 return None
@@ -2282,7 +2282,7 @@ class ENDING_AMPES_EEPROMSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["ENDING_AMPES_EEPROM"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -2305,7 +2305,7 @@ class ENDING_SOC_EEPROMSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["ENDING_SOC_EEPROM"])
                 if value is not None:
                     return value
                 return None
@@ -2331,7 +2331,7 @@ class REBUCK_VOLTS_EEPROMSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["REBUCK_VOLTS_EEPROM"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -2354,7 +2354,7 @@ class DAYS_BTW_BULK_ABS_EEPROMSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["DAYS_BTW_BULK_ABS_EEPROM"])
                 if value is not None:
                     return value
                 return None
@@ -2377,7 +2377,7 @@ class DAY_LOG_COMB_CAT_INDEXSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["DAY_LOG_COMB_CAT_INDEX"])
                 if value is not None:
                     return value
                 return None
@@ -2400,7 +2400,7 @@ class MIN_LOG_COMB_CAT_INDEXSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["MIN_LOG_COMB_CAT_INDEX"])
                 if value is not None:
                     return value
                 return None
@@ -2425,7 +2425,7 @@ class REBUCK_TIMER_SEC_EEPROMSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["REBUCK_TIMER_SEC_EEPROM"])
                 if value is not None:
                     return value
                 return None
@@ -2450,7 +2450,7 @@ class VOC_QUALIFY_TIMER_MS_EEPROM_LOWSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["VOC_QUALIFY_TIMER_MS_EEPROM_LOW"])
                 if value is not None:
                     return value
                 return None
@@ -2475,7 +2475,7 @@ class VOC_QUALIFY_TIMER_MS_EEPROMSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["VOC_QUALIFY_TIMER_MS_EEPROM"])
                 if value is not None:
                     return value
                 return None
@@ -2498,7 +2498,7 @@ class IPV_MINUS_RAWSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["IPV_MINUS_RAW"])
                 if value is not None:
                     return value
                 return None
@@ -2523,7 +2523,7 @@ class RESTART_TIME_MS2Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["RESTART_TIME_MS2"])
                 if value is not None:
                     return value
                 return None
@@ -2549,7 +2549,7 @@ class IBATT_RAW_ASensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["IBATT_RAW_A"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -2572,7 +2572,7 @@ class OUTPUT_VBATT_RAWSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["OUTPUT_VBATT_RAW"])
                 if value is not None:
                     return value
                 return None
@@ -2595,7 +2595,7 @@ class INPUT_VPV_RAWSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["INPUT_VPV_RAW"])
                 if value is not None:
                     return value
                 return None
@@ -2621,7 +2621,7 @@ class PK_HOLD_VPV_STAMPSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["PK_HOLD_VPV_STAMP"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -2644,7 +2644,7 @@ class VPV_TARGET_RD_TMPSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["VPV_TARGET_RD_TMP"])
                 if value is not None:
                     return value
                 return None
@@ -2669,7 +2669,7 @@ class SWP_DEEP_TIMEOUT_SECSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["SWP_DEEP_TIMEOUT_SEC"])
                 if value is not None:
                     return value
                 return None
@@ -2695,7 +2695,7 @@ class LOW_WATTS_EEPASensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["LOW_WATTS_EEPA"])
                 if value is not None:
                     return value
                 return None
@@ -2721,7 +2721,7 @@ class WIND_LOW_WATTS_EEPASensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WIND_LOW_WATTS_EEPA"])
                 if value is not None:
                     return value
                 return None
@@ -2747,7 +2747,7 @@ class WIND_WINDOW_WATTS_REF_EEPASensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WIND_WINDOW_WATTS_REF_EEPA"])
                 if value is not None:
                     return value
                 return None
@@ -2773,7 +2773,7 @@ class WINDOW_WATTS_RO_DELTA_EEPASensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WINDOW_WATTS_RO_DELTA_EEPA"])
                 if value is not None:
                     return value
                 return None
@@ -2798,7 +2798,7 @@ class WIND_TIMEOUT_REF_EEPASensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WIND_TIMEOUT_REF_EEPA"])
                 if value is not None:
                     return value
                 return None
@@ -2823,7 +2823,7 @@ class WIND_TIMEOUT2_REF_EEPASensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WIND_TIMEOUT2_REF_EEPA"])
                 if value is not None:
                     return value
                 return None
@@ -2848,7 +2848,7 @@ class WIND_TIMEOUT_SECONDSSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WIND_TIMEOUT_SECONDS"])
                 if value is not None:
                     return value
                 return None
@@ -2873,7 +2873,7 @@ class WIND_TIMEOUT2_SECONDSSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WIND_TIMEOUT2_SECONDS"])
                 if value is not None:
                     return value
                 return None
@@ -2896,7 +2896,7 @@ class MIN_VPV_TURN_ONSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["MIN_VPV_TURN_ON"])
                 if value is not None:
                     return value
                 return None
@@ -2919,7 +2919,7 @@ class VPV_B4_TURN_OFFSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["VPV_B4_TURN_OFF"])
                 if value is not None:
                     return value
                 return None
@@ -2945,7 +2945,7 @@ class H2O_SWEEP_AMPS_10TIME6_EEPASensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["H2O_SWEEP_AMPS_10TIME6_EEPA"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -2971,7 +2971,7 @@ class ENDING_AMPS_TIMER_SECSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["ENDING_AMPS_TIMER_SEC"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -2997,7 +2997,7 @@ class PK_AMPS_OVER_LIMIT_HI_EEPASensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["PK_AMPS_OVER_LIMIT_HI_EEPA"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -3023,7 +3023,7 @@ class PK_AMPS_OVER_LIMIT_LO_EEPASensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["PK_AMPS_OVER_LIMIT_LO_EEPA"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -3049,7 +3049,7 @@ class WIND_POWER_TABLE_V_0_EEPASensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_V_0_EEPA"])
                 if value is not None:
                     return value
                 return None
@@ -3075,7 +3075,7 @@ class WIND_POWER_TABLE_V_1_EEPASensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_V_1_EEPA"])
                 if value is not None:
                     return value
                 return None
@@ -3101,7 +3101,7 @@ class WIND_POWER_TABLE_V_2_EEPASensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_V_2_EEPA"])
                 if value is not None:
                     return value
                 return None
@@ -3127,7 +3127,7 @@ class WIND_POWER_TABLE_V_3_EEPASensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_V_3_EEPA"])
                 if value is not None:
                     return value
                 return None
@@ -3153,7 +3153,7 @@ class WIND_POWER_TABLE_V_4_EEPASensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_V_4_EEPA"])
                 if value is not None:
                     return value
                 return None
@@ -3179,7 +3179,7 @@ class WIND_POWER_TABLE_V_5_EEPASensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_V_5_EEPA"])
                 if value is not None:
                     return value
                 return None
@@ -3205,7 +3205,7 @@ class WIND_POWER_TABLE_V_6_EEPASensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_V_6_EEPA"])
                 if value is not None:
                     return value
                 return None
@@ -3231,7 +3231,7 @@ class WIND_POWER_TABLE_V_7_EEPASensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_V_7_EEPA"])
                 if value is not None:
                     return value
                 return None
@@ -3257,7 +3257,7 @@ class WIND_POWER_TABLE_I_0_EEPASensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_I_0_EEPA"])
                 if value is not None:
                     return value
                 return None
@@ -3283,7 +3283,7 @@ class WIND_POWER_TABLE_I_1_EEPASensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_I_1_EEPA"])
                 if value is not None:
                     return value
                 return None
@@ -3309,7 +3309,7 @@ class WIND_POWER_TABLE_I_2_EEPASensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_I_2_EEPA"])
                 if value is not None:
                     return value
                 return None
@@ -3335,7 +3335,7 @@ class WIND_POWER_TABLE_I_3_EEPASensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_I_3_EEPA"])
                 if value is not None:
                     return value
                 return None
@@ -3361,7 +3361,7 @@ class WIND_POWER_TABLE_I_4_EEPASensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_I_4_EEPA"])
                 if value is not None:
                     return value
                 return None
@@ -3387,7 +3387,7 @@ class WIND_POWER_TABLE_I_5_EEPASensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_I_5_EEPA"])
                 if value is not None:
                     return value
                 return None
@@ -3413,7 +3413,7 @@ class WIND_POWER_TABLE_I_6_EEPASensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_I_6_EEPA"])
                 if value is not None:
                     return value
                 return None
@@ -3439,7 +3439,7 @@ class WIND_POWER_TABLE_I_7_EEPASensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_I_7_EEPA"])
                 if value is not None:
                     return value
                 return None
@@ -3465,7 +3465,7 @@ class PK_AMPS_OVER_TRIP_EEPROMSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["PK_AMPS_OVER_TRIP_EEPROM"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -3488,7 +3488,7 @@ class MNGP_REVISIONSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["MNGP_REVISION"])
                 if value is not None:
                     return value
                 return None
@@ -3511,7 +3511,7 @@ class MNLP_REVISIONSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["MNLP_REVISION"])
                 if value is not None:
                     return value
                 return None
@@ -3534,7 +3534,7 @@ class CLASSIC_MODBUS_ADDR_EEPROMSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["CLASSIC_MODBUS_ADDR_EEPROM"])
                 if value is not None:
                     return value
                 return None
@@ -3560,7 +3560,7 @@ class BATTERY_TEMP_PASSED_EEPROMSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["BATTERY_TEMP_PASSED_EEPROM"])
                 if value is not None:
                     return value
                 return None
@@ -3583,7 +3583,7 @@ class MODBUS_CONTROL_EEPROMSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["MODBUS_CONTROL_EEPROM"])
                 if value is not None:
                     return value
                 return None
@@ -3606,7 +3606,7 @@ class CLASSIC_FME_PASSED_BITS_EEPROMSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["CLASSIC_FME_PASSED_BITS_EEPROM"])
                 if value is not None:
                     return value
                 return None
@@ -3629,7 +3629,7 @@ class WIND_SYNCH_A_EEPROMSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WIND_SYNCH_A_EEPROM"])
                 if value is not None:
                     return value
                 return None
@@ -3652,7 +3652,7 @@ class WIND_SYNCH_V_EEPROMSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WIND_SYNCH_V_EEPROM"])
                 if value is not None:
                     return value
                 return None
@@ -3675,7 +3675,7 @@ class FOLLOW_ME_PASS_REF_EEPROMSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["FOLLOW_ME_PASS_REF_EEPROM"])
                 if value is not None:
                     return value
                 return None
@@ -3698,7 +3698,7 @@ class DABT_U32_DEBUG_01Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["DABT_U32_DEBUG_01"])
                 if value is not None:
                     return value
                 return None
@@ -3721,7 +3721,7 @@ class DABT_U32_DEBUG_02Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["DABT_U32_DEBUG_02"])
                 if value is not None:
                     return value
                 return None
@@ -3744,7 +3744,7 @@ class DABT_U32_DEBUG_03Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["DABT_U32_DEBUG_03"])
                 if value is not None:
                     return value
                 return None
@@ -3767,7 +3767,7 @@ class DABT_U32_DEBUG_04Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["DABT_U32_DEBUG_04"])
                 if value is not None:
                     return value
                 return None
@@ -3790,7 +3790,7 @@ class CLEAR_LOGS_CATSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["CLEAR_LOGS_CAT"])
                 if value is not None:
                     return value
                 return None
@@ -3813,7 +3813,7 @@ class CLEAR_LOGS_COUNTER_10MSSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["CLEAR_LOGS_COUNTER_10MS"])
                 if value is not None:
                     return value
                 return None
@@ -3836,7 +3836,7 @@ class USER_VARIABLE_02Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["USER_VARIABLE_02"])
                 if value is not None:
                     return value
                 return None
@@ -3862,7 +3862,7 @@ class WIZBANG_RX_BUFFER_TEMP_SH1Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WIZBANG_RX_BUFFER_TEMP_SH1"])
                 if value is not None:
                     return value
                 return None
@@ -3888,7 +3888,7 @@ class WIZBANG_RX_BUFFER_TEMP_SH2Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WIZBANG_RX_BUFFER_TEMP_SH2"])
                 if value is not None:
                     return value
                 return None
@@ -3914,7 +3914,7 @@ class WIZBANG_RX_BUFFER_TEMP_SH3Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WIZBANG_RX_BUFFER_TEMP_SH3"])
                 if value is not None:
                     return value
                 return None
@@ -3940,7 +3940,7 @@ class WIZBANG_RX_BUFFER_TEMP_SH4Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WIZBANG_RX_BUFFER_TEMP_SH4"])
                 if value is not None:
                     return value
                 return None
@@ -3963,7 +3963,7 @@ class WJRB_CMD_S_EEPROMSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WJRB_CMD_S_EEPROM"])
                 if value is not None:
                     return value
                 return None
@@ -3989,7 +3989,7 @@ class WJRB_RAW_CURRENTSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WJRB_RAW_CURRENT"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -4012,7 +4012,7 @@ class WJRB_NUMERATOR_SS_EEPROMSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WJRB_NUMERATOR_SS_EEPROM"])
                 if value is not None:
                     return value
                 return None
@@ -4038,7 +4038,7 @@ class WJRB_AMP_HOUR_POSITIVESensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WJRB_AMP_HOUR_POSITIVE"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -4064,7 +4064,7 @@ class WJRB_AMP_HOUR_POSITIVE_HIGHSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WJRB_AMP_HOUR_POSITIVE_HIGH"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -4090,7 +4090,7 @@ class WJRB_AMP_HOUR_NEGATIVESensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WJRB_AMP_HOUR_NEGATIVE"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -4116,7 +4116,7 @@ class WJRB_AMP_HOUR_NEGATIVE_HIGHSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WJRB_AMP_HOUR_NEGATIVE_HIGH"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -4142,7 +4142,7 @@ class WJRB_AMP_HOUR_NETSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WJRB_AMP_HOUR_NET"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -4168,7 +4168,7 @@ class WJRB_AMP_HOUR_NET_HIGHSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WJRB_AMP_HOUR_NET_HIGH"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -4194,7 +4194,7 @@ class WJRB_CURRENT_32_SIGNED_EEPROMSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WJRB_CURRENT_32_SIGNED_EEPROM"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -4220,7 +4220,7 @@ class WJRB_RAW_CRC_AND_TEMPSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["WJRB_RAW_CRC_AND_TEMP"])
                 if value is not None:
                     return value
                 return None
@@ -4243,7 +4243,7 @@ class IP_ADDRESS_LSB_1Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["IP_ADDRESS_LSB_1"])
                 if value is not None:
                     return value
                 return None
@@ -4266,7 +4266,7 @@ class IP_ADDRESS_LSB_2Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["IP_ADDRESS_LSB_2"])
                 if value is not None:
                     return value
                 return None
@@ -4289,7 +4289,7 @@ class GATEWAY_ADDRESS_LSB_1Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["GATEWAY_ADDRESS_LSB_1"])
                 if value is not None:
                     return value
                 return None
@@ -4312,7 +4312,7 @@ class GATEWAY_ADDRESS_LSB_2Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["GATEWAY_ADDRESS_LSB_2"])
                 if value is not None:
                     return value
                 return None
@@ -4335,7 +4335,7 @@ class SUBNET_MASK_LSB_1Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["SUBNET_MASK_LSB_1"])
                 if value is not None:
                     return value
                 return None
@@ -4358,7 +4358,7 @@ class SUBNET_MASK_LSB_2Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["SUBNET_MASK_LSB_2"])
                 if value is not None:
                     return value
                 return None
@@ -4381,7 +4381,7 @@ class DNS_1_LSB_1Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["DNS_1_LSB_1"])
                 if value is not None:
                     return value
                 return None
@@ -4404,7 +4404,7 @@ class DNS_1_LSB_2Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["DNS_1_LSB_2"])
                 if value is not None:
                     return value
                 return None
@@ -4427,7 +4427,7 @@ class DNS_2_LSB_1Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["DNS_2_LSB_1"])
                 if value is not None:
                     return value
                 return None
@@ -4450,7 +4450,7 @@ class DNS_2_LSB_2Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["'{name}'"])
+                value = status_data.get(REGISTER_MAP["DNS_2_LSB_2"])
                 if value is not None:
                     return value
                 return None

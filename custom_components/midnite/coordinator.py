@@ -119,6 +119,19 @@ REGISTER_GROUPS = {
         REGISTER_MAP["AUX2_VOLTS_HI_REL"],
         REGISTER_MAP["AUX2_VOLTS_LO_REL"],
     ],
+    # Network configuration registers
+    "network_config": [
+        REGISTER_MAP["IP_ADDRESS_LSB_1"],
+        REGISTER_MAP["IP_ADDRESS_LSB_2"],
+        REGISTER_MAP["SUBNET_MASK_LSB_1"],
+        REGISTER_MAP["SUBNET_MASK_LSB_2"],
+        REGISTER_MAP["GATEWAY_ADDRESS_LSB_1"],
+        REGISTER_MAP["GATEWAY_ADDRESS_LSB_2"],
+        REGISTER_MAP["DNS_1_LSB_1"],
+        REGISTER_MAP["DNS_1_LSB_2"],
+        REGISTER_MAP["DNS_2_LSB_1"],
+        REGISTER_MAP["DNS_2_LSB_2"],
+    ],
     # Advanced status registers
     "advanced_status": [
         REGISTER_MAP["HIGHEST_VINPUT_LOG"],

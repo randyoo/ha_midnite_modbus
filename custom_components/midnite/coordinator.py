@@ -42,6 +42,9 @@ REGISTER_GROUPS = {
         REGISTER_MAP["MAC_ADDRESS_PART_1"],
         REGISTER_MAP["MAC_ADDRESS_PART_2"],
         REGISTER_MAP["MAC_ADDRESS_PART_3"],
+        # Software date information
+        REGISTER_MAP["UNIT_SW_DATE_RO"],
+        REGISTER_MAP["UNIT_SW_DATE_MONTH_DAY"],
     ],
     "status": [
         REGISTER_MAP["DISP_AVG_VBATT"],
@@ -51,6 +54,9 @@ REGISTER_GROUPS = {
         REGISTER_MAP["COMBO_CHARGE_STAGE"],
         REGISTER_MAP["PV_INPUT_CURRENT"],
         REGISTER_MAP["VOC_LAST_MEASURED"],
+        REGISTER_MAP["KW_HOURS"],
+        REGISTER_MAP["STATUSROLL"],
+        REGISTER_MAP["INFO_FLAGS_BITS3"],
     ],
     "temperatures": [
         REGISTER_MAP["BATT_TEMPERATURE"],
@@ -68,6 +74,7 @@ REGISTER_GROUPS = {
         REGISTER_MAP["FLOAT_TIME_TODAY_SEC"],
         REGISTER_MAP["ABSORB_TIME"],
         REGISTER_MAP["EQUALIZE_TIME"],
+        REGISTER_MAP["RESTART_TIME_MS"],
     ],
     "diagnostics": [
         REGISTER_MAP["REASON_FOR_RESTING"],
@@ -87,6 +94,8 @@ REGISTER_GROUPS = {
     ],
     # Advanced status registers
     "advanced_status": [
+        REGISTER_MAP["HIGHEST_VINPUT_LOG"],
+        REGISTER_MAP["JrAmpHourNET"],
         REGISTER_MAP["MATCH_POINT_SHADOW"],
         REGISTER_MAP["MINUTE_LOG_INTERVAL_SEC"],
         REGISTER_MAP["MODBUS_PORT_REGISTER"],

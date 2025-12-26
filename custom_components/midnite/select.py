@@ -56,12 +56,9 @@ class MidniteSolarSelect(CoordinatorEntity[MidniteSolarUpdateCoordinator], Selec
             "name": entry.title,
             "manufacturer": "Midnite Solar",
         }
-    
-    @property
-    def options(self) -> list[str]:
-        """Return the select options."""
-        # Default implementation - subclasses should override this with actual options
-        return ["Option 1", "Option 2", "Option 3"]
+        
+        # Set default options - subclasses should override this
+        self._attr_options = ["Option 1", "Option 2", "Option 3"]
 
 class INFO_FLAGS_BITS2_1Select(MidniteSolarSelect):
     """Representation of a 32-bit info flags (low word) selector."""

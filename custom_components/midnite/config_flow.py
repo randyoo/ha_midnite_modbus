@@ -266,7 +266,7 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
         
         if user_input is not None:
             # Update the config entry with new data
-            self.async_set_unique_id(config_entry.unique_id)
+            await self.async_set_unique_id(config_entry.unique_id)
             self._abort_if_unique_id_mismatch()
             
             # Separate scan_interval from data to store in options

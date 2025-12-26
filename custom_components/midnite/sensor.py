@@ -1725,9 +1725,9 @@ class CLIPPER_CMD_VOLTSSensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["CLIPPER_CMD_VOLTS"])
+            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
+            if advanced_status_data:
+                value = advanced_status_data.get(REGISTER_MAP["CLIPPER_CMD_VOLTS"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -2336,9 +2336,9 @@ class DAY_LOG_COMB_CAT_INDEXSensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["DAY_LOG_COMB_CAT_INDEX"])
+            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
+            if advanced_status_data:
+                value = advanced_status_data.get(REGISTER_MAP["DAY_LOG_COMB_CAT_INDEX"])
                 if value is not None:
                     return value
                 return None
@@ -2359,9 +2359,9 @@ class MIN_LOG_COMB_CAT_INDEXSensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["MIN_LOG_COMB_CAT_INDEX"])
+            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
+            if advanced_status_data:
+                value = advanced_status_data.get(REGISTER_MAP["MIN_LOG_COMB_CAT_INDEX"])
                 if value is not None:
                     return value
                 return None
@@ -3749,9 +3749,9 @@ class CLEAR_LOGS_CATSensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["CLEAR_LOGS_CAT"])
+            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
+            if advanced_status_data:
+                value = advanced_status_data.get(REGISTER_MAP["CLEAR_LOGS_CAT"])
                 if value is not None:
                     return value
                 return None
@@ -3772,9 +3772,9 @@ class CLEAR_LOGS_COUNTER_10MSSensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["CLEAR_LOGS_COUNTER_10MS"])
+            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
+            if advanced_status_data:
+                value = advanced_status_data.get(REGISTER_MAP["CLEAR_LOGS_COUNTER_10MS"])
                 if value is not None:
                     return value
                 return None

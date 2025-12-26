@@ -1,207 +1,207 @@
-Register Name,Address,Category,Entity Type,Device Class,State Class,Unit,Precision,Icon,Enabled By Default,Description
-UNIT_ID,4101,B,sensor,,,,,mdi:identifier,TRUE,"Hardware revision & voltage category (PCB Rev, Unit Type)"
-UNIT_SW_DATE_RO,4102,B,sensor,,,,,mdi:calendar,TRUE,Software build date
-UNIT_SW_DATE_MONTH_DAY,4103,B,sensor,,,,0,mdi:help-circle,TRUE,Software build month/day
-INFO_FLAGS_BITS3,4104,B,sensor,,,,,mdi:flag,TRUE,Classic system status flags (bitfield)
-RESERVED_4105,4105,D,sensor,,,,0,mdi:help-circle,FALSE,Unimplemented - avoid writing
-MAC_ADDRESS_PART_1,4106,B,sensor,,,,,mdi:wifi,TRUE,MAC address part 1
-MAC_ADDRESS_PART_2,4107,B,sensor,,,,,mdi:wifi,TRUE,MAC address part 2
-MAC_ADDRESS_PART_3,4108,B,sensor,,,,,mdi:wifi,TRUE,MAC address part 3
-JrAmpHourNET,4109,A,sensor,current,measurement,A,1,mdi:current-dc,FALSE,Whizbang Jr. Net amp-hours
-DEVICE_ID_LSW,4111,B,sensor,,,,0,mdi:help-circle,TRUE,Device ID (low word)
-DEVICE_ID_MSW,4112,B,sensor,,,,0,mdi:help-circle,TRUE,Device ID (high word)
-STATUSROLL,4113,B,sensor,,,,,mdi:counter,TRUE,"12-bit status value, updated once per second"
-RESTART_TIME_MS,4114,B,sensor,duration,,ms,0,mdi:timer,TRUE,Time after which Classic can wake up
-DISP_AVG_VBATT,4115,B,sensor,voltage,measurement,V,1,mdi:flash-alert,TRUE,Average battery voltage (1 s)
-DISP_AVG_VPV,4116,B,sensor,voltage,measurement,V,1,mdi:solar-power,TRUE,Average PV input voltage (1 s)
-IBATT_DISPLAY_S,4117,B,sensor,current,measurement,A,1,mdi:current-dc,TRUE,Average battery current (1 s)
-KW_HOURS,4118,B,sensor,energy,total_increasing,kWh,2,mdi:lightning-bolt,TRUE,Energy to the battery (reset daily)
-WATTS,4119,B,sensor,power,measurement,W,0,mdi:gauge,TRUE,Average power to the battery
-COMBO_CHARGE_STAGE,4120,B,sensor,,,,,mdi:battery-charging,TRUE,"Charge state of the battery (MSB), internal state (LSB)"
-PV_INPUT_CURRENT,4121,B,sensor,current,measurement,A,1,mdi:solar-power,TRUE,Average PV input current (1 s)
-VOC_LAST_MEASURED,4122,B,sensor,voltage,measurement,V,1,mdi:flash-triangle,TRUE,Last measured open-circuit voltage at PV input
-HIGHEST_VINPUT_LOG,4123,B,sensor,,,,0,mdi:help-circle,TRUE,Highest input voltage seen (EEprom)
-MATCH_POINT_SHADOW,4124,A,sensor,,,,0,mdi:chart-line,FALSE,Current wind power curve step (1-16)
-AMP_HOURS_DAILY,4125,B,sensor,energy,total_increasing,Ah,0,mdi:calendar-clock,TRUE,Daily amp-hours reset at 23:59
-LIFETIME_KW_HOURS_1,4126,B,sensor,energy,total_increasing,kWh,2,mdi:history,TRUE,Lifetime energy generation (low word)
-LIFETIME_KW_HOURS_1_HIGH,4127,B,sensor,energy,total_increasing,kWh,2,mdi:history,TRUE,Lifetime energy generation (high word)
-LIFETIME_AMP_HOURS_1,4128,B,sensor,energy,total_increasing,Ah,0,mdi:history,TRUE,Lifetime amp-hour generation (low word)
-LIFETIME_AMP_HOURS_1_HIGH,4129,B,sensor,current,measurement,A,1,mdi:current-dc,TRUE,Lifetime amp-hour generation (high word)
-INFO_FLAGS_BITS2_1,4130,A,select,,,,0,mdi:cog,FALSE,32-bit info flags (low word)
-INFO_FLAGS_BITS2_0,4131,A,select,,,,0,mdi:cog,FALSE,32-bit info flags (high word)
-BATT_TEMPERATURE,4132,B,sensor,temperature,measurement,°C,1,mdi:thermometer,TRUE,Battery temperature sensor
-FET_TEMPERATURE,4133,B,sensor,temperature,measurement,°C,1,mdi:thermometer-high,TRUE,Power FET temperature
-PCB_TEMPERATURE,4134,B,sensor,temperature,measurement,°C,1,mdi:thermometer-alert,TRUE,Classic top PCB temperature
-NITE_MINUTES_NO_PWR,4135,B,sensor,,measurement,s,0,mdi:timer,TRUE,"Counts up when no power, resets on power"
-MINUTE_LOG_INTERVAL_SEC,4136,A,number,duration,,s,60,mdi:clock,FALSE,Data logging interval (min 60 s)
-MODBUS_PORT_REGISTER,4137,A,number,,,,0,mdi:lan,FALSE,Modbus TCP port (default 502)
-FLOAT_TIME_TODAY_SEC,4138,B,sensor,duration,,s,0,mdi:clock-outline,TRUE,Seconds spent in float today (reset at 23:59)
-ABSORB_TIME,4139,B,sensor,duration,,s,0,mdi:clock-start,TRUE,"Absorb time counter, resets when reaching 0"
-PWM_READONLY,4141,A,sensor,,,,0,mdi:help-circle,FALSE,Duty cycle command of PWM (not percent)
-REASON_FOR_RESET,4142,B,sensor,,,,0,mdi:alert-circle,TRUE,Reason Classic reset
-EQUALIZE_TIME,4143,B,sensor,duration,,s,0,mdi:progress-wrench,TRUE,Battery stage equalize counter (down)
-MPP_W_LAST,4145,A,sensor,power,,W,0,mdi:lightning-bolt-circle,FALSE,Internal watts reference (~10% of last MPP)
-USB_COMM_MODE,4146,A,select,,,,,mdi:usb-port,FALSE,USB function #
-NO_DOUBLE_CLICK_TIMER,4147,D,sensor,,measurement,s,0,mdi:timer,FALSE,Internal forced time between manual sweeps
-BATTERY_OUTPUT_CURRENT_LIMIT,4148,B,number,current,,A,1,mdi:current-dc,TRUE,"Battery current limit (e.g., 23.4 A = 234)"
-ABSORB_SETPOINT_VOLTAGE,4149,B,number,voltage,,V,0.1,mdi:tune,TRUE,Battery absorb stage set point voltage
-FLOAT_VOLTAGE_SETPOINT,4150,B,number,voltage,,V,0.1,mdi:tune,TRUE,Battery float stage set point voltage
-EQUALIZE_VOLTAGE_SETPOINT,4151,B,number,voltage,,V,0.1,mdi:tune,TRUE,Battery equalize stage set point voltage
-SLIDING_CURRENT_LIMIT,4152,A,sensor,current,measurement,A,1,mdi:current-dc,FALSE,Sliding current limit (varies with V/Temp)
-MIN_ABSORB_TIME,4153,A,sensor,,measurement,s,0,mdi:timer,FALSE,Minimum absorb time (usually unused)
-ABSORB_TIME_EEPROM,4154,B,number,duration,,s,60,mdi:clock-edit,TRUE,Absorb setpoint time for batteries
-MAX_BATTERY_TEMP_COMP_VOLTAGE,4155,A,number,voltage,,V,0.1,mdi:thermometer-plus,FALSE,Highest charge voltage limited when using temp sensor
-MIN_BATTERY_TEMP_COMP_VOLTAGE,4156,A,number,voltage,,V,0.1,mdi:thermometer-minus,FALSE,Lowest charge voltage limited when using temp sensor
-BATTERY_TEMP_COMP_VALUE,4157,A,number,voltage,,V,0.1,mdi:snowflake-thermometer,FALSE,Temperature compensation value per 2 V cell
-GENERAL_PURPOSE_WORD,4158,D,sensor,,,,0,mdi:help-circle,FALSE,Stored & retrieved with other EEprom (was battery type)
-EQUALIZE_RETRY_DAYS,4159,A,sensor,,,,0,mdi:help-circle,FALSE,Auto EQ retry days until giving up
-FORCE_FLAG_BITS,4160,A,sensor,,,,0,mdi:flag,FALSE,Write-only flags that trigger special actions
-EQUALIZE_TIME_EEPROM,4162,B,number,duration,,s,60,mdi:clock-edit,TRUE,Initialize equalize stage duration
-EQUALIZE_INTERVAL_DAYS_EEPROM,4163,B,number,,,days,1,mdi:calendar-range,TRUE,Days between equalize stages (auto EQ)
-MPPT_MODE,4164,A,select,,,,,mdi:cog,FALSE,"Solar, Wind, etc. (bit 0 = ON/OFF)"
-AUX_1_AND_2_FUNCTION,4165,A,select,,,,,mdi:radiobox-marked,FALSE,Combined Aux 1 & 2 function + ON/OFF
-AUX1_VOLTS_LO_ABS,4166,A,number,voltage,,V,0.1,mdi:gauge-low,FALSE,Aux 1 low absolute threshold voltage
-AUX1_DELAY_T_MS,4167,A,number,duration,,ms,100,mdi:timer-sand,FALSE,Aux 1 delay before asserting
-AUX1_HOLD_T_MS,4168,A,number,duration,,ms,100,mdi:timer-sand,FALSE,Aux 1 hold before de-asserting
-AUX2_PWM_VWIDTH,4169,A,number,voltage,,V,0.1,mdi:sine-wave,FALSE,Voltage range for Aux 2 PWM (0-5 V)
-AUX1_VOLTS_HI_ABS,4172,A,number,voltage,,V,0.1,mdi:gauge-high,FALSE,Aux 1 high absolute threshold voltage
-AUX2_VOLTS_HI_ABS,4173,A,number,voltage,,V,0.1,mdi:gauge-high,FALSE,Aux 2 high absolute threshold voltage
-AUX1_VOLTS_LO_REL,4174,A,sensor,voltage,measurement,V,1,mdi:flash-alert,FALSE,Aux 1 waste-not relative lower voltage
-AUX1_VOLTS_HI_REL,4175,A,sensor,voltage,measurement,V,1,mdi:flash-alert,FALSE,Aux 1 waste-not relative upper voltage
-AUX2_VOLTS_LO_REL,4176,A,sensor,voltage,measurement,V,1,mdi:flash-alert,FALSE,Aux 2 waste-not relative lower voltage
-AUX2_VOLTS_HI_REL,4177,A,sensor,voltage,measurement,V,1,mdi:flash-alert,FALSE,Aux 2 waste-not relative upper voltage
-AUX1_VOLTS_LO_PV_ABS,4178,A,sensor,voltage,measurement,V,1,mdi:flash-alert,FALSE,Aux 1 lower PV absolute threshold voltage
-AUX1_VOLTS_HI_PV_ABS,4179,A,sensor,voltage,measurement,V,1,mdi:flash-alert,FALSE,Aux 1 higher PV absolute threshold voltage
-VARIMAX,4180,A,sensor,current,,A,0,mdi:arrow-expand-vertical,FALSE,Variable maximum current & voltage differential
-AUX2_VOLTS_HI_PV_ABS,4181,A,sensor,voltage,measurement,V,1,mdi:flash-alert,FALSE,Aux 2 higher PV absolute threshold voltage
-ENABLE_FLAGS3,4182,A,sensor,,,,,mdi:check-circle,FALSE,Enable forwarding of Modbus traffic (follow-me)
-ARC_FAULT_SENSITIVITY,4183,A,sensor,,,,0,mdi:help-circle,FALSE,Arc fault protection sensitivity
-ENABLE_FLAGS2,4186,A,select,,,,0,mdi:cog,FALSE,Various feature flags
-ENABLE_FLAGS_BITS,4187,A,select,,,,0,mdi:cog,FALSE,Legacy flags moved to EnableFlags2
-VBATT_OFFSET,4189,A,number,voltage,,V,0.1,mdi:tune-vertical,FALSE,Battery voltage offset tweak (signed)
-VPV_OFFSET,4190,A,number,voltage,,V,0.1,mdi:tune-vertical,FALSE,PV input voltage offset tweak (signed)
-VPV_TARGET_RD,4191,A,sensor,,,,0,mdi:help-circle,FALSE,PV input target (usually Vmpp)
-VPV_TARGET_WR,4192,A,sensor,,,,0,mdi:help-circle,FALSE,Writeable PV target command
-SWEEP_INTERVAL_SECS_EEPROM,4197,A,sensor,,measurement,s,0,mdi:timer,FALSE,Legacy P&O sweep interval (seconds)
-MIN_SWP_VOLTAGE_EEPROM,4198,A,sensor,voltage,measurement,V,1,mdi:flash-alert,FALSE,Minimum input voltage for hydro MPPT mode sweep
-MAX_INPUT_CURRENT_EEPROM,4199,A,sensor,current,measurement,A,1,mdi:current-dc,FALSE,Maximum input current limit (default 99 A)
-SWEEP_DEPTH,4200,A,sensor,,,,0,mdi:help-circle,FALSE,Legacy/Hydro mode sweep depth as % of current MPP
-NEGATIVE_CURRENT_ADJ,4201,A,sensor,current,measurement,A,1,mdi:current-dc,FALSE,Factory calibration - do not change
-CLIPPER_CMD_VOLTS,4202,A,sensor,voltage,measurement,V,1,mdi:flash-alert,FALSE,Aux clipper reference varies with stage and headroom
-WIND_NUMBER_OF_POLES_EEPROM,4203,A,sensor,,,,0,mdi:help-circle,FALSE,Number of turbine alternator poles (unused)
-MPP_PERCENT_VOC_EEPROM,4204,A,sensor,,,,0,mdi:help-circle,FALSE,% of Voc for U-Set mode
-WIND_TABLE_TO_USE_EEPROM,4205,A,sensor,,,,0,mdi:help-circle,FALSE,Future power curve select
-LED_MODE_EEPROM,4207,A,select,,,,0,mdi:cog,FALSE,LED display mode
-UNIT_NAME_0,4210,B,sensor,,,,0,mdi:help-circle,TRUE,8-char ASCII unit name - part 0
-UNIT_NAME_1,4211,B,sensor,,,,0,mdi:help-circle,TRUE,8-char ASCII unit name - part 1
-UNIT_NAME_2,4212,B,sensor,,,,0,mdi:help-circle,TRUE,8-char ASCII unit name - part 2
-UNIT_NAME_3,4213,B,sensor,,,,0,mdi:help-circle,TRUE,8-char ASCII unit name - part 3
-CTI_ME0,4214,A,sensor,,,,0,mdi:help-circle,FALSE,Consolidated time register 0 (seconds since epoch)
-CTI_ME0_HIGH,4215,A,sensor,,,,0,mdi:help-circle,FALSE,Consolidated time register 0 (high word)
-CTI_ME1,4216,A,sensor,,,,0,mdi:help-circle,FALSE,Consolidated time register 1 (minutes)
-CTI_ME1_HIGH,4217,A,sensor,,,,0,mdi:help-circle,FALSE,Consolidated time register 1 (high word)
-CTI_ME2,4218,A,sensor,,,,0,mdi:help-circle,FALSE,Consolidated time register 2 (epoch days)
-REMOTE_MENU_MODE,4220,A,select,,,,0,mdi:cog,FALSE,Remote menu sent from MNGP
-REMOTE_BUTTONS,4221,A,sensor,,,,0,mdi:help-circle,FALSE,MNGP buttons pressed
-PREVOC,4224,A,sensor,,,,0,mdi:help-circle,FALSE,Voc before relay
-AUX2_A2D_D2A,4226,A,sensor,,,,0,mdi:help-circle,FALSE,Aux 2 A/D and D/A value
-VOC_RD,4231,A,sensor,,,,0,mdi:help-circle,FALSE,Last VOC reading
-ABSORB_TIME_DUPLICATE,4236,A,sensor,,measurement,s,0,mdi:timer,FALSE,Duplicate absorb time counter
-SIESTA_TIME_SEC,4238,A,sensor,,measurement,s,0,mdi:timer,FALSE,Sleep timer (max 5 min)
-SIESTA_ABORT_VOC_ADJ,4239,A,sensor,,,,0,mdi:help-circle,FALSE,Voc difference to abort Siesta
-FLAGS_RD_32BIT,4241,A,select,,,,0,mdi:cog,FALSE,Internal status flags (32-bit)
-VBATT_REG_SET_P_TEMP_COMP,4244,A,sensor,temperature,measurement,°C,1,mdi:thermometer,FALSE,"Battery regulation target voltage, temp-compensated"
-VBATT_NOMINAL_EEPROM,4245,A,sensor,,,,0,mdi:help-circle,FALSE,"Nominal battery bank voltage (12 V, 24 V, etc.)"
-ENDING_AMPES_EEPROM,4246,A,sensor,current,measurement,A,1,mdi:current-dc,FALSE,End of absorb amps threshold (float if reached)
-ENDING_SOC_EEPROM,4247,A,sensor,,,,0,mdi:help-circle,FALSE,SOC to end absorb (future SOC use)
-REBUCK_VOLTS_EEPROM,4249,A,sensor,voltage,measurement,V,1,mdi:flash-alert,FALSE,Re-bulk if battery drops below this for > 90 s
-DAYS_BTW_BULK_ABS_EEPROM,4252,A,sensor,,,,0,mdi:help-circle,FALSE,Days between bulk/absorb cycles
-DAY_LOG_COMB_CAT_INDEX,4254,A,sensor,,,,0,mdi:help-circle,FALSE,Daily logs combined category / day index
-MIN_LOG_COMB_CAT_INDEX,4256,A,sensor,,,,0,mdi:help-circle,FALSE,Minute logs combined category / sample offset
-REBUCK_TIMER_SEC_EEPROM,4257,A,sensor,,measurement,s,0,mdi:timer,FALSE,Re-bulk interval timer seconds
-VOC_QUALIFY_TIMER_MS_EEPROM_LOW,4264,A,sensor,,measurement,s,0,mdi:timer,FALSE,Qualifying time till turn-on (low word)
-VOC_QUALIFY_TIMER_MS_EEPROM,4265,A,sensor,,measurement,s,0,mdi:timer,FALSE,Qualifying time till turn-on (ms)
-IPV_MINUS_RAW,4266,A,sensor,,,,0,mdi:network,FALSE,Raw PV negative current from ADC
-RESTART_TIME_MS2,4271,A,sensor,,measurement,s,0,mdi:timer,FALSE,Countdown time to wake up (<= 500 ms)
-IBATT_RAW_A,4272,A,sensor,current,measurement,A,1,mdi:current-dc,FALSE,"Battery current, unfiltered"
-REASON_FOR_RESTING,4275,B,sensor,,,,0,mdi:alert-circle,TRUE,Reason Classic went to Rest
-OUTPUT_VBATT_RAW,4276,A,sensor,,,,0,mdi:help-circle,FALSE,"Battery voltage, unfiltered"
-INPUT_VPV_RAW,4277,A,sensor,,,,0,mdi:help-circle,FALSE,"PV voltage, unfiltered"
-PK_HOLD_VPV_STAMP,4280,A,sensor,current,measurement,A,1,mdi:current-dc,FALSE,Solar MPPT internal variable
-VPV_TARGET_RD_TMP,4283,A,sensor,,,,0,mdi:help-circle,FALSE,Temporary PV target voltage
-SWP_DEEP_TIMEOUT_SEC,4284,A,sensor,,measurement,s,0,mdi:timer,FALSE,Solar MPPT internal variable
-LOW_WATTS_EEPA,4286,A,sensor,power,measurement,W,0,mdi:gauge,FALSE,Classic rests when watts < this for > 90 s (non-wind)
-WIND_LOW_WATTS_EEPA,4287,A,sensor,power,measurement,W,0,mdi:gauge,FALSE,Wind low watts threshold (default 50 W)
-WIND_WINDOW_WATTS_REF_EEPA,4288,A,sensor,power,measurement,W,0,mdi:gauge,FALSE,Wind power window reference to keep running
-WINDOW_WATTS_RO_DELTA_EEPA,4289,A,sensor,power,measurement,W,0,mdi:gauge,FALSE,Delta watts below WindLowWatts for power wiggling
-WIND_TIMEOUT_REF_EEPA,4290,A,sensor,,measurement,s,0,mdi:timer,FALSE,Wind power low timeout to go resting (default 90 s)
-WIND_TIMEOUT2_REF_EEPA,4291,A,sensor,,measurement,s,0,mdi:timer,FALSE,Half-hour wind timeout reference (default 1800 s)
-WIND_TIMEOUT_SECONDS,4292,A,sensor,,measurement,s,0,mdi:timer,FALSE,Wind timeout counter - > WIND_TIMEOUT_REF -> rest
-WIND_TIMEOUT2_SECONDS,4293,A,sensor,,measurement,s,0,mdi:timer,FALSE,Wind timeout counter 2 - > WIND_TIMEOUT2_REF -> rest
-MIN_VPV_TURN_ON,4294,A,sensor,,,,0,mdi:help-circle,FALSE,Minimum input voltage to exit Resting
-VPV_B4_TURN_OFF,4295,A,sensor,,,,0,mdi:help-circle,FALSE,Internal reference of Vpv when going to Resting
-H2O_SWEEP_AMPS_10TIME6_EEPA,4296,A,sensor,current,measurement,A,1,mdi:current-dc,FALSE,Hydro sweep speed reference
-ENDING_AMPS_TIMER_SEC,4297,A,sensor,current,measurement,A,1,mdi:current-dc,FALSE,Timer for ending amps (60 s reference)
-PK_AMPS_OVER_LIMIT_HI_EEPA,4298,D,sensor,current,measurement,A,1,mdi:current-dc,FALSE,Factory calibration - leave as is
-PK_AMPS_OVER_LIMIT_LO_EEPA,4299,D,sensor,current,measurement,A,1,mdi:current-dc,FALSE,Factory calibration - leave as is
-FACTORY_VBATT_OFFSET_EEPA,4300,D,number,,,,0.1,mdi:tune,FALSE,Factory V battery offset calibration
-WIND_POWER_TABLE_V_0_EEPA,4301,D,sensor,power,measurement,W,0,mdi:gauge,FALSE,Wind power curve step 0 (V cut-in)
-WIND_POWER_TABLE_V_1_EEPA,4302,D,sensor,power,measurement,W,0,mdi:gauge,FALSE,Wind power curve step 1
-WIND_POWER_TABLE_V_2_EEPA,4303,D,sensor,power,measurement,W,0,mdi:gauge,FALSE,Wind power curve step 2
-WIND_POWER_TABLE_V_3_EEPA,4304,D,sensor,power,measurement,W,0,mdi:gauge,FALSE,Wind power curve step 3
-WIND_POWER_TABLE_V_4_EEPA,4305,D,sensor,power,measurement,W,0,mdi:gauge,FALSE,Wind power curve step 4
-WIND_POWER_TABLE_V_5_EEPA,4306,D,sensor,power,measurement,W,0,mdi:gauge,FALSE,Wind power curve step 5
-WIND_POWER_TABLE_V_6_EEPA,4307,D,sensor,power,measurement,W,0,mdi:gauge,FALSE,Wind power curve step 6
-WIND_POWER_TABLE_V_7_EEPA,4308,D,sensor,power,measurement,W,0,mdi:gauge,FALSE,Wind power curve step 7
-WIND_POWER_TABLE_I_0_EEPA,4309,D,sensor,power,measurement,W,0,mdi:gauge,FALSE,Wind power curve current step 0
-WIND_POWER_TABLE_I_1_EEPA,4310,D,sensor,power,measurement,W,0,mdi:gauge,FALSE,Wind power curve current step 1
-WIND_POWER_TABLE_I_2_EEPA,4311,D,sensor,power,measurement,W,0,mdi:gauge,FALSE,Wind power curve current step 2
-WIND_POWER_TABLE_I_3_EEPA,4312,D,sensor,power,measurement,W,0,mdi:gauge,FALSE,Wind power curve current step 3
-WIND_POWER_TABLE_I_4_EEPA,4313,D,sensor,power,measurement,W,0,mdi:gauge,FALSE,Wind power curve current step 4
-WIND_POWER_TABLE_I_5_EEPA,4314,D,sensor,power,measurement,W,0,mdi:gauge,FALSE,Wind power curve current step 5
-WIND_POWER_TABLE_I_6_EEPA,4315,D,sensor,power,measurement,W,0,mdi:gauge,FALSE,Wind power curve current step 6
-WIND_POWER_TABLE_I_7_EEPA,4316,D,sensor,power,measurement,W,0,mdi:gauge,FALSE,Wind power curve current step 7
-PK_AMPS_OVER_TRIP_EEPROM,4318,A,sensor,current,measurement,A,1,mdi:current-dc,FALSE,Factory calibration - leave as is
-MNGP_REVISION,4319,B,sensor,,,,0,mdi:help-circle,TRUE,Preliminary - shows unit connected
-MNLP_REVISION,4320,B,sensor,,,,0,mdi:help-circle,TRUE,Preliminary - shows unit connected
-CLASSIC_MODBUS_ADDR_EEPROM,4326,A,sensor,,,,0,mdi:network,FALSE,Classic Modbus address (default 10)
-BATTERY_TEMP_PASSED_EEPROM,4327,B,sensor,temperature,measurement,°C,1,mdi:thermometer,TRUE,Follow-Me temperature sensor value
-I_FLAGS_RO_HIGH,4330,A,select,,,,0,mdi:cog,FALSE,Follow-Me high bits - charge stage coordination
-MODBUS_CONTROL_EEPROM,4331,A,sensor,,,,0,mdi:network,FALSE,Follow-Me Modbus control
-CLASSIC_FME_PASSED_BITS_EEPROM,4332,A,sensor,,,,0,mdi:help-circle,FALSE,Follow-Me state bits
-WIND_SYNCH_A_EEPROM,4333,D,sensor,,,,0,mdi:help-circle,FALSE,Wind power tracking amps
-WIND_SYNCH_V_EEPROM,4334,D,sensor,,,,0,mdi:help-circle,FALSE,Wind power tracking volts
-FOLLOW_ME_PASS_REF_EEPROM,4335,A,sensor,,,,0,mdi:help-circle,FALSE,Follow-Me enabled if > 0 - set to at least number of units in loop
-DABT_U32_DEBUG_01,4341,D,sensor,,,,0,mdi:help-circle,FALSE,Debug register 1
-DABT_U32_DEBUG_02,4342,D,sensor,,,,0,mdi:help-circle,FALSE,Debug register 2
-DABT_U32_DEBUG_03,4343,D,sensor,,,,0,mdi:help-circle,FALSE,Debug register 3
-DABT_U32_DEBUG_04,4344,D,sensor,,,,0,mdi:help-circle,FALSE,Debug register 4
-CLEAR_LOGS_CAT,4354,A,sensor,,,,0,mdi:help-circle,FALSE,Clear various logging values
-CLEAR_LOGS_COUNTER_10MS,4355,A,sensor,,,,0,mdi:help-circle,FALSE,Timer for sending second ClearLogsCat command before timeout
-USER_VARIABLE_02,4356,A,sensor,,,,0,mdi:help-circle,FALSE,General purpose user variable
-WIZBANG_RX_BUFFER_TEMP_SH1,4357,D,sensor,temperature,measurement,°C,1,mdi:thermometer-alert,FALSE,Raw Whizbang Junior buffer read 1
-WIZBANG_RX_BUFFER_TEMP_SH2,4358,D,sensor,temperature,measurement,°C,1,mdi:thermometer-alert,FALSE,Raw Whizbang Junior buffer read 2
-WIZBANG_RX_BUFFER_TEMP_SH3,4359,D,sensor,temperature,measurement,°C,1,mdi:thermometer-alert,FALSE,Raw Whizbang Junior buffer read 3
-WIZBANG_RX_BUFFER_TEMP_SH4,4360,D,sensor,temperature,measurement,°C,1,mdi:thermometer-alert,FALSE,Raw Whizbang Junior buffer read 4
-WJRB_CMD_S_EEPROM,4361,D,sensor,,,,0,mdi:help-circle,FALSE,Whizbang Junior command - default 0x35
-WJRB_RAW_CURRENT,4362,D,sensor,current,measurement,A,1,mdi:current-dc,FALSE,Whizbang Junior raw current
-WJRB_NUMERATOR_SS_EEPROM,4363,D,sensor,,,,0,mdi:help-circle,FALSE,Whizbang Junior gain adjustment - default 0
-WJRB_AMP_HOUR_POSITIVE,4365,D,sensor,current,measurement,A,1,mdi:current-dc,FALSE,Whizbang Jr. positive amp-hours (low word)
-WJRB_AMP_HOUR_POSITIVE_HIGH,4366,D,sensor,current,measurement,A,1,mdi:current-dc,FALSE,Whizbang Jr. positive amp-hours (high word)
-WJRB_AMP_HOUR_NEGATIVE,4367,D,sensor,current,measurement,A,1,mdi:current-dc,FALSE,Whizbang Jr. negative amp-hours (low word)
-WJRB_AMP_HOUR_NEGATIVE_HIGH,4368,D,sensor,current,measurement,A,1,mdi:current-dc,FALSE,Whizbang Jr. negative amp-hours (high word)
-WJRB_AMP_HOUR_NET,4369,A,sensor,current,measurement,A,1,mdi:current-dc,FALSE,Whizbang Jr. net amp-hours (low word)
-WJRB_AMP_HOUR_NET_HIGH,4370,A,sensor,current,measurement,A,1,mdi:current-dc,FALSE,Whizbang Jr. net amp-hours (high word)
-WJRB_CURRENT_32_SIGNED_EEPROM,4371,A,sensor,current,measurement,A,1,mdi:current-dc,FALSE,"Whizbang Jr. amps (scaled & rounded) - signed ± 3,276.7 A"
-WJRB_RAW_CRC_AND_TEMP,4372,A,sensor,temperature,measurement,°C,1,mdi:thermometer-alert,FALSE,Raw CRC << 8 | Temp & 0xff + 50°C
-IP_SETTINGS_FLAGS,20481,A,select,,,,0,mdi:cog,FALSE,"Network settings flags - see table 20481-1 (DHCP, Web Access)"
-IP_ADDRESS_LSB_1,20482,A,sensor,,,,0,mdi:network,FALSE,IP address part 1
-IP_ADDRESS_LSB_2,20483,A,sensor,,,,0,mdi:network,FALSE,IP address part 2
-GATEWAY_ADDRESS_LSB_1,20484,A,sensor,,,,0,mdi:network,FALSE,Gateway address part 1
-GATEWAY_ADDRESS_LSB_2,20485,A,sensor,,,,0,mdi:network,FALSE,Gateway address part 2
-SUBNET_MASK_LSB_1,20486,A,sensor,,,,0,mdi:help-circle,FALSE,Subnet mask part 1
-SUBNET_MASK_LSB_2,20487,A,sensor,,,,0,mdi:help-circle,FALSE,Subnet mask part 2
-DNS_1_LSB_1,20488,A,sensor,,,,0,mdi:network,FALSE,Primary DNS part 1
-DNS_1_LSB_2,20489,A,sensor,,,,0,mdi:network,FALSE,Primary DNS part 2
-DNS_2_LSB_1,20490,A,sensor,,,,0,mdi:network,FALSE,Secondary DNS part 1
-DNS_2_LSB_2,20491,A,sensor,,,,0,mdi:network,FALSE,Secondary DNS part 2
+Register Name,Address,Category,Entity Type,Device Class,State Class,Unit,Precision,Icon,Description,Formula,Friendly Name,Scan Interval,Select Options
+UNIT_ID,4101,B,sensor,,,,,mdi:identifier,"Hardware revision & voltage category (PCB Rev, Unit Type)","[4101]MSB → PCB Rev (0‑255) , [4101]LSB → Unit Type",UNIT ID,15,
+UNIT_SW_DATE_RO,4102,B,sensor,,,,,mdi:calendar,Software build date,"[4102] → Year, [4103]MSB → Month, [4103]LSB → Day",UNIT SW DATE RO,15,
+UNIT_SW_DATE_MONTH_DAY,4103,B,sensor,,,,0,mdi:help-circle,Software build month/day,,UNIT SW DATE MONTH DAY,15,
+INFO_FLAGS_BITS3,4104,B,sensor,,,,,mdi:flag,Classic system status flags (bitfield),,System Status Flags,15,
+RESERVED_4105,4105,D,sensor,,,,0,mdi:help-circle,Unimplemented - avoid writing,,RESERVED 4105,60,
+MAC_ADDRESS_PART_1,4106,B,sensor,,,,,mdi:wifi,MAC address part 1,[4108]MSB:[4108]LSB:[4107]MSB:[4107]LSB:[4106]MSB:[4106]LSB,MAC ADDRESS PART 1,15,
+MAC_ADDRESS_PART_2,4107,B,sensor,,,,,mdi:wifi,MAC address part 2,,MAC ADDRESS PART 2,15,
+MAC_ADDRESS_PART_3,4108,B,sensor,,,,,mdi:wifi,MAC address part 3,,MAC ADDRESS PART 3,15,
+JrAmpHourNET,4109,A,sensor,current,measurement,A,1,mdi:current-dc,Whizbang Jr. Net amp-hours,((([4110]<<16)+[4109])/10),JrAmpHourNET,60,
+DEVICE_ID_LSW,4111,B,sensor,,,,0,mdi:help-circle,Device ID (low word),,DEVICE ID LSW,15,
+DEVICE_ID_MSW,4112,B,sensor,,,,0,mdi:help-circle,Device ID (high word),,DEVICE ID MSW,15,
+STATUSROLL,4113,B,sensor,,,,,mdi:counter,"12-bit status value, updated once per second",([4113]>>12)+([4113]&0x0FFF),STATUSROLL,15,
+RESTART_TIME_MS,4114,B,sensor,duration,,ms,0,mdi:timer,Time after which Classic can wake up,,RESTART TIME MS,15,
+DISP_AVG_VBATT,4115,B,sensor,voltage,measurement,V,1,mdi:flash-alert,Average battery voltage (1 s),[4115]/10,Battery Voltage,15,
+DISP_AVG_VPV,4116,B,sensor,voltage,measurement,V,1,mdi:solar-power,Average PV input voltage (1 s),[4116]/10,PV Voltage,15,
+IBATT_DISPLAY_S,4117,B,sensor,current,measurement,A,1,mdi:current-dc,Average battery current (1 s),[4117]/10,Battery Current,15,
+KW_HOURS,4118,B,sensor,energy,total_increasing,kWh,2,mdi:lightning-bolt,Energy to the battery (reset daily),[4118]/10,KW HOURS,15,
+WATTS,4119,B,sensor,power,measurement,W,0,mdi:gauge,Average power to the battery,,Power Output,15,
+COMBO_CHARGE_STAGE,4120,B,sensor,,,,,mdi:battery-charging,"Charge state of the battery (MSB), internal state (LSB)","[4120]MSB → Charge Stage, [4120]LSB → State (see tables 4120‑1 & 4120‑2)",Charge Stage,15,
+PV_INPUT_CURRENT,4121,B,sensor,current,measurement,A,1,mdi:solar-power,Average PV input current (1 s),[4121]/10,PV Input Current,15,
+VOC_LAST_MEASURED,4122,B,sensor,voltage,measurement,V,1,mdi:flash-triangle,Last measured open-circuit voltage at PV input,[4122]/10,Last Measured VOC,15,
+HIGHEST_VINPUT_LOG,4123,B,sensor,,,,0,mdi:help-circle,Highest input voltage seen (EEprom),,HIGHEST VINPUT LOG,15,
+MATCH_POINT_SHADOW,4124,A,sensor,,,,0,mdi:chart-line,Current wind power curve step (1-16),,MATCH POINT SHADOW,60,
+AMP_HOURS_DAILY,4125,B,sensor,energy,total_increasing,Ah,0,mdi:calendar-clock,Daily amp-hours reset at 23:59,,Daily Amp-Hours,15,
+LIFETIME_KW_HOURS_1,4126,B,sensor,energy,total_increasing,kWh,2,mdi:history,Lifetime energy generation (low word),(([4127]<<16)+[4126]),Lifetime Energy,15,
+LIFETIME_KW_HOURS_1_HIGH,4127,B,sensor,energy,total_increasing,kWh,2,mdi:history,Lifetime energy generation (high word),,LIFETIME KW HOURS 1 HIGH,15,
+LIFETIME_AMP_HOURS_1,4128,B,sensor,energy,total_increasing,Ah,0,mdi:history,Lifetime amp-hour generation (low word),(([4129]<<16)+[4128]),LIFETIME AMP HOURS 1,15,
+LIFETIME_AMP_HOURS_1_HIGH,4129,B,sensor,current,measurement,A,1,mdi:current-dc,Lifetime amp-hour generation (high word),,LIFETIME AMP HOURS 1 HIGH,15,
+INFO_FLAGS_BITS2_1,4130,A,select,,,,0,mdi:cog,32-bit info flags (low word),,INFO FLAGS BITS2 1,60,Classic Over Temperature|EEPROM error|(reserved)
+INFO_FLAGS_BITS2_0,4131,A,select,,,,0,mdi:cog,32-bit info flags (high word),,INFO FLAGS BITS2 0,60,
+BATT_TEMPERATURE,4132,B,sensor,temperature,measurement,°C,1,mdi:thermometer,Battery temperature sensor,[4132]/10,Battery Temperature,15,
+FET_TEMPERATURE,4133,B,sensor,temperature,measurement,°C,1,mdi:thermometer-high,Power FET temperature,[4133]/10,FET Temperature,15,
+PCB_TEMPERATURE,4134,B,sensor,temperature,measurement,°C,1,mdi:thermometer-alert,Classic top PCB temperature,[4134]/10,PCB Temperature,15,
+NITE_MINUTES_NO_PWR,4135,B,sensor,,measurement,s,0,mdi:timer,"Counts up when no power, resets on power",,NITE MINUTES NO PWR,15,
+MINUTE_LOG_INTERVAL_SEC,4136,A,number,duration,,s,60,mdi:clock,Data logging interval (min 60 s),[4136] EEprom (min 60 s),MINUTE LOG INTERVAL SEC,60,
+MODBUS_PORT_REGISTER,4137,A,number,,,,0,mdi:lan,Modbus TCP port (default 502),,MODBUS PORT REGISTER,60,
+FLOAT_TIME_TODAY_SEC,4138,B,sensor,duration,,s,0,mdi:clock-outline,Seconds spent in float today (reset at 23:59),,Float Time Today,15,
+ABSORB_TIME,4139,B,sensor,duration,,s,0,mdi:clock-start,"Absorb time counter, resets when reaching 0",,Absorb Time Remaining,15,
+PWM_READONLY,4141,A,sensor,,,,0,mdi:help-circle,Duty cycle command of PWM (not percent),,PWM READONLY,60,
+REASON_FOR_RESET,4142,B,sensor,,,,0,mdi:alert-circle,Reason Classic reset,,REASON FOR RESET,15,
+EQUALIZE_TIME,4143,B,sensor,duration,,s,0,mdi:progress-wrench,Battery stage equalize counter (down),,Equalize Time Remaining,15,
+MPP_W_LAST,4145,A,sensor,power,,W,0,mdi:lightning-bolt-circle,Internal watts reference (~10% of last MPP),,MPP W LAST,60,
+USB_COMM_MODE,4146,A,select,,,,,mdi:usb-port,USB function #,,USB COMM MODE,60,
+NO_DOUBLE_CLICK_TIMER,4147,D,sensor,,measurement,s,0,mdi:timer,Internal forced time between manual sweeps,,NO DOUBLE CLICK TIMER,60,
+BATTERY_OUTPUT_CURRENT_LIMIT,4148,B,number,current,,A,1,mdi:current-dc,"Battery current limit (e.g., 23.4 A = 234)",[4148]/10,BATTERY OUTPUT CURRENT LIMIT,15,
+ABSORB_SETPOINT_VOLTAGE,4149,B,number,voltage,,V,0.1,mdi:tune,Battery absorb stage set point voltage,[4149]/10,ABSORB SETPOINT VOLTAGE,15,
+FLOAT_VOLTAGE_SETPOINT,4150,B,number,voltage,,V,0.1,mdi:tune,Battery float stage set point voltage,[4150]/10,FLOAT VOLTAGE SETPOINT,15,
+EQUALIZE_VOLTAGE_SETPOINT,4151,B,number,voltage,,V,0.1,mdi:tune,Battery equalize stage set point voltage,[4151]/10,EQUALIZE VOLTAGE SETPOINT,15,
+SLIDING_CURRENT_LIMIT,4152,A,sensor,current,measurement,A,1,mdi:current-dc,Sliding current limit (varies with V/Temp),,SLIDING CURRENT LIMIT,60,
+MIN_ABSORB_TIME,4153,A,sensor,,measurement,s,0,mdi:timer,Minimum absorb time (usually unused),,MIN ABSORB TIME,60,
+ABSORB_TIME_EEPROM,4154,B,number,duration,,s,60,mdi:clock-edit,Absorb setpoint time for batteries,,ABSORB TIME EEPROM,15,
+MAX_BATTERY_TEMP_COMP_VOLTAGE,4155,A,number,voltage,,V,0.1,mdi:thermometer-plus,Highest charge voltage limited when using temp sensor,[4155]/10,MAX BATTERY TEMP COMP VOLTAGE,60,
+MIN_BATTERY_TEMP_COMP_VOLTAGE,4156,A,number,voltage,,V,0.1,mdi:thermometer-minus,Lowest charge voltage limited when using temp sensor,[4156]/10,MIN BATTERY TEMP COMP VOLTAGE,60,
+BATTERY_TEMP_COMP_VALUE,4157,A,number,voltage,,V,0.1,mdi:snowflake-thermometer,Temperature compensation value per 2 V cell,-([4157]/10),BATTERY TEMP COMP VALUE,60,
+GENERAL_PURPOSE_WORD,4158,D,sensor,,,,0,mdi:help-circle,Stored & retrieved with other EEprom (was battery type),,GENERAL PURPOSE WORD,60,
+EQUALIZE_RETRY_DAYS,4159,A,sensor,,,,0,mdi:help-circle,Auto EQ retry days until giving up,,EQUALIZE RETRY DAYS,60,
+FORCE_FLAG_BITS,4160,A,sensor,,,,0,mdi:flag,Write-only flags that trigger special actions,,FORCE FLAG BITS,60,
+EQUALIZE_TIME_EEPROM,4162,B,number,duration,,s,60,mdi:clock-edit,Initialize equalize stage duration,,EQUALIZE TIME EEPROM,15,
+EQUALIZE_INTERVAL_DAYS_EEPROM,4163,B,number,,,days,1,mdi:calendar-range,Days between equalize stages (auto EQ),,EQUALIZE INTERVAL DAYS EEPROM,15,
+MPPT_MODE,4164,A,select,,,,,mdi:cog,"Solar, Wind, etc. (bit 0 = ON/OFF)",,MPPT MODE,60,PV_Uset|DYNAMIC|WIND_TRACK
+AUX_1_AND_2_FUNCTION,4165,A,select,,,,,mdi:radiobox-marked,Combined Aux 1 & 2 function + ON/OFF,,AUX 1 AND 2 FUNCTION,60,
+AUX1_VOLTS_LO_ABS,4166,A,number,voltage,,V,0.1,mdi:gauge-low,Aux 1 low absolute threshold voltage,[4166]/10,AUX1 VOLTS LO ABS,60,
+AUX1_DELAY_T_MS,4167,A,number,duration,,ms,100,mdi:timer-sand,Aux 1 delay before asserting,,AUX1 DELAY T MS,60,
+AUX1_HOLD_T_MS,4168,A,number,duration,,ms,100,mdi:timer-sand,Aux 1 hold before de-asserting,,AUX1 HOLD T MS,60,
+AUX2_PWM_VWIDTH,4169,A,number,voltage,,V,0.1,mdi:sine-wave,Voltage range for Aux 2 PWM (0-5 V),[4169]/10,AUX2 PWM VWIDTH,60,
+AUX1_VOLTS_HI_ABS,4172,A,number,voltage,,V,0.1,mdi:gauge-high,Aux 1 high absolute threshold voltage,[4172]/10,AUX1 VOLTS HI ABS,60,
+AUX2_VOLTS_HI_ABS,4173,A,number,voltage,,V,0.1,mdi:gauge-high,Aux 2 high absolute threshold voltage,[4173]/10,AUX2 VOLTS HI ABS,60,
+AUX1_VOLTS_LO_REL,4174,A,sensor,voltage,measurement,V,1,mdi:flash-alert,Aux 1 waste-not relative lower voltage,[4174]/10,AUX1 VOLTS LO REL,60,
+AUX1_VOLTS_HI_REL,4175,A,sensor,voltage,measurement,V,1,mdi:flash-alert,Aux 1 waste-not relative upper voltage,[4175]/10,AUX1 VOLTS HI REL,60,
+AUX2_VOLTS_LO_REL,4176,A,sensor,voltage,measurement,V,1,mdi:flash-alert,Aux 2 waste-not relative lower voltage,[4176]/10,AUX2 VOLTS LO REL,60,
+AUX2_VOLTS_HI_REL,4177,A,sensor,voltage,measurement,V,1,mdi:flash-alert,Aux 2 waste-not relative upper voltage,[4177]/10,AUX2 VOLTS HI REL,60,
+AUX1_VOLTS_LO_PV_ABS,4178,A,sensor,voltage,measurement,V,1,mdi:flash-alert,Aux 1 lower PV absolute threshold voltage,[4178]/10,AUX1 VOLTS LO PV ABS,60,
+AUX1_VOLTS_HI_PV_ABS,4179,A,sensor,voltage,measurement,V,1,mdi:flash-alert,Aux 1 higher PV absolute threshold voltage,[4179]/10,AUX1 VOLTS HI PV ABS,60,
+VARIMAX,4180,A,sensor,current,,A,0,mdi:arrow-expand-vertical,Variable maximum current & voltage differential,"[4180]LSB → Amps, [4180]MSB → (Vabsorb–Vrelative)/10",VARIMAX,60,
+AUX2_VOLTS_HI_PV_ABS,4181,A,sensor,voltage,measurement,V,1,mdi:flash-alert,Aux 2 higher PV absolute threshold voltage,[4181]/10,AUX2 VOLTS HI PV ABS,60,
+ENABLE_FLAGS3,4182,A,sensor,,,,,mdi:check-circle,Enable forwarding of Modbus traffic (follow-me),,ENABLE FLAGS3,60,
+ARC_FAULT_SENSITIVITY,4183,A,sensor,,,,0,mdi:help-circle,Arc fault protection sensitivity,,ARC FAULT SENSITIVITY,60,
+ENABLE_FLAGS2,4186,A,select,,,,0,mdi:cog,Various feature flags,,ENABLE FLAGS2,60,DCclipperEn|PvPartialShadeEn|WasteNotPkRespF
+ENABLE_FLAGS_BITS,4187,A,select,,,,0,mdi:cog,Legacy flags moved to EnableFlags2,,ENABLE FLAGS BITS,60,GroundFaultEn|ArcFaultEn|DefCon4ErrEn
+VBATT_OFFSET,4189,A,number,voltage,,V,0.1,mdi:tune-vertical,Battery voltage offset tweak (signed),[4189]/10,VBATT OFFSET,60,
+VPV_OFFSET,4190,A,number,voltage,,V,0.1,mdi:tune-vertical,PV input voltage offset tweak (signed),[4190]/10,VPV OFFSET,60,
+VPV_TARGET_RD,4191,A,sensor,,,,0,mdi:help-circle,PV input target (usually Vmpp),[4191]/10,VPV TARGET RD,60,
+VPV_TARGET_WR,4192,A,sensor,,,,0,mdi:help-circle,Writeable PV target command,[4192]/10,VPV TARGET WR,60,
+SWEEP_INTERVAL_SECS_EEPROM,4197,A,sensor,,measurement,s,0,mdi:timer,Legacy P&O sweep interval (seconds),,SWEEP INTERVAL SECS EEPROM,60,
+MIN_SWP_VOLTAGE_EEPROM,4198,A,sensor,voltage,measurement,V,1,mdi:flash-alert,Minimum input voltage for hydro MPPT mode sweep,[4198]/10,MIN SWP VOLTAGE EEPROM,60,
+MAX_INPUT_CURRENT_EEPROM,4199,A,sensor,current,measurement,A,1,mdi:current-dc,Maximum input current limit (default 99 A),[4199]/10,MAX INPUT CURRENT EEPROM,60,
+SWEEP_DEPTH,4200,A,sensor,,,,0,mdi:help-circle,Legacy/Hydro mode sweep depth as % of current MPP,,SWEEP DEPTH,60,
+NEGATIVE_CURRENT_ADJ,4201,A,sensor,current,measurement,A,1,mdi:current-dc,Factory calibration - do not change,,NEGATIVE CURRENT ADJ,60,
+CLIPPER_CMD_VOLTS,4202,A,sensor,voltage,measurement,V,1,mdi:flash-alert,Aux clipper reference varies with stage and headroom,,CLIPPER CMD VOLTS,60,
+WIND_NUMBER_OF_POLES_EEPROM,4203,A,sensor,,,,0,mdi:help-circle,Number of turbine alternator poles (unused),,WIND NUMBER OF POLES EEPROM,60,
+MPP_PERCENT_VOC_EEPROM,4204,A,sensor,,,,0,mdi:help-circle,% of Voc for U-Set mode,,MPP PERCENT VOC EEPROM,60,
+WIND_TABLE_TO_USE_EEPROM,4205,A,sensor,,,,0,mdi:help-circle,Future power curve select,,WIND TABLE TO USE EEPROM,60,
+LED_MODE_EEPROM,4207,A,select,,,,0,mdi:cog,LED display mode,,LED MODE EEPROM,60,
+UNIT_NAME_0,4210,B,sensor,,,,0,mdi:help-circle,8-char ASCII unit name - part 0,,UNIT NAME 0,15,
+UNIT_NAME_1,4211,B,sensor,,,,0,mdi:help-circle,8-char ASCII unit name - part 1,,UNIT NAME 1,15,
+UNIT_NAME_2,4212,B,sensor,,,,0,mdi:help-circle,8-char ASCII unit name - part 2,,UNIT NAME 2,15,
+UNIT_NAME_3,4213,B,sensor,,,,0,mdi:help-circle,8-char ASCII unit name - part 3,,UNIT NAME 3,15,
+CTI_ME0,4214,A,sensor,,,,0,mdi:help-circle,Consolidated time register 0 (seconds since epoch),([4215]<<16)+[4214],CTI ME0,60,
+CTI_ME0_HIGH,4215,A,sensor,,,,0,mdi:help-circle,Consolidated time register 0 (high word),,CTI ME0 HIGH,60,
+CTI_ME1,4216,A,sensor,,,,0,mdi:help-circle,Consolidated time register 1 (minutes),([4217]<<16)+[4216],CTI ME1,60,
+CTI_ME1_HIGH,4217,A,sensor,,,,0,mdi:help-circle,Consolidated time register 1 (high word),,CTI ME1 HIGH,60,
+CTI_ME2,4218,A,sensor,,,,0,mdi:help-circle,Consolidated time register 2 (epoch days),,CTI ME2,60,
+REMOTE_MENU_MODE,4220,A,select,,,,0,mdi:cog,Remote menu sent from MNGP,,REMOTE MENU MODE,60,
+REMOTE_BUTTONS,4221,A,sensor,,,,0,mdi:help-circle,MNGP buttons pressed,,REMOTE BUTTONS,60,
+PREVOC,4224,A,sensor,,,,0,mdi:help-circle,Voc before relay,[4224]/10,PREVOC,60,
+AUX2_A2D_D2A,4226,A,sensor,,,,0,mdi:help-circle,Aux 2 A/D and D/A value,,AUX2 A2D D2A,60,
+VOC_RD,4231,A,sensor,,,,0,mdi:help-circle,Last VOC reading,[4231]/10,VOC RD,60,
+ABSORB_TIME_DUPLICATE,4236,A,sensor,,measurement,s,0,mdi:timer,Duplicate absorb time counter,,ABSORB TIME DUPLICATE,60,
+SIESTA_TIME_SEC,4238,A,sensor,,measurement,s,0,mdi:timer,Sleep timer (max 5 min),,SIESTA TIME SEC,60,
+SIESTA_ABORT_VOC_ADJ,4239,A,sensor,,,,0,mdi:help-circle,Voc difference to abort Siesta,[4239]/10,SIESTA ABORT VOC ADJ,60,
+FLAGS_RD_32BIT,4241,A,select,,,,0,mdi:cog,Internal status flags (32-bit),,FLAGS RD 32BIT,60,AbsorbTimeRunf|EqTimeRu nf
+VBATT_REG_SET_P_TEMP_COMP,4244,A,sensor,temperature,measurement,°C,1,mdi:thermometer,"Battery regulation target voltage, temp-compensated",[4244]/10,VBATT REG SET P TEMP COMP,60,
+VBATT_NOMINAL_EEPROM,4245,A,sensor,,,,0,mdi:help-circle,"Nominal battery bank voltage (12 V, 24 V, etc.)",,VBATT NOMINAL EEPROM,60,
+ENDING_AMPES_EEPROM,4246,A,sensor,current,measurement,A,1,mdi:current-dc,End of absorb amps threshold (float if reached),[4246]/10,ENDING AMPES EEPROM,60,
+ENDING_SOC_EEPROM,4247,A,sensor,,,,0,mdi:help-circle,SOC to end absorb (future SOC use),,ENDING SOC EEPROM,60,
+REBUCK_VOLTS_EEPROM,4249,A,sensor,voltage,measurement,V,1,mdi:flash-alert,Re-bulk if battery drops below this for > 90 s,[4249]/10,REBUCK VOLTS EEPROM,60,
+DAYS_BTW_BULK_ABS_EEPROM,4252,A,sensor,,,,0,mdi:help-circle,Days between bulk/absorb cycles,,DAYS BTW BULK ABS EEPROM,60,
+DAY_LOG_COMB_CAT_INDEX,4254,A,sensor,,,,0,mdi:help-circle,Daily logs combined category / day index,"(index >> 10) & 0x3F (category), index & 0x03FF (day offset)",DAY LOG COMB CAT INDEX,60,
+MIN_LOG_COMB_CAT_INDEX,4256,A,sensor,,,,0,mdi:help-circle,Minute logs combined category / sample offset,"(index >> 10) & 0x3F (category), index & 0x03FF (sample offset)",MIN LOG COMB CAT INDEX,60,
+REBUCK_TIMER_SEC_EEPROM,4257,A,sensor,,measurement,s,0,mdi:timer,Re-bulk interval timer seconds,,REBUCK TIMER SEC EEPROM,60,
+VOC_QUALIFY_TIMER_MS_EEPROM_LOW,4264,A,sensor,,measurement,s,0,mdi:timer,Qualifying time till turn-on (low word),,VOC QUALIFY TIMER MS EEPROM LOW,60,
+VOC_QUALIFY_TIMER_MS_EEPROM,4265,A,sensor,,measurement,s,0,mdi:timer,Qualifying time till turn-on (ms),((([4265]<<16)+[4264]) & 0xFFFF),VOC QUALIFY TIMER MS EEPROM,60,
+IPV_MINUS_RAW,4266,A,sensor,,,,0,mdi:network,Raw PV negative current from ADC,,IPV MINUS RAW,60,
+RESTART_TIME_MS2,4271,A,sensor,,measurement,s,0,mdi:timer,Countdown time to wake up (<= 500 ms),,RESTART TIME MS2,60,
+IBATT_RAW_A,4272,A,sensor,current,measurement,A,1,mdi:current-dc,"Battery current, unfiltered",[4272]/10,IBATT RAW A,60,
+REASON_FOR_RESTING,4275,B,sensor,,,,0,mdi:alert-circle,Reason Classic went to Rest,,Rest Reason,15,
+OUTPUT_VBATT_RAW,4276,A,sensor,,,,0,mdi:help-circle,"Battery voltage, unfiltered",[4376]/10,OUTPUT VBATT RAW,60,
+INPUT_VPV_RAW,4277,A,sensor,,,,0,mdi:help-circle,"PV voltage, unfiltered",[4377]/10,INPUT VPV RAW,60,
+PK_HOLD_VPV_STAMP,4280,A,sensor,current,measurement,A,1,mdi:current-dc,Solar MPPT internal variable,,PK HOLD VPV STAMP,60,
+VPV_TARGET_RD_TMP,4283,A,sensor,,,,0,mdi:help-circle,Temporary PV target voltage,[4283]/10,VPV TARGET RD TMP,60,
+SWP_DEEP_TIMEOUT_SEC,4284,A,sensor,,measurement,s,0,mdi:timer,Solar MPPT internal variable,,SWP DEEP TIMEOUT SEC,60,
+LOW_WATTS_EEPA,4286,A,sensor,power,measurement,W,0,mdi:gauge,Classic rests when watts < this for > 90 s (non-wind),,LOW WATTS EEPA,60,
+WIND_LOW_WATTS_EEPA,4287,A,sensor,power,measurement,W,0,mdi:gauge,Wind low watts threshold (default 50 W),,WIND LOW WATTS EEPA,60,
+WIND_WINDOW_WATTS_REF_EEPA,4288,A,sensor,power,measurement,W,0,mdi:gauge,Wind power window reference to keep running,,WIND WINDOW WATTS REF EEPA,60,
+WINDOW_WATTS_RO_DELTA_EEPA,4289,A,sensor,power,measurement,W,0,mdi:gauge,Delta watts below WindLowWatts for power wiggling,,WINDOW WATTS RO DELTA EEPA,60,
+WIND_TIMEOUT_REF_EEPA,4290,A,sensor,,measurement,s,0,mdi:timer,Wind power low timeout to go resting (default 90 s),,WIND TIMEOUT REF EEPA,60,
+WIND_TIMEOUT2_REF_EEPA,4291,A,sensor,,measurement,s,0,mdi:timer,Half-hour wind timeout reference (default 1800 s),,WIND TIMEOUT2 REF EEPA,60,
+WIND_TIMEOUT_SECONDS,4292,A,sensor,,measurement,s,0,mdi:timer,Wind timeout counter - > WIND_TIMEOUT_REF -> rest,,WIND TIMEOUT SECONDS,60,
+WIND_TIMEOUT2_SECONDS,4293,A,sensor,,measurement,s,0,mdi:timer,Wind timeout counter 2 - > WIND_TIMEOUT2_REF -> rest,,WIND TIMEOUT2 SECONDS,60,
+MIN_VPV_TURN_ON,4294,A,sensor,,,,0,mdi:help-circle,Minimum input voltage to exit Resting,,MIN VPV TURN ON,60,
+VPV_B4_TURN_OFF,4295,A,sensor,,,,0,mdi:help-circle,Internal reference of Vpv when going to Resting,,VPV B4 TURN OFF,60,
+H2O_SWEEP_AMPS_10TIME6_EEPA,4296,A,sensor,current,measurement,A,1,mdi:current-dc,Hydro sweep speed reference,,H2O SWEEP AMPS 10TIME6 EEPA,60,
+ENDING_AMPS_TIMER_SEC,4297,A,sensor,current,measurement,A,1,mdi:current-dc,Timer for ending amps (60 s reference),,ENDING AMPS TIMER SEC,60,
+PK_AMPS_OVER_LIMIT_HI_EEPA,4298,D,sensor,current,measurement,A,1,mdi:current-dc,Factory calibration - leave as is,,PK AMPS OVER LIMIT HI EEPA,60,
+PK_AMPS_OVER_LIMIT_LO_EEPA,4299,D,sensor,current,measurement,A,1,mdi:current-dc,Factory calibration - leave as is,,PK AMPS OVER LIMIT LO EEPA,60,
+FACTORY_VBATT_OFFSET_EEPA,4300,D,number,,,,0.1,mdi:tune,Factory V battery offset calibration,,FACTORY VBATT OFFSET EEPA,60,
+WIND_POWER_TABLE_V_0_EEPA,4301,D,sensor,power,measurement,W,0,mdi:gauge,Wind power curve step 0 (V cut-in),,WIND POWER TABLE V 0 EEPA,60,
+WIND_POWER_TABLE_V_1_EEPA,4302,D,sensor,power,measurement,W,0,mdi:gauge,Wind power curve step 1,,WIND POWER TABLE V 1 EEPA,60,
+WIND_POWER_TABLE_V_2_EEPA,4303,D,sensor,power,measurement,W,0,mdi:gauge,Wind power curve step 2,,WIND POWER TABLE V 2 EEPA,60,
+WIND_POWER_TABLE_V_3_EEPA,4304,D,sensor,power,measurement,W,0,mdi:gauge,Wind power curve step 3,,WIND POWER TABLE V 3 EEPA,60,
+WIND_POWER_TABLE_V_4_EEPA,4305,D,sensor,power,measurement,W,0,mdi:gauge,Wind power curve step 4,,WIND POWER TABLE V 4 EEPA,60,
+WIND_POWER_TABLE_V_5_EEPA,4306,D,sensor,power,measurement,W,0,mdi:gauge,Wind power curve step 5,,WIND POWER TABLE V 5 EEPA,60,
+WIND_POWER_TABLE_V_6_EEPA,4307,D,sensor,power,measurement,W,0,mdi:gauge,Wind power curve step 6,,WIND POWER TABLE V 6 EEPA,60,
+WIND_POWER_TABLE_V_7_EEPA,4308,D,sensor,power,measurement,W,0,mdi:gauge,Wind power curve step 7,,WIND POWER TABLE V 7 EEPA,60,
+WIND_POWER_TABLE_I_0_EEPA,4309,D,sensor,power,measurement,W,0,mdi:gauge,Wind power curve current step 0,,WIND POWER TABLE I 0 EEPA,60,
+WIND_POWER_TABLE_I_1_EEPA,4310,D,sensor,power,measurement,W,0,mdi:gauge,Wind power curve current step 1,,WIND POWER TABLE I 1 EEPA,60,
+WIND_POWER_TABLE_I_2_EEPA,4311,D,sensor,power,measurement,W,0,mdi:gauge,Wind power curve current step 2,,WIND POWER TABLE I 2 EEPA,60,
+WIND_POWER_TABLE_I_3_EEPA,4312,D,sensor,power,measurement,W,0,mdi:gauge,Wind power curve current step 3,,WIND POWER TABLE I 3 EEPA,60,
+WIND_POWER_TABLE_I_4_EEPA,4313,D,sensor,power,measurement,W,0,mdi:gauge,Wind power curve current step 4,,WIND POWER TABLE I 4 EEPA,60,
+WIND_POWER_TABLE_I_5_EEPA,4314,D,sensor,power,measurement,W,0,mdi:gauge,Wind power curve current step 5,,WIND POWER TABLE I 5 EEPA,60,
+WIND_POWER_TABLE_I_6_EEPA,4315,D,sensor,power,measurement,W,0,mdi:gauge,Wind power curve current step 6,,WIND POWER TABLE I 6 EEPA,60,
+WIND_POWER_TABLE_I_7_EEPA,4316,D,sensor,power,measurement,W,0,mdi:gauge,Wind power curve current step 7,,WIND POWER TABLE I 7 EEPA,60,
+PK_AMPS_OVER_TRIP_EEPROM,4318,A,sensor,current,measurement,A,1,mdi:current-dc,Factory calibration - leave as is,,PK AMPS OVER TRIP EEPROM,60,
+MNGP_REVISION,4319,B,sensor,,,,0,mdi:help-circle,Preliminary - shows unit connected,,MNGP REVISION,15,
+MNLP_REVISION,4320,B,sensor,,,,0,mdi:help-circle,Preliminary - shows unit connected,,MNLP REVISION,15,
+CLASSIC_MODBUS_ADDR_EEPROM,4326,A,sensor,,,,0,mdi:network,Classic Modbus address (default 10),,CLASSIC MODBUS ADDR EEPROM,60,
+BATTERY_TEMP_PASSED_EEPROM,4327,B,sensor,temperature,measurement,°C,1,mdi:thermometer,Follow-Me temperature sensor value,,BATTERY TEMP PASSED EEPROM,15,
+I_FLAGS_RO_HIGH,4330,A,select,,,,0,mdi:cog,Follow-Me high bits - charge stage coordination,,I FLAGS RO HIGH,60,
+MODBUS_CONTROL_EEPROM,4331,A,sensor,,,,0,mdi:network,Follow-Me Modbus control,,MODBUS CONTROL EEPROM,60,
+CLASSIC_FME_PASSED_BITS_EEPROM,4332,A,sensor,,,,0,mdi:help-circle,Follow-Me state bits,,CLASSIC FME PASSED BITS EEPROM,60,
+WIND_SYNCH_A_EEPROM,4333,D,sensor,,,,0,mdi:help-circle,Wind power tracking amps,,WIND SYNCH A EEPROM,60,
+WIND_SYNCH_V_EEPROM,4334,D,sensor,,,,0,mdi:help-circle,Wind power tracking volts,,WIND SYNCH V EEPROM,60,
+FOLLOW_ME_PASS_REF_EEPROM,4335,A,sensor,,,,0,mdi:help-circle,Follow-Me enabled if > 0 - set to at least number of units in loop,,FOLLOW ME PASS REF EEPROM,60,
+DABT_U32_DEBUG_01,4341,D,sensor,,,,0,mdi:help-circle,Debug register 1,,DABT U32 DEBUG 01,60,
+DABT_U32_DEBUG_02,4342,D,sensor,,,,0,mdi:help-circle,Debug register 2,,DABT U32 DEBUG 02,60,
+DABT_U32_DEBUG_03,4343,D,sensor,,,,0,mdi:help-circle,Debug register 3,,DABT U32 DEBUG 03,60,
+DABT_U32_DEBUG_04,4344,D,sensor,,,,0,mdi:help-circle,Debug register 4,,DABT U32 DEBUG 04,60,
+CLEAR_LOGS_CAT,4354,A,sensor,,,,0,mdi:help-circle,Clear various logging values,,CLEAR LOGS CAT,60,
+CLEAR_LOGS_COUNTER_10MS,4355,A,sensor,,,,0,mdi:help-circle,Timer for sending second ClearLogsCat command before timeout,,CLEAR LOGS COUNTER 10MS,60,
+USER_VARIABLE_02,4356,A,sensor,,,,0,mdi:help-circle,General purpose user variable,,USER VARIABLE 02,60,
+WIZBANG_RX_BUFFER_TEMP_SH1,4357,D,sensor,temperature,measurement,°C,1,mdi:thermometer-alert,Raw Whizbang Junior buffer read 1,,WIZBANG RX BUFFER TEMP SH1,60,
+WIZBANG_RX_BUFFER_TEMP_SH2,4358,D,sensor,temperature,measurement,°C,1,mdi:thermometer-alert,Raw Whizbang Junior buffer read 2,,WIZBANG RX BUFFER TEMP SH2,60,
+WIZBANG_RX_BUFFER_TEMP_SH3,4359,D,sensor,temperature,measurement,°C,1,mdi:thermometer-alert,Raw Whizbang Junior buffer read 3,,WIZBANG RX BUFFER TEMP SH3,60,
+WIZBANG_RX_BUFFER_TEMP_SH4,4360,D,sensor,temperature,measurement,°C,1,mdi:thermometer-alert,Raw Whizbang Junior buffer read 4,,WIZBANG RX BUFFER TEMP SH4,60,
+WJRB_CMD_S_EEPROM,4361,D,sensor,,,,0,mdi:help-circle,Whizbang Junior command - default 0x35,,WJRB CMD S EEPROM,60,
+WJRB_RAW_CURRENT,4362,D,sensor,current,measurement,A,1,mdi:current-dc,Whizbang Junior raw current,,WJRB RAW CURRENT,60,
+WJRB_NUMERATOR_SS_EEPROM,4363,D,sensor,,,,0,mdi:help-circle,Whizbang Junior gain adjustment - default 0,,WJRB NUMERATOR SS EEPROM,60,
+WJRB_AMP_HOUR_POSITIVE,4365,D,sensor,current,measurement,A,1,mdi:current-dc,Whizbang Jr. positive amp-hours (low word),([4366]<<16)+[4365],WJRB AMP HOUR POSITIVE,60,
+WJRB_AMP_HOUR_POSITIVE_HIGH,4366,D,sensor,current,measurement,A,1,mdi:current-dc,Whizbang Jr. positive amp-hours (high word),,WJRB AMP HOUR POSITIVE HIGH,60,
+WJRB_AMP_HOUR_NEGATIVE,4367,D,sensor,current,measurement,A,1,mdi:current-dc,Whizbang Jr. negative amp-hours (low word),([4368]<<16)+[4367],WJRB AMP HOUR NEGATIVE,60,
+WJRB_AMP_HOUR_NEGATIVE_HIGH,4368,D,sensor,current,measurement,A,1,mdi:current-dc,Whizbang Jr. negative amp-hours (high word),,WJRB AMP HOUR NEGATIVE HIGH,60,
+WJRB_AMP_HOUR_NET,4369,A,sensor,current,measurement,A,1,mdi:current-dc,Whizbang Jr. net amp-hours (low word),([4370]<<16)+[4369],WJRB AMP HOUR NET,60,
+WJRB_AMP_HOUR_NET_HIGH,4370,A,sensor,current,measurement,A,1,mdi:current-dc,Whizbang Jr. net amp-hours (high word),,WJRB AMP HOUR NET HIGH,60,
+WJRB_CURRENT_32_SIGNED_EEPROM,4371,A,sensor,current,measurement,A,1,mdi:current-dc,"Whizbang Jr. amps (scaled & rounded) - signed ± 3,276.7 A",,WJRB CURRENT 32 SIGNED EEPROM,60,
+WJRB_RAW_CRC_AND_TEMP,4372,A,sensor,temperature,measurement,°C,1,mdi:thermometer-alert,Raw CRC << 8 | Temp & 0xff + 50°C,,WJRB RAW CRC AND TEMP,60,
+IP_SETTINGS_FLAGS,20481,A,select,,,,0,mdi:cog,"Network settings flags - see table 20481-1 (DHCP, Web Access)",,IP SETTINGS FLAGS,60,DHCP|Web Access
+IP_ADDRESS_LSB_1,20482,A,sensor,,,,0,mdi:network,IP address part 1,,IP ADDRESS LSB 1,60,
+IP_ADDRESS_LSB_2,20483,A,sensor,,,,0,mdi:network,IP address part 2,,IP ADDRESS LSB 2,60,
+GATEWAY_ADDRESS_LSB_1,20484,A,sensor,,,,0,mdi:network,Gateway address part 1,,GATEWAY ADDRESS LSB 1,60,
+GATEWAY_ADDRESS_LSB_2,20485,A,sensor,,,,0,mdi:network,Gateway address part 2,,GATEWAY ADDRESS LSB 2,60,
+SUBNET_MASK_LSB_1,20486,A,sensor,,,,0,mdi:help-circle,Subnet mask part 1,,SUBNET MASK LSB 1,60,
+SUBNET_MASK_LSB_2,20487,A,sensor,,,,0,mdi:help-circle,Subnet mask part 2,,SUBNET MASK LSB 2,60,
+DNS_1_LSB_1,20488,A,sensor,,,,0,mdi:network,Primary DNS part 1,,DNS 1 LSB 1,60,
+DNS_1_LSB_2,20489,A,sensor,,,,0,mdi:network,Primary DNS part 2,,DNS 1 LSB 2,60,
+DNS_2_LSB_1,20490,A,sensor,,,,0,mdi:network,Secondary DNS part 1,,DNS 2 LSB 1,60,
+DNS_2_LSB_2,20491,A,sensor,,,,0,mdi:network,Secondary DNS part 2,,DNS 2 LSB 2,60,

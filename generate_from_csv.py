@@ -18,7 +18,7 @@ def validate_csv(data: List[Dict[str, str]]) -> None:
     # Required fields - these must have values
     required_fields = [
         'Register Name', 'Address', 'Category', 'Entity Type', 
-        'Icon', 'Enabled By Default', 'Description'
+        'Icon', 'Description'
     ]
     
     # Optional fields - these can be empty
@@ -217,7 +217,8 @@ def generate_entity_classes(data: List[Dict[str, str]], output_dir: str) -> None
         unit = row['Unit']
         precision = row.get('Precision', '')
         icon = row['Icon']
-        enabled = row['Enabled By Default'] == 'TRUE'
+        friendly_name = row.get('Friendly Name', name)
+        scan_interval = int(row.get('Scan Interval', 30))
         description = row['Description']
         
         if entity_type == 'sensor':
@@ -359,6 +360,7 @@ class MidniteSolarSensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], Senso
         precision = sensor.get('Precision', '')
         icon = sensor['Icon']
         description = sensor['Description']
+        friendly_name = sensor.get('Friendly Name', name)
         
         # Determine if this is a special sensor that needs custom logic
         # These will be added separately after the generated sensors
@@ -366,17 +368,15 @@ class MidniteSolarSensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], Senso
             # Skip these as they have special handling - will add manually
             continue
         
-        content += f'''
-
-class {name}Sensor(MidniteSolarSensor):
-    """Representation of a {description.lower()} sensor."""
-
-    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
-        """Initialize the sensor."""
-        super().__init__(coordinator, entry)
-        self._attr_name = "{name}"
-        self._attr_unique_id = f"{{entry.entry_id}}_{name.lower().replace(' ', '_')}"
-'''
+        # Build sensor class with friendly name support
+        content += '\n\n'
+        content += f'class {name}Sensor(MidniteSolarSensor):\n'
+        content += f'    """Representation of a {description.lower()} sensor."""\n\n'
+        content += '    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):\n'
+        content += '        """Initialize the sensor."""\n'
+        content += '        super().__init__(coordinator, entry)\n'
+        content += f'        self._attr_name = "{friendly_name}"\n'
+        content += f'        self._attr_unique_id = f"{{entry.entry_id}}_{name.lower().replace(" ", "_")}"\n'
         
         # Add device class if specified
         if device_class:
@@ -413,8 +413,25 @@ class {name}Sensor(MidniteSolarSensor):
         if icon:
             content += f'        self._attr_icon = "{icon}"\n'
         
-        content += '''
-    @property
+        # Add formula-based conversion logic
+        formula = sensor.get('Formula', '')
+        if formula:
+            # Use the formula from CSV if available
+            content += '''    @property
+    def native_value(self) -> Optional[float]:
+        """Return the state of the sensor."""
+        if self.coordinator.data and "data" in self.coordinator.data:
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
+                if value is not None:
+                    # Formula: {formula}
+                    return value
+                return None
+'''
+        else:
+            # Use unit-based conversion as fallback
+            content += '''    @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
@@ -423,16 +440,16 @@ class {name}Sensor(MidniteSolarSensor):
                 value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
 '''
-        
-        # Add conversion logic based on unit
-        if unit == 'V' or unit == 'A':
-            content += f'                    return value / 10.0\n'
-        elif unit == 'kWh':
-            content += f'                    return value / 100.0\n'
-        else:
-            content += f'                    return value\n'
-        
-        content += '''                return None
+            
+            # Add conversion logic based on unit
+            if unit == 'V' or unit == 'A':
+                content += f'                    return value / 10.0\n'
+            elif unit == 'kWh':
+                content += f'                    return value / 100.0\n'
+            else:
+                content += f'                    return value\n'
+            
+            content += '''                return None
 '''
     
     with open(output_path, 'w') as f:
@@ -554,18 +571,19 @@ class MidniteSolarNumber(CoordinatorEntity[MidniteSolarUpdateCoordinator], Numbe
         icon = number['Icon']
         description = number['Description']
         
-        content += f'''
-
-class {name}Number(MidniteSolarNumber):
-    """Representation of a {description.lower()} number."""
-
-    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
-        """Initialize the number."""
-        super().__init__(coordinator, entry)
-        self._attr_name = "{name}"
-        self._attr_unique_id = f"{{entry.entry_id}}_{name.lower().replace(' ', '_')}_number"
-        self.register_address = {address}
-'''
+        # Get friendly name if available
+        friendly_name = number.get('Friendly Name', name)
+        
+        # Build number class with friendly name support
+        content += '\n\n'
+        content += f'class {name}Number(MidniteSolarNumber):\n'
+        content += f'    """Representation of a {description.lower()} number."""\n\n'
+        content += '    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):\n'
+        content += '        """Initialize the number."""\n'
+        content += '        super().__init__(coordinator, entry)\n'
+        content += f'        self._attr_name = "{friendly_name}"\n'
+        content += f'        self._attr_unique_id = f"{{entry.entry_id}}_{name.lower().replace(" ", "_")}_number"\n'
+        content += f'        self.register_address = {address}\n'
         
         # Add device class if specified
         if device_class:
@@ -712,18 +730,17 @@ class MidniteSolarSelect(CoordinatorEntity[MidniteSolarUpdateCoordinator], Selec
         precision = select.get('Precision', '')
         icon = select['Icon']
         description = select['Description']
+        friendly_name = select.get('Friendly Name', name)
         
-        content += f'''
-
-class {name}Select(MidniteSolarSelect):
-    """Representation of a {description.lower()} selector."""
-
-    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
-        """Initialize the selector."""
-        super().__init__(coordinator, entry)
-        self._attr_name = "{name}"
-        self._attr_unique_id = f"{{entry.entry_id}}_{name.lower().replace(' ', '_')}_select"
-'''
+        # Build select class with friendly name support
+        content += '\n\n'
+        content += f'class {name}Select(MidniteSolarSelect):\n'
+        content += f'    """Representation of a {description.lower()} selector."""\n\n'
+        content += '    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):\n'
+        content += '        """Initialize the selector."""\n'
+        content += '        super().__init__(coordinator, entry)\n'
+        content += f'        self._attr_name = "{friendly_name}"\n'
+        content += f'        self._attr_unique_id = f"{{entry.entry_id}}_{name.lower().replace(" ", "_")}_select"\n'
         
         # Add icon if specified
         if icon:

@@ -72,45 +72,6 @@ class MidniteSolarNumber(CoordinatorEntity[MidniteSolarUpdateCoordinator], Numbe
             "manufacturer": "Midnite Solar",
         }
 
-    @property
-    def device_info(self):
-        """Return dynamic device info with device ID and model if available."""
-        # Try to get device ID from coordinator data (registers 4111-4112)
-        if self.coordinator.data and "data" in self.coordinator.data:
-            device_info_data = self.coordinator.data["data"].get("device_info")
-            if device_info_data:
-                device_id_lsw = device_info_data.get(REGISTER_MAP["DEVICE_ID_LSW"])
-                device_id_msw = device_info_data.get(REGISTER_MAP["DEVICE_ID_MSW"])
-                if device_id_lsw is not None and device_id_msw is not None:
-                    device_id = (device_id_msw << 16) | device_id_lsw
-                    # Try to get device model from UNIT_ID register
-                    unit_id_value = device_info_data.get(REGISTER_MAP["UNIT_ID"])
-                    if unit_id_value is not None:
-                        device_type = unit_id_value & 0xFF  # Get LSB (unit type)
-                        model = DEVICE_TYPES.get(device_type, f"Unknown ({device_type})")
-                    else:
-                        model = "Midnite Solar Device"
-                    
-                    return {
-                        "identifiers": {(DOMAIN, str(device_id))},
-                        "name": f"{model} ({device_id})",
-                        "manufacturer": "Midnite Solar",
-                        "model": model,
-                    }
-        
-        # Fallback to entry_id if serial number not available
-        return {
-            "identifiers": {(DOMAIN, self._entry.entry_id)},
-            "name": self._entry.title,
-            "manufacturer": "Midnite Solar",
-        }
-
-    @property
-    def native_value(self) -> float | None:
-        """Return the current value."""
-        return None
-
-
 class MINUTE_LOG_INTERVAL_SECNumber(MidniteSolarNumber):
     """Representation of a data logging interval (min 60 s) number."""
 

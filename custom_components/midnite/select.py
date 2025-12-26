@@ -63,45 +63,6 @@ class MidniteSolarSelect(CoordinatorEntity[MidniteSolarUpdateCoordinator], Selec
             "manufacturer": "Midnite Solar",
         }
 
-    @property
-    @property
-    def options(self) -> list[str]:
-        """Return the select options."""
-        return ["Option 1", "Option 2", "Option 3"]
-
-    def device_info(self):
-        """Return dynamic device info with device ID and model if available."""
-        # Try to get device ID from coordinator data (registers 4111-4112)
-        if self.coordinator.data and "data" in self.coordinator.data:
-            device_info_data = self.coordinator.data["data"].get("device_info")
-            if device_info_data:
-                device_id_lsw = device_info_data.get(REGISTER_MAP["DEVICE_ID_LSW"])
-                device_id_msw = device_info_data.get(REGISTER_MAP["DEVICE_ID_MSW"])
-                if device_id_lsw is not None and device_id_msw is not None:
-                    device_id = (device_id_msw << 16) | device_id_lsw
-                    # Try to get device model from UNIT_ID register
-                    unit_id_value = device_info_data.get(REGISTER_MAP["UNIT_ID"])
-                    if unit_id_value is not None:
-                        device_type = unit_id_value & 0xFF  # Get LSB (unit type)
-                        model = DEVICE_TYPES.get(device_type, f"Unknown ({device_type})")
-                    else:
-                        model = "Midnite Solar Device"
-                    
-                    return {
-                        "identifiers": {(DOMAIN, str(device_id))},
-                        "name": f"{model} ({device_id})",
-                        "manufacturer": "Midnite Solar",
-                        "model": model,
-                    }
-        
-        # Fallback to entry_id if device ID not available
-        return {
-            "identifiers": {(DOMAIN, self._entry.entry_id)},
-            "name": self._entry.title,
-            "manufacturer": "Midnite Solar",
-        }
-
-
 class INFO_FLAGS_BITS2_1Select(MidniteSolarSelect):
     """Representation of a 32-bit info flags (low word) selector."""
 
@@ -113,11 +74,6 @@ class INFO_FLAGS_BITS2_1Select(MidniteSolarSelect):
         self._attr_icon = "mdi:cog"
 
     @property
-    @property
-    def options(self) -> list[str]:
-        """Return the select options."""
-        return ["Option 1", "Option 2", "Option 3"]
-
     def current_option(self) -> Optional[str]:
         """Return the currently selected option."""
         return None
@@ -134,11 +90,6 @@ class INFO_FLAGS_BITS2_0Select(MidniteSolarSelect):
         self._attr_icon = "mdi:cog"
 
     @property
-    @property
-    def options(self) -> list[str]:
-        """Return the select options."""
-        return ["Option 1", "Option 2", "Option 3"]
-
     def current_option(self) -> Optional[str]:
         """Return the currently selected option."""
         return None
@@ -155,11 +106,6 @@ class USB_COMM_MODESelect(MidniteSolarSelect):
         self._attr_icon = "mdi:usb-port"
 
     @property
-    @property
-    def options(self) -> list[str]:
-        """Return the select options."""
-        return ["Option 1", "Option 2", "Option 3"]
-
     def current_option(self) -> Optional[str]:
         """Return the currently selected option."""
         return None
@@ -176,11 +122,6 @@ class MPPT_MODESelect(MidniteSolarSelect):
         self._attr_icon = "mdi:cog"
 
     @property
-    @property
-    def options(self) -> list[str]:
-        """Return the select options."""
-        return ["Option 1", "Option 2", "Option 3"]
-
     def current_option(self) -> Optional[str]:
         """Return the currently selected option."""
         return None
@@ -197,11 +138,6 @@ class AUX_1_AND_2_FUNCTIONSelect(MidniteSolarSelect):
         self._attr_icon = "mdi:radiobox-marked"
 
     @property
-    @property
-    def options(self) -> list[str]:
-        """Return the select options."""
-        return ["Option 1", "Option 2", "Option 3"]
-
     def current_option(self) -> Optional[str]:
         """Return the currently selected option."""
         return None
@@ -218,11 +154,6 @@ class ENABLE_FLAGS2Select(MidniteSolarSelect):
         self._attr_icon = "mdi:cog"
 
     @property
-    @property
-    def options(self) -> list[str]:
-        """Return the select options."""
-        return ["Option 1", "Option 2", "Option 3"]
-
     def current_option(self) -> Optional[str]:
         """Return the currently selected option."""
         return None
@@ -239,11 +170,6 @@ class ENABLE_FLAGS_BITSSelect(MidniteSolarSelect):
         self._attr_icon = "mdi:cog"
 
     @property
-    @property
-    def options(self) -> list[str]:
-        """Return the select options."""
-        return ["Option 1", "Option 2", "Option 3"]
-
     def current_option(self) -> Optional[str]:
         """Return the currently selected option."""
         return None
@@ -260,11 +186,6 @@ class LED_MODE_EEPROMSelect(MidniteSolarSelect):
         self._attr_icon = "mdi:cog"
 
     @property
-    @property
-    def options(self) -> list[str]:
-        """Return the select options."""
-        return ["Option 1", "Option 2", "Option 3"]
-
     def current_option(self) -> Optional[str]:
         """Return the currently selected option."""
         return None
@@ -281,11 +202,6 @@ class REMOTE_MENU_MODESelect(MidniteSolarSelect):
         self._attr_icon = "mdi:cog"
 
     @property
-    @property
-    def options(self) -> list[str]:
-        """Return the select options."""
-        return ["Option 1", "Option 2", "Option 3"]
-
     def current_option(self) -> Optional[str]:
         """Return the currently selected option."""
         return None
@@ -302,11 +218,6 @@ class FLAGS_RD_32BITSelect(MidniteSolarSelect):
         self._attr_icon = "mdi:cog"
 
     @property
-    @property
-    def options(self) -> list[str]:
-        """Return the select options."""
-        return ["Option 1", "Option 2", "Option 3"]
-
     def current_option(self) -> Optional[str]:
         """Return the currently selected option."""
         return None
@@ -323,11 +234,6 @@ class I_FLAGS_RO_HIGHSelect(MidniteSolarSelect):
         self._attr_icon = "mdi:cog"
 
     @property
-    @property
-    def options(self) -> list[str]:
-        """Return the select options."""
-        return ["Option 1", "Option 2", "Option 3"]
-
     def current_option(self) -> Optional[str]:
         """Return the currently selected option."""
         return None
@@ -344,11 +250,6 @@ class IP_SETTINGS_FLAGSSelect(MidniteSolarSelect):
         self._attr_icon = "mdi:cog"
 
     @property
-    @property
-    def options(self) -> list[str]:
-        """Return the select options."""
-        return ["Option 1", "Option 2", "Option 3"]
-
     def current_option(self) -> Optional[str]:
         """Return the currently selected option."""
         return None

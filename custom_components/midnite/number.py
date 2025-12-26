@@ -55,9 +55,9 @@ async def async_setup_entry(
 class MidniteSolarNumber(CoordinatorEntity[MidniteSolarUpdateCoordinator], NumberEntity):
     """Base class for all Midnite Solar numbers."""
 
-    _attr_native_min_value: float = 0
-    _attr_native_max_value: float = 100
-    _attr_native_step: float = 1
+    _attr_native_min_value: float | None = None
+    _attr_native_max_value: float | None = None
+    _attr_native_step: float | None = None
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
@@ -72,13 +72,52 @@ class MidniteSolarNumber(CoordinatorEntity[MidniteSolarUpdateCoordinator], Numbe
             "manufacturer": "Midnite Solar",
         }
 
+    @property
+    def device_info(self):
+        """Return dynamic device info with device ID and model if available."""
+        # Try to get device ID from coordinator data (registers 4111-4112)
+        if self.coordinator.data and "data" in self.coordinator.data:
+            device_info_data = self.coordinator.data["data"].get("device_info")
+            if device_info_data:
+                device_id_lsw = device_info_data.get(REGISTER_MAP["DEVICE_ID_LSW"])
+                device_id_msw = device_info_data.get(REGISTER_MAP["DEVICE_ID_MSW"])
+                if device_id_lsw is not None and device_id_msw is not None:
+                    device_id = (device_id_msw << 16) | device_id_lsw
+                    # Try to get device model from UNIT_ID register
+                    unit_id_value = device_info_data.get(REGISTER_MAP["UNIT_ID"])
+                    if unit_id_value is not None:
+                        device_type = unit_id_value & 0xFF  # Get LSB (unit type)
+                        model = DEVICE_TYPES.get(device_type, f"Unknown ({device_type})")
+                    else:
+                        model = "Midnite Solar Device"
+                    
+                    return {
+                        "identifiers": {(DOMAIN, str(device_id))},
+                        "name": f"{model} ({device_id})",
+                        "manufacturer": "Midnite Solar",
+                        "model": model,
+                    }
+        
+        # Fallback to entry_id if serial number not available
+        return {
+            "identifiers": {(DOMAIN, self._entry.entry_id)},
+            "name": self._entry.title,
+            "manufacturer": "Midnite Solar",
+        }
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value."""
+        return None
+
+
 class MINUTE_LOG_INTERVAL_SECNumber(MidniteSolarNumber):
     """Representation of a data logging interval (min 60 s) number."""
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "MINUTE_LOG_INTERVAL_SEC"
+        self._attr_name = "MINUTE LOG INTERVAL SEC"
         self._attr_unique_id = f"{entry.entry_id}_minute_log_interval_sec_number"
         self.register_address = 4136
         self._attr_device_class = "duration"
@@ -101,7 +140,7 @@ class MODBUS_PORT_REGISTERNumber(MidniteSolarNumber):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "MODBUS_PORT_REGISTER"
+        self._attr_name = "MODBUS PORT REGISTER"
         self._attr_unique_id = f"{entry.entry_id}_modbus_port_register_number"
         self.register_address = 4137
         self._attr_icon = "mdi:lan"
@@ -122,7 +161,7 @@ class BATTERY_OUTPUT_CURRENT_LIMITNumber(MidniteSolarNumber):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "BATTERY_OUTPUT_CURRENT_LIMIT"
+        self._attr_name = "BATTERY OUTPUT CURRENT LIMIT"
         self._attr_unique_id = f"{entry.entry_id}_battery_output_current_limit_number"
         self.register_address = 4148
         self._attr_device_class = "current"
@@ -145,7 +184,7 @@ class ABSORB_SETPOINT_VOLTAGENumber(MidniteSolarNumber):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "ABSORB_SETPOINT_VOLTAGE"
+        self._attr_name = "ABSORB SETPOINT VOLTAGE"
         self._attr_unique_id = f"{entry.entry_id}_absorb_setpoint_voltage_number"
         self.register_address = 4149
         self._attr_device_class = "voltage"
@@ -168,7 +207,7 @@ class FLOAT_VOLTAGE_SETPOINTNumber(MidniteSolarNumber):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "FLOAT_VOLTAGE_SETPOINT"
+        self._attr_name = "FLOAT VOLTAGE SETPOINT"
         self._attr_unique_id = f"{entry.entry_id}_float_voltage_setpoint_number"
         self.register_address = 4150
         self._attr_device_class = "voltage"
@@ -191,7 +230,7 @@ class EQUALIZE_VOLTAGE_SETPOINTNumber(MidniteSolarNumber):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "EQUALIZE_VOLTAGE_SETPOINT"
+        self._attr_name = "EQUALIZE VOLTAGE SETPOINT"
         self._attr_unique_id = f"{entry.entry_id}_equalize_voltage_setpoint_number"
         self.register_address = 4151
         self._attr_device_class = "voltage"
@@ -214,7 +253,7 @@ class ABSORB_TIME_EEPROMNumber(MidniteSolarNumber):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "ABSORB_TIME_EEPROM"
+        self._attr_name = "ABSORB TIME EEPROM"
         self._attr_unique_id = f"{entry.entry_id}_absorb_time_eeprom_number"
         self.register_address = 4154
         self._attr_device_class = "duration"
@@ -237,7 +276,7 @@ class MAX_BATTERY_TEMP_COMP_VOLTAGENumber(MidniteSolarNumber):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "MAX_BATTERY_TEMP_COMP_VOLTAGE"
+        self._attr_name = "MAX BATTERY TEMP COMP VOLTAGE"
         self._attr_unique_id = f"{entry.entry_id}_max_battery_temp_comp_voltage_number"
         self.register_address = 4155
         self._attr_device_class = "voltage"
@@ -260,7 +299,7 @@ class MIN_BATTERY_TEMP_COMP_VOLTAGENumber(MidniteSolarNumber):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "MIN_BATTERY_TEMP_COMP_VOLTAGE"
+        self._attr_name = "MIN BATTERY TEMP COMP VOLTAGE"
         self._attr_unique_id = f"{entry.entry_id}_min_battery_temp_comp_voltage_number"
         self.register_address = 4156
         self._attr_device_class = "voltage"
@@ -283,7 +322,7 @@ class BATTERY_TEMP_COMP_VALUENumber(MidniteSolarNumber):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "BATTERY_TEMP_COMP_VALUE"
+        self._attr_name = "BATTERY TEMP COMP VALUE"
         self._attr_unique_id = f"{entry.entry_id}_battery_temp_comp_value_number"
         self.register_address = 4157
         self._attr_device_class = "voltage"
@@ -306,7 +345,7 @@ class EQUALIZE_TIME_EEPROMNumber(MidniteSolarNumber):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "EQUALIZE_TIME_EEPROM"
+        self._attr_name = "EQUALIZE TIME EEPROM"
         self._attr_unique_id = f"{entry.entry_id}_equalize_time_eeprom_number"
         self.register_address = 4162
         self._attr_device_class = "duration"
@@ -329,7 +368,7 @@ class EQUALIZE_INTERVAL_DAYS_EEPROMNumber(MidniteSolarNumber):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "EQUALIZE_INTERVAL_DAYS_EEPROM"
+        self._attr_name = "EQUALIZE INTERVAL DAYS EEPROM"
         self._attr_unique_id = f"{entry.entry_id}_equalize_interval_days_eeprom_number"
         self.register_address = 4163
         self._attr_native_unit_of_measurement = "days"
@@ -351,7 +390,7 @@ class AUX1_VOLTS_LO_ABSNumber(MidniteSolarNumber):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "AUX1_VOLTS_LO_ABS"
+        self._attr_name = "AUX1 VOLTS LO ABS"
         self._attr_unique_id = f"{entry.entry_id}_aux1_volts_lo_abs_number"
         self.register_address = 4166
         self._attr_device_class = "voltage"
@@ -374,7 +413,7 @@ class AUX1_DELAY_T_MSNumber(MidniteSolarNumber):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "AUX1_DELAY_T_MS"
+        self._attr_name = "AUX1 DELAY T MS"
         self._attr_unique_id = f"{entry.entry_id}_aux1_delay_t_ms_number"
         self.register_address = 4167
         self._attr_device_class = "duration"
@@ -397,7 +436,7 @@ class AUX1_HOLD_T_MSNumber(MidniteSolarNumber):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "AUX1_HOLD_T_MS"
+        self._attr_name = "AUX1 HOLD T MS"
         self._attr_unique_id = f"{entry.entry_id}_aux1_hold_t_ms_number"
         self.register_address = 4168
         self._attr_device_class = "duration"
@@ -420,7 +459,7 @@ class AUX2_PWM_VWIDTHNumber(MidniteSolarNumber):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "AUX2_PWM_VWIDTH"
+        self._attr_name = "AUX2 PWM VWIDTH"
         self._attr_unique_id = f"{entry.entry_id}_aux2_pwm_vwidth_number"
         self.register_address = 4169
         self._attr_device_class = "voltage"
@@ -443,7 +482,7 @@ class AUX1_VOLTS_HI_ABSNumber(MidniteSolarNumber):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "AUX1_VOLTS_HI_ABS"
+        self._attr_name = "AUX1 VOLTS HI ABS"
         self._attr_unique_id = f"{entry.entry_id}_aux1_volts_hi_abs_number"
         self.register_address = 4172
         self._attr_device_class = "voltage"
@@ -466,7 +505,7 @@ class AUX2_VOLTS_HI_ABSNumber(MidniteSolarNumber):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "AUX2_VOLTS_HI_ABS"
+        self._attr_name = "AUX2 VOLTS HI ABS"
         self._attr_unique_id = f"{entry.entry_id}_aux2_volts_hi_abs_number"
         self.register_address = 4173
         self._attr_device_class = "voltage"
@@ -489,7 +528,7 @@ class VBATT_OFFSETNumber(MidniteSolarNumber):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "VBATT_OFFSET"
+        self._attr_name = "VBATT OFFSET"
         self._attr_unique_id = f"{entry.entry_id}_vbatt_offset_number"
         self.register_address = 4189
         self._attr_device_class = "voltage"
@@ -512,7 +551,7 @@ class VPV_OFFSETNumber(MidniteSolarNumber):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "VPV_OFFSET"
+        self._attr_name = "VPV OFFSET"
         self._attr_unique_id = f"{entry.entry_id}_vpv_offset_number"
         self.register_address = 4190
         self._attr_device_class = "voltage"
@@ -535,7 +574,7 @@ class FACTORY_VBATT_OFFSET_EEPANumber(MidniteSolarNumber):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "FACTORY_VBATT_OFFSET_EEPA"
+        self._attr_name = "FACTORY VBATT OFFSET EEPA"
         self._attr_unique_id = f"{entry.entry_id}_factory_vbatt_offset_eepa_number"
         self.register_address = 4300
         self._attr_icon = "mdi:tune"

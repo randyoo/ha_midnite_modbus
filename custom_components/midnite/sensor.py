@@ -209,11 +209,6 @@ async def async_setup_entry(
         DNS_1_LSB_2Sensor(coordinator, entry),
         DNS_2_LSB_1Sensor(coordinator, entry),
         DNS_2_LSB_2Sensor(coordinator, entry),
-
-        ChargeStageSensor(coordinator, entry),
-        InternalStateSensor(coordinator, entry),
-        DeviceTypeSensor(coordinator, entry),
-        RestReasonSensor(coordinator, entry),
     ]
     
     async_add_entities(sensors)
@@ -234,24 +229,63 @@ class MidniteSolarSensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], Senso
             "manufacturer": "Midnite Solar",
         }
 
+    @property
+    def device_info(self):
+        """Return dynamic device info with device ID and model if available."""
+        # Try to get device ID from coordinator data (registers 4111-4112)
+        if self.coordinator.data and "data" in self.coordinator.data:
+            device_info_data = self.coordinator.data["data"].get("device_info")
+            if device_info_data:
+                device_id_lsw = device_info_data.get(REGISTER_MAP["DEVICE_ID_LSW"])
+                device_id_msw = device_info_data.get(REGISTER_MAP["DEVICE_ID_MSW"])
+                if device_id_lsw is not None and device_id_msw is not None:
+                    device_id = (device_id_msw << 16) | device_id_lsw
+                    # Try to get device model from UNIT_ID register
+                    unit_id_value = device_info_data.get(REGISTER_MAP["UNIT_ID"])
+                    if unit_id_value is not None:
+                        device_type = unit_id_value & 0xFF  # Get LSB (unit type)
+                        model = DEVICE_TYPES.get(device_type, f"Unknown ({device_type})")
+                    else:
+                        model = "Midnite Solar Device"
+                    
+                    return {
+                        "identifiers": {(DOMAIN, str(device_id))},
+                        "name": f"{model} ({device_id})",
+                        "manufacturer": "Midnite Solar",
+                        "model": model,
+                    }
+        
+        # Fallback to entry_id if device ID not available
+        return {
+            "identifiers": {(DOMAIN, self._entry.entry_id)},
+            "name": self._entry.title,
+            "manufacturer": "Midnite Solar",
+        }
+
+    @property
+    def native_value(self) -> Optional[float]:
+        """Return the state of the sensor."""
+        return None
+
+
 class UNIT_IDSensor(MidniteSolarSensor):
     """Representation of a hardware revision & voltage category (pcb rev, unit type) sensor."""
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "UNIT_ID"
+        self._attr_name = "UNIT ID"
         self._attr_unique_id = f"{entry.entry_id}_unit_id"
         self._attr_icon = "mdi:identifier"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            device_info_data = self.coordinator.data["data"].get("device_info")
-            if device_info_data:
-                value = device_info_data.get(REGISTER_MAP["UNIT_ID"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
+                    # Formula: {formula}
                     return value
                 return None
 
@@ -262,18 +296,18 @@ class UNIT_SW_DATE_ROSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "UNIT_SW_DATE_RO"
+        self._attr_name = "UNIT SW DATE RO"
         self._attr_unique_id = f"{entry.entry_id}_unit_sw_date_ro"
         self._attr_icon = "mdi:calendar"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            device_info_data = self.coordinator.data["data"].get("device_info")
-            if device_info_data:
-                value = device_info_data.get(REGISTER_MAP["UNIT_SW_DATE_RO"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
+                    # Formula: {formula}
                     return value
                 return None
 
@@ -284,18 +318,17 @@ class UNIT_SW_DATE_MONTH_DAYSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "UNIT_SW_DATE_MONTH_DAY"
+        self._attr_name = "UNIT SW DATE MONTH DAY"
         self._attr_unique_id = f"{entry.entry_id}_unit_sw_date_month_day"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            device_info_data = self.coordinator.data["data"].get("device_info")
-            if device_info_data:
-                value = device_info_data.get(REGISTER_MAP["UNIT_SW_DATE_MONTH_DAY"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -307,17 +340,16 @@ class INFO_FLAGS_BITS3Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "INFO_FLAGS_BITS3"
+        self._attr_name = "System Status Flags"
         self._attr_unique_id = f"{entry.entry_id}_info_flags_bits3"
         self._attr_icon = "mdi:flag"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["INFO_FLAGS_BITS3"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -329,18 +361,17 @@ class RESERVED_4105Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "RESERVED_4105"
+        self._attr_name = "RESERVED 4105"
         self._attr_unique_id = f"{entry.entry_id}_reserved_4105"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
-            if advanced_status_data:
-                value = advanced_status_data.get(REGISTER_MAP["RESERVED_4105"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -352,18 +383,18 @@ class MAC_ADDRESS_PART_1Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "MAC_ADDRESS_PART_1"
+        self._attr_name = "MAC ADDRESS PART 1"
         self._attr_unique_id = f"{entry.entry_id}_mac_address_part_1"
         self._attr_icon = "mdi:wifi"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            device_info_data = self.coordinator.data["data"].get("device_info")
-            if device_info_data:
-                value = device_info_data.get(REGISTER_MAP["MAC_ADDRESS_PART_1"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
+                    # Formula: {formula}
                     return value
                 return None
 
@@ -374,17 +405,16 @@ class MAC_ADDRESS_PART_2Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "MAC_ADDRESS_PART_2"
+        self._attr_name = "MAC ADDRESS PART 2"
         self._attr_unique_id = f"{entry.entry_id}_mac_address_part_2"
         self._attr_icon = "mdi:wifi"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            device_info_data = self.coordinator.data["data"].get("device_info")
-            if device_info_data:
-                value = device_info_data.get(REGISTER_MAP["MAC_ADDRESS_PART_2"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -396,17 +426,16 @@ class MAC_ADDRESS_PART_3Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "MAC_ADDRESS_PART_3"
+        self._attr_name = "MAC ADDRESS PART 3"
         self._attr_unique_id = f"{entry.entry_id}_mac_address_part_3"
         self._attr_icon = "mdi:wifi"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            device_info_data = self.coordinator.data["data"].get("device_info")
-            if device_info_data:
-                value = device_info_data.get(REGISTER_MAP["MAC_ADDRESS_PART_3"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -425,16 +454,16 @@ class JrAmpHourNETSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
-            if advanced_status_data:
-                value = advanced_status_data.get(REGISTER_MAP["JrAmpHourNET"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -444,18 +473,17 @@ class DEVICE_ID_LSWSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "DEVICE_ID_LSW"
+        self._attr_name = "DEVICE ID LSW"
         self._attr_unique_id = f"{entry.entry_id}_device_id_lsw"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            device_info_data = self.coordinator.data["data"].get("device_info")
-            if device_info_data:
-                value = device_info_data.get(REGISTER_MAP["DEVICE_ID_LSW"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -467,18 +495,17 @@ class DEVICE_ID_MSWSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "DEVICE_ID_MSW"
+        self._attr_name = "DEVICE ID MSW"
         self._attr_unique_id = f"{entry.entry_id}_device_id_msw"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            device_info_data = self.coordinator.data["data"].get("device_info")
-            if device_info_data:
-                value = device_info_data.get(REGISTER_MAP["DEVICE_ID_MSW"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -493,15 +520,15 @@ class STATUSROLLSensor(MidniteSolarSensor):
         self._attr_name = "STATUSROLL"
         self._attr_unique_id = f"{entry.entry_id}_statusroll"
         self._attr_icon = "mdi:counter"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["STATUSROLL"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
+                    # Formula: {formula}
                     return value
                 return None
 
@@ -512,20 +539,19 @@ class RESTART_TIME_MSSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "RESTART_TIME_MS"
+        self._attr_name = "RESTART TIME MS"
         self._attr_unique_id = f"{entry.entry_id}_restart_time_ms"
         self._attr_device_class = SensorDeviceClass.DURATION
         self._attr_native_unit_of_measurement = "ms"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            time_settings_data = self.coordinator.data["data"].get("time_settings")
-            if time_settings_data:
-                value = time_settings_data.get(REGISTER_MAP["RESTART_TIME_MS"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -537,23 +563,23 @@ class DISP_AVG_VBATTSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "DISP_AVG_VBATT"
+        self._attr_name = "Battery Voltage"
         self._attr_unique_id = f"{entry.entry_id}_disp_avg_vbatt"
         self._attr_device_class = SensorDeviceClass.VOLTAGE
         self._attr_native_unit_of_measurement = "V"
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:flash-alert"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["DISP_AVG_VBATT"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -563,23 +589,23 @@ class DISP_AVG_VPVSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "DISP_AVG_VPV"
+        self._attr_name = "PV Voltage"
         self._attr_unique_id = f"{entry.entry_id}_disp_avg_vpv"
         self._attr_device_class = SensorDeviceClass.VOLTAGE
         self._attr_native_unit_of_measurement = "V"
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:solar-power"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["DISP_AVG_VPV"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -589,23 +615,23 @@ class IBATT_DISPLAY_SSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "IBATT_DISPLAY_S"
+        self._attr_name = "Battery Current"
         self._attr_unique_id = f"{entry.entry_id}_ibatt_display_s"
         self._attr_device_class = SensorDeviceClass.CURRENT
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["IBATT_DISPLAY_S"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -615,23 +641,23 @@ class KW_HOURSSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "KW_HOURS"
+        self._attr_name = "KW HOURS"
         self._attr_unique_id = f"{entry.entry_id}_kw_hours"
         self._attr_device_class = SensorDeviceClass.ENERGY
         self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
         self._attr_suggested_display_precision = 2
         self._attr_icon = "mdi:lightning-bolt"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["KW_HOURS"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 100.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -641,21 +667,20 @@ class WATTSSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WATTS"
+        self._attr_name = "Power Output"
         self._attr_unique_id = f"{entry.entry_id}_watts"
         self._attr_device_class = SensorDeviceClass.POWER
         self._attr_native_unit_of_measurement = UnitOfPower.WATT
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WATTS"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -667,23 +692,23 @@ class PV_INPUT_CURRENTSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "PV_INPUT_CURRENT"
+        self._attr_name = "PV Input Current"
         self._attr_unique_id = f"{entry.entry_id}_pv_input_current"
         self._attr_device_class = SensorDeviceClass.CURRENT
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:solar-power"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["PV_INPUT_CURRENT"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -693,23 +718,23 @@ class VOC_LAST_MEASUREDSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "VOC_LAST_MEASURED"
+        self._attr_name = "Last Measured VOC"
         self._attr_unique_id = f"{entry.entry_id}_voc_last_measured"
         self._attr_device_class = SensorDeviceClass.VOLTAGE
         self._attr_native_unit_of_measurement = "V"
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:flash-triangle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["VOC_LAST_MEASURED"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -719,20 +744,19 @@ class HIGHEST_VINPUT_LOGSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "HIGHEST_VINPUT_LOG"
+        self._attr_name = "HIGHEST VINPUT LOG"
         self._attr_unique_id = f"{entry.entry_id}_highest_vinput_log"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
-            if advanced_status_data:
-                value = advanced_status_data.get(REGISTER_MAP["HIGHEST_VINPUT_LOG"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    return value
                 return None
 
 
@@ -742,18 +766,17 @@ class MATCH_POINT_SHADOWSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "MATCH_POINT_SHADOW"
+        self._attr_name = "MATCH POINT SHADOW"
         self._attr_unique_id = f"{entry.entry_id}_match_point_shadow"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:chart-line"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
-            if advanced_status_data:
-                value = advanced_status_data.get(REGISTER_MAP["MATCH_POINT_SHADOW"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -765,21 +788,20 @@ class AMP_HOURS_DAILYSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "AMP_HOURS_DAILY"
+        self._attr_name = "Daily Amp-Hours"
         self._attr_unique_id = f"{entry.entry_id}_amp_hours_daily"
         self._attr_device_class = SensorDeviceClass.ENERGY
         self._attr_native_unit_of_measurement = "Ah"
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:calendar-clock"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            energy_data = self.coordinator.data["data"].get("energy")
-            if energy_data:
-                value = energy_data.get(REGISTER_MAP["AMP_HOURS_DAILY"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -791,23 +813,23 @@ class LIFETIME_KW_HOURS_1Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "LIFETIME_KW_HOURS_1"
+        self._attr_name = "Lifetime Energy"
         self._attr_unique_id = f"{entry.entry_id}_lifetime_kw_hours_1"
         self._attr_device_class = SensorDeviceClass.ENERGY
         self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
         self._attr_suggested_display_precision = 2
         self._attr_icon = "mdi:history"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            energy_data = self.coordinator.data["data"].get("energy")
-            if energy_data:
-                value = energy_data.get(REGISTER_MAP["LIFETIME_KW_HOURS_1"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 100.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -817,21 +839,20 @@ class LIFETIME_KW_HOURS_1_HIGHSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "LIFETIME_KW_HOURS_1_HIGH"
+        self._attr_name = "LIFETIME KW HOURS 1 HIGH"
         self._attr_unique_id = f"{entry.entry_id}_lifetime_kw_hours_1_high"
         self._attr_device_class = SensorDeviceClass.ENERGY
         self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
         self._attr_suggested_display_precision = 2
         self._attr_icon = "mdi:history"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            energy_data = self.coordinator.data["data"].get("energy")
-            if energy_data:
-                value = energy_data.get(REGISTER_MAP["LIFETIME_KW_HOURS_1_HIGH"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value / 100.0
                 return None
@@ -843,22 +864,22 @@ class LIFETIME_AMP_HOURS_1Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "LIFETIME_AMP_HOURS_1"
+        self._attr_name = "LIFETIME AMP HOURS 1"
         self._attr_unique_id = f"{entry.entry_id}_lifetime_amp_hours_1"
         self._attr_device_class = SensorDeviceClass.ENERGY
         self._attr_native_unit_of_measurement = "Ah"
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:history"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            energy_data = self.coordinator.data["data"].get("energy")
-            if energy_data:
-                value = energy_data.get(REGISTER_MAP["LIFETIME_AMP_HOURS_1"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
+                    # Formula: {formula}
                     return value
                 return None
 
@@ -869,21 +890,20 @@ class LIFETIME_AMP_HOURS_1_HIGHSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "LIFETIME_AMP_HOURS_1_HIGH"
+        self._attr_name = "LIFETIME AMP HOURS 1 HIGH"
         self._attr_unique_id = f"{entry.entry_id}_lifetime_amp_hours_1_high"
         self._attr_device_class = SensorDeviceClass.CURRENT
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            energy_data = self.coordinator.data["data"].get("energy")
-            if energy_data:
-                value = energy_data.get(REGISTER_MAP["LIFETIME_AMP_HOURS_1_HIGH"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -895,23 +915,23 @@ class BATT_TEMPERATURESensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "BATT_TEMPERATURE"
+        self._attr_name = "Battery Temperature"
         self._attr_unique_id = f"{entry.entry_id}_batt_temperature"
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
         self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:thermometer"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            temperatures_data = self.coordinator.data["data"].get("temperatures")
-            if temperatures_data:
-                value = temperatures_data.get(REGISTER_MAP["BATT_TEMPERATURE"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -921,23 +941,23 @@ class FET_TEMPERATURESensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "FET_TEMPERATURE"
+        self._attr_name = "FET Temperature"
         self._attr_unique_id = f"{entry.entry_id}_fet_temperature"
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
         self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:thermometer-high"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            temperatures_data = self.coordinator.data["data"].get("temperatures")
-            if temperatures_data:
-                value = temperatures_data.get(REGISTER_MAP["FET_TEMPERATURE"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -947,23 +967,23 @@ class PCB_TEMPERATURESensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "PCB_TEMPERATURE"
+        self._attr_name = "PCB Temperature"
         self._attr_unique_id = f"{entry.entry_id}_pcb_temperature"
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
         self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:thermometer-alert"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            temperatures_data = self.coordinator.data["data"].get("temperatures")
-            if temperatures_data:
-                value = temperatures_data.get(REGISTER_MAP["PCB_TEMPERATURE"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -973,20 +993,19 @@ class NITE_MINUTES_NO_PWRSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "NITE_MINUTES_NO_PWR"
+        self._attr_name = "NITE MINUTES NO PWR"
         self._attr_unique_id = f"{entry.entry_id}_nite_minutes_no_pwr"
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
-            if advanced_status_data:
-                value = advanced_status_data.get(REGISTER_MAP["NITE_MINUTES_NO_PWR"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -998,20 +1017,19 @@ class FLOAT_TIME_TODAY_SECSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "FLOAT_TIME_TODAY_SEC"
+        self._attr_name = "Float Time Today"
         self._attr_unique_id = f"{entry.entry_id}_float_time_today_sec"
         self._attr_device_class = SensorDeviceClass.DURATION
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:clock-outline"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            time_settings_data = self.coordinator.data["data"].get("time_settings")
-            if time_settings_data:
-                value = time_settings_data.get(REGISTER_MAP["FLOAT_TIME_TODAY_SEC"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -1023,20 +1041,19 @@ class ABSORB_TIMESensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "ABSORB_TIME"
+        self._attr_name = "Absorb Time Remaining"
         self._attr_unique_id = f"{entry.entry_id}_absorb_time"
         self._attr_device_class = SensorDeviceClass.DURATION
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:clock-start"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            time_settings_data = self.coordinator.data["data"].get("time_settings")
-            if time_settings_data:
-                value = time_settings_data.get(REGISTER_MAP["ABSORB_TIME"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -1048,18 +1065,17 @@ class PWM_READONLYSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "PWM_READONLY"
+        self._attr_name = "PWM READONLY"
         self._attr_unique_id = f"{entry.entry_id}_pwm_readonly"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["PWM_READONLY"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -1071,18 +1087,17 @@ class REASON_FOR_RESETSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "REASON_FOR_RESET"
+        self._attr_name = "REASON FOR RESET"
         self._attr_unique_id = f"{entry.entry_id}_reason_for_reset"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:alert-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["REASON_FOR_RESET"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -1094,20 +1109,19 @@ class EQUALIZE_TIMESensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "EQUALIZE_TIME"
+        self._attr_name = "Equalize Time Remaining"
         self._attr_unique_id = f"{entry.entry_id}_equalize_time"
         self._attr_device_class = SensorDeviceClass.DURATION
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:progress-wrench"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            time_settings_data = self.coordinator.data["data"].get("time_settings")
-            if time_settings_data:
-                value = time_settings_data.get(REGISTER_MAP["EQUALIZE_TIME"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -1119,20 +1133,19 @@ class MPP_W_LASTSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "MPP_W_LAST"
+        self._attr_name = "MPP W LAST"
         self._attr_unique_id = f"{entry.entry_id}_mpp_w_last"
         self._attr_device_class = SensorDeviceClass.POWER
         self._attr_native_unit_of_measurement = UnitOfPower.WATT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:lightning-bolt-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["MPP_W_LAST"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -1144,20 +1157,19 @@ class NO_DOUBLE_CLICK_TIMERSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "NO_DOUBLE_CLICK_TIMER"
+        self._attr_name = "NO DOUBLE CLICK TIMER"
         self._attr_unique_id = f"{entry.entry_id}_no_double_click_timer"
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["NO_DOUBLE_CLICK_TIMER"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -1169,21 +1181,20 @@ class SLIDING_CURRENT_LIMITSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "SLIDING_CURRENT_LIMIT"
+        self._attr_name = "SLIDING CURRENT LIMIT"
         self._attr_unique_id = f"{entry.entry_id}_sliding_current_limit"
         self._attr_device_class = SensorDeviceClass.CURRENT
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["SLIDING_CURRENT_LIMIT"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -1195,20 +1206,19 @@ class MIN_ABSORB_TIMESensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "MIN_ABSORB_TIME"
+        self._attr_name = "MIN ABSORB TIME"
         self._attr_unique_id = f"{entry.entry_id}_min_absorb_time"
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["MIN_ABSORB_TIME"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -1220,18 +1230,17 @@ class GENERAL_PURPOSE_WORDSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "GENERAL_PURPOSE_WORD"
+        self._attr_name = "GENERAL PURPOSE WORD"
         self._attr_unique_id = f"{entry.entry_id}_general_purpose_word"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["GENERAL_PURPOSE_WORD"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -1243,18 +1252,17 @@ class EQUALIZE_RETRY_DAYSSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "EQUALIZE_RETRY_DAYS"
+        self._attr_name = "EQUALIZE RETRY DAYS"
         self._attr_unique_id = f"{entry.entry_id}_equalize_retry_days"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["EQUALIZE_RETRY_DAYS"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -1266,18 +1274,17 @@ class FORCE_FLAG_BITSSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "FORCE_FLAG_BITS"
+        self._attr_name = "FORCE FLAG BITS"
         self._attr_unique_id = f"{entry.entry_id}_force_flag_bits"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:flag"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["FORCE_FLAG_BITS"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -1289,23 +1296,23 @@ class AUX1_VOLTS_LO_RELSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "AUX1_VOLTS_LO_REL"
+        self._attr_name = "AUX1 VOLTS LO REL"
         self._attr_unique_id = f"{entry.entry_id}_aux1_volts_lo_rel"
         self._attr_device_class = SensorDeviceClass.VOLTAGE
         self._attr_native_unit_of_measurement = "V"
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:flash-alert"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            aux_control_data = self.coordinator.data["data"].get("aux_control")
-            if aux_control_data:
-                value = aux_control_data.get(REGISTER_MAP["AUX1_VOLTS_LO_REL"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -1315,23 +1322,23 @@ class AUX1_VOLTS_HI_RELSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "AUX1_VOLTS_HI_REL"
+        self._attr_name = "AUX1 VOLTS HI REL"
         self._attr_unique_id = f"{entry.entry_id}_aux1_volts_hi_rel"
         self._attr_device_class = SensorDeviceClass.VOLTAGE
         self._attr_native_unit_of_measurement = "V"
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:flash-alert"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            aux_control_data = self.coordinator.data["data"].get("aux_control")
-            if aux_control_data:
-                value = aux_control_data.get(REGISTER_MAP["AUX1_VOLTS_HI_REL"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -1341,23 +1348,23 @@ class AUX2_VOLTS_LO_RELSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "AUX2_VOLTS_LO_REL"
+        self._attr_name = "AUX2 VOLTS LO REL"
         self._attr_unique_id = f"{entry.entry_id}_aux2_volts_lo_rel"
         self._attr_device_class = SensorDeviceClass.VOLTAGE
         self._attr_native_unit_of_measurement = "V"
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:flash-alert"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            aux_control_data = self.coordinator.data["data"].get("aux_control")
-            if aux_control_data:
-                value = aux_control_data.get(REGISTER_MAP["AUX2_VOLTS_LO_REL"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -1367,23 +1374,23 @@ class AUX2_VOLTS_HI_RELSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "AUX2_VOLTS_HI_REL"
+        self._attr_name = "AUX2 VOLTS HI REL"
         self._attr_unique_id = f"{entry.entry_id}_aux2_volts_hi_rel"
         self._attr_device_class = SensorDeviceClass.VOLTAGE
         self._attr_native_unit_of_measurement = "V"
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:flash-alert"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            aux_control_data = self.coordinator.data["data"].get("aux_control")
-            if aux_control_data:
-                value = aux_control_data.get(REGISTER_MAP["AUX2_VOLTS_HI_REL"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -1393,23 +1400,23 @@ class AUX1_VOLTS_LO_PV_ABSSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "AUX1_VOLTS_LO_PV_ABS"
+        self._attr_name = "AUX1 VOLTS LO PV ABS"
         self._attr_unique_id = f"{entry.entry_id}_aux1_volts_lo_pv_abs"
         self._attr_device_class = SensorDeviceClass.VOLTAGE
         self._attr_native_unit_of_measurement = "V"
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:flash-alert"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["AUX1_VOLTS_LO_PV_ABS"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -1419,23 +1426,23 @@ class AUX1_VOLTS_HI_PV_ABSSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "AUX1_VOLTS_HI_PV_ABS"
+        self._attr_name = "AUX1 VOLTS HI PV ABS"
         self._attr_unique_id = f"{entry.entry_id}_aux1_volts_hi_pv_abs"
         self._attr_device_class = SensorDeviceClass.VOLTAGE
         self._attr_native_unit_of_measurement = "V"
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:flash-alert"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            aux_control_data = self.coordinator.data["data"].get("aux_control")
-            if aux_control_data:
-                value = aux_control_data.get(REGISTER_MAP["AUX1_VOLTS_HI_PV_ABS"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -1451,16 +1458,16 @@ class VARIMAXSensor(MidniteSolarSensor):
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:arrow-expand-vertical"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            advanced_config_data = self.coordinator.data["data"].get("advanced_config")
-            if advanced_config_data:
-                value = advanced_config_data.get(REGISTER_MAP["VARIMAX"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -1470,23 +1477,23 @@ class AUX2_VOLTS_HI_PV_ABSSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "AUX2_VOLTS_HI_PV_ABS"
+        self._attr_name = "AUX2 VOLTS HI PV ABS"
         self._attr_unique_id = f"{entry.entry_id}_aux2_volts_hi_pv_abs"
         self._attr_device_class = SensorDeviceClass.VOLTAGE
         self._attr_native_unit_of_measurement = "V"
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:flash-alert"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            aux_control_data = self.coordinator.data["data"].get("aux_control")
-            if aux_control_data:
-                value = aux_control_data.get(REGISTER_MAP["AUX2_VOLTS_HI_PV_ABS"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -1496,17 +1503,16 @@ class ENABLE_FLAGS3Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "ENABLE_FLAGS3"
+        self._attr_name = "ENABLE FLAGS3"
         self._attr_unique_id = f"{entry.entry_id}_enable_flags3"
         self._attr_icon = "mdi:check-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            advanced_config_data = self.coordinator.data["data"].get("advanced_config")
-            if advanced_config_data:
-                value = advanced_config_data.get(REGISTER_MAP["ENABLE_FLAGS3"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -1518,18 +1524,17 @@ class ARC_FAULT_SENSITIVITYSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "ARC_FAULT_SENSITIVITY"
+        self._attr_name = "ARC FAULT SENSITIVITY"
         self._attr_unique_id = f"{entry.entry_id}_arc_fault_sensitivity"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
-            if advanced_status_data:
-                value = advanced_status_data.get(REGISTER_MAP["ARC_FAULT_SENSITIVITY"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -1541,20 +1546,20 @@ class VPV_TARGET_RDSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "VPV_TARGET_RD"
+        self._attr_name = "VPV TARGET RD"
         self._attr_unique_id = f"{entry.entry_id}_vpv_target_rd"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["VPV_TARGET_RD"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -1564,20 +1569,20 @@ class VPV_TARGET_WRSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "VPV_TARGET_WR"
+        self._attr_name = "VPV TARGET WR"
         self._attr_unique_id = f"{entry.entry_id}_vpv_target_wr"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["VPV_TARGET_WR"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -1587,20 +1592,19 @@ class SWEEP_INTERVAL_SECS_EEPROMSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "SWEEP_INTERVAL_SECS_EEPROM"
+        self._attr_name = "SWEEP INTERVAL SECS EEPROM"
         self._attr_unique_id = f"{entry.entry_id}_sweep_interval_secs_eeprom"
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["SWEEP_INTERVAL_SECS_EEPROM"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -1612,23 +1616,23 @@ class MIN_SWP_VOLTAGE_EEPROMSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "MIN_SWP_VOLTAGE_EEPROM"
+        self._attr_name = "MIN SWP VOLTAGE EEPROM"
         self._attr_unique_id = f"{entry.entry_id}_min_swp_voltage_eeprom"
         self._attr_device_class = SensorDeviceClass.VOLTAGE
         self._attr_native_unit_of_measurement = "V"
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:flash-alert"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["MIN_SWP_VOLTAGE_EEPROM"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -1638,23 +1642,23 @@ class MAX_INPUT_CURRENT_EEPROMSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "MAX_INPUT_CURRENT_EEPROM"
+        self._attr_name = "MAX INPUT CURRENT EEPROM"
         self._attr_unique_id = f"{entry.entry_id}_max_input_current_eeprom"
         self._attr_device_class = SensorDeviceClass.CURRENT
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["MAX_INPUT_CURRENT_EEPROM"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -1664,18 +1668,17 @@ class SWEEP_DEPTHSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "SWEEP_DEPTH"
+        self._attr_name = "SWEEP DEPTH"
         self._attr_unique_id = f"{entry.entry_id}_sweep_depth"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["SWEEP_DEPTH"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -1687,21 +1690,20 @@ class NEGATIVE_CURRENT_ADJSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "NEGATIVE_CURRENT_ADJ"
+        self._attr_name = "NEGATIVE CURRENT ADJ"
         self._attr_unique_id = f"{entry.entry_id}_negative_current_adj"
         self._attr_device_class = SensorDeviceClass.CURRENT
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["NEGATIVE_CURRENT_ADJ"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -1713,21 +1715,20 @@ class CLIPPER_CMD_VOLTSSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "CLIPPER_CMD_VOLTS"
+        self._attr_name = "CLIPPER CMD VOLTS"
         self._attr_unique_id = f"{entry.entry_id}_clipper_cmd_volts"
         self._attr_device_class = SensorDeviceClass.VOLTAGE
         self._attr_native_unit_of_measurement = "V"
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:flash-alert"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
-            if advanced_status_data:
-                value = advanced_status_data.get(REGISTER_MAP["CLIPPER_CMD_VOLTS"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -1739,18 +1740,17 @@ class WIND_NUMBER_OF_POLES_EEPROMSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WIND_NUMBER_OF_POLES_EEPROM"
+        self._attr_name = "WIND NUMBER OF POLES EEPROM"
         self._attr_unique_id = f"{entry.entry_id}_wind_number_of_poles_eeprom"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_NUMBER_OF_POLES_EEPROM"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -1762,18 +1762,17 @@ class MPP_PERCENT_VOC_EEPROMSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "MPP_PERCENT_VOC_EEPROM"
+        self._attr_name = "MPP PERCENT VOC EEPROM"
         self._attr_unique_id = f"{entry.entry_id}_mpp_percent_voc_eeprom"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["MPP_PERCENT_VOC_EEPROM"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -1785,18 +1784,17 @@ class WIND_TABLE_TO_USE_EEPROMSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WIND_TABLE_TO_USE_EEPROM"
+        self._attr_name = "WIND TABLE TO USE EEPROM"
         self._attr_unique_id = f"{entry.entry_id}_wind_table_to_use_eeprom"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_TABLE_TO_USE_EEPROM"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -1808,18 +1806,17 @@ class UNIT_NAME_0Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "UNIT_NAME_0"
+        self._attr_name = "UNIT NAME 0"
         self._attr_unique_id = f"{entry.entry_id}_unit_name_0"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            device_info_data = self.coordinator.data["data"].get("device_info")
-            if device_info_data:
-                value = device_info_data.get(REGISTER_MAP["UNIT_NAME_0"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -1831,18 +1828,17 @@ class UNIT_NAME_1Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "UNIT_NAME_1"
+        self._attr_name = "UNIT NAME 1"
         self._attr_unique_id = f"{entry.entry_id}_unit_name_1"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            device_info_data = self.coordinator.data["data"].get("device_info")
-            if device_info_data:
-                value = device_info_data.get(REGISTER_MAP["UNIT_NAME_1"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -1854,18 +1850,17 @@ class UNIT_NAME_2Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "UNIT_NAME_2"
+        self._attr_name = "UNIT NAME 2"
         self._attr_unique_id = f"{entry.entry_id}_unit_name_2"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            device_info_data = self.coordinator.data["data"].get("device_info")
-            if device_info_data:
-                value = device_info_data.get(REGISTER_MAP["UNIT_NAME_2"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -1877,18 +1872,17 @@ class UNIT_NAME_3Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "UNIT_NAME_3"
+        self._attr_name = "UNIT NAME 3"
         self._attr_unique_id = f"{entry.entry_id}_unit_name_3"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            device_info_data = self.coordinator.data["data"].get("device_info")
-            if device_info_data:
-                value = device_info_data.get(REGISTER_MAP["UNIT_NAME_3"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -1900,19 +1894,19 @@ class CTI_ME0Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "CTI_ME0"
+        self._attr_name = "CTI ME0"
         self._attr_unique_id = f"{entry.entry_id}_cti_me0"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
-            if advanced_status_data:
-                value = advanced_status_data.get(REGISTER_MAP["CTI_ME0"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
+                    # Formula: {formula}
                     return value
                 return None
 
@@ -1923,18 +1917,17 @@ class CTI_ME0_HIGHSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "CTI_ME0_HIGH"
+        self._attr_name = "CTI ME0 HIGH"
         self._attr_unique_id = f"{entry.entry_id}_cti_me0_high"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
-            if advanced_status_data:
-                value = advanced_status_data.get(REGISTER_MAP["CTI_ME0_HIGH"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -1946,19 +1939,19 @@ class CTI_ME1Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "CTI_ME1"
+        self._attr_name = "CTI ME1"
         self._attr_unique_id = f"{entry.entry_id}_cti_me1"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
-            if advanced_status_data:
-                value = advanced_status_data.get(REGISTER_MAP["CTI_ME1"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
+                    # Formula: {formula}
                     return value
                 return None
 
@@ -1969,18 +1962,17 @@ class CTI_ME1_HIGHSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "CTI_ME1_HIGH"
+        self._attr_name = "CTI ME1 HIGH"
         self._attr_unique_id = f"{entry.entry_id}_cti_me1_high"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
-            if advanced_status_data:
-                value = advanced_status_data.get(REGISTER_MAP["CTI_ME1_HIGH"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -1992,18 +1984,17 @@ class CTI_ME2Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "CTI_ME2"
+        self._attr_name = "CTI ME2"
         self._attr_unique_id = f"{entry.entry_id}_cti_me2"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
-            if advanced_status_data:
-                value = advanced_status_data.get(REGISTER_MAP["CTI_ME2"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -2015,18 +2006,17 @@ class REMOTE_BUTTONSSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "REMOTE_BUTTONS"
+        self._attr_name = "REMOTE BUTTONS"
         self._attr_unique_id = f"{entry.entry_id}_remote_buttons"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["REMOTE_BUTTONS"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -2042,15 +2032,15 @@ class PREVOCSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_prevoc"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["PREVOC"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
+                    # Formula: {formula}
                     return value
                 return None
 
@@ -2061,18 +2051,17 @@ class AUX2_A2D_D2ASensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "AUX2_A2D_D2A"
+        self._attr_name = "AUX2 A2D D2A"
         self._attr_unique_id = f"{entry.entry_id}_aux2_a2d_d2a"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            aux_control_data = self.coordinator.data["data"].get("aux_control")
-            if aux_control_data:
-                value = aux_control_data.get(REGISTER_MAP["AUX2_A2D_D2A"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -2084,19 +2073,19 @@ class VOC_RDSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "VOC_RD"
+        self._attr_name = "VOC RD"
         self._attr_unique_id = f"{entry.entry_id}_voc_rd"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["VOC_RD"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
+                    # Formula: {formula}
                     return value
                 return None
 
@@ -2107,20 +2096,19 @@ class ABSORB_TIME_DUPLICATESensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "ABSORB_TIME_DUPLICATE"
+        self._attr_name = "ABSORB TIME DUPLICATE"
         self._attr_unique_id = f"{entry.entry_id}_absorb_time_duplicate"
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
-            if advanced_status_data:
-                value = advanced_status_data.get(REGISTER_MAP["ABSORB_TIME_DUPLICATE"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -2132,20 +2120,19 @@ class SIESTA_TIME_SECSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "SIESTA_TIME_SEC"
+        self._attr_name = "SIESTA TIME SEC"
         self._attr_unique_id = f"{entry.entry_id}_siesta_time_sec"
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["SIESTA_TIME_SEC"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -2157,19 +2144,19 @@ class SIESTA_ABORT_VOC_ADJSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "SIESTA_ABORT_VOC_ADJ"
+        self._attr_name = "SIESTA ABORT VOC ADJ"
         self._attr_unique_id = f"{entry.entry_id}_siesta_abort_voc_adj"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["SIESTA_ABORT_VOC_ADJ"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
+                    # Formula: {formula}
                     return value
                 return None
 
@@ -2180,23 +2167,23 @@ class VBATT_REG_SET_P_TEMP_COMPSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "VBATT_REG_SET_P_TEMP_COMP"
+        self._attr_name = "VBATT REG SET P TEMP COMP"
         self._attr_unique_id = f"{entry.entry_id}_vbatt_reg_set_p_temp_comp"
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
         self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:thermometer"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["VBATT_REG_SET_P_TEMP_COMP"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -2206,18 +2193,17 @@ class VBATT_NOMINAL_EEPROMSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "VBATT_NOMINAL_EEPROM"
+        self._attr_name = "VBATT NOMINAL EEPROM"
         self._attr_unique_id = f"{entry.entry_id}_vbatt_nominal_eeprom"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["VBATT_NOMINAL_EEPROM"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -2229,23 +2215,23 @@ class ENDING_AMPES_EEPROMSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "ENDING_AMPES_EEPROM"
+        self._attr_name = "ENDING AMPES EEPROM"
         self._attr_unique_id = f"{entry.entry_id}_ending_ampes_eeprom"
         self._attr_device_class = SensorDeviceClass.CURRENT
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            eeprom_config_data = self.coordinator.data["data"].get("eeprom_config")
-            if eeprom_config_data:
-                value = eeprom_config_data.get(REGISTER_MAP["ENDING_AMPES_EEPROM"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -2255,18 +2241,17 @@ class ENDING_SOC_EEPROMSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "ENDING_SOC_EEPROM"
+        self._attr_name = "ENDING SOC EEPROM"
         self._attr_unique_id = f"{entry.entry_id}_ending_soc_eeprom"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            eeprom_config_data = self.coordinator.data["data"].get("eeprom_config")
-            if eeprom_config_data:
-                value = eeprom_config_data.get(REGISTER_MAP["ENDING_SOC_EEPROM"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -2278,23 +2263,23 @@ class REBUCK_VOLTS_EEPROMSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "REBUCK_VOLTS_EEPROM"
+        self._attr_name = "REBUCK VOLTS EEPROM"
         self._attr_unique_id = f"{entry.entry_id}_rebuck_volts_eeprom"
         self._attr_device_class = SensorDeviceClass.VOLTAGE
         self._attr_native_unit_of_measurement = "V"
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:flash-alert"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["REBUCK_VOLTS_EEPROM"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -2304,18 +2289,17 @@ class DAYS_BTW_BULK_ABS_EEPROMSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "DAYS_BTW_BULK_ABS_EEPROM"
+        self._attr_name = "DAYS BTW BULK ABS EEPROM"
         self._attr_unique_id = f"{entry.entry_id}_days_btw_bulk_abs_eeprom"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["DAYS_BTW_BULK_ABS_EEPROM"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -2327,19 +2311,19 @@ class DAY_LOG_COMB_CAT_INDEXSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "DAY_LOG_COMB_CAT_INDEX"
+        self._attr_name = "DAY LOG COMB CAT INDEX"
         self._attr_unique_id = f"{entry.entry_id}_day_log_comb_cat_index"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
-            if advanced_status_data:
-                value = advanced_status_data.get(REGISTER_MAP["DAY_LOG_COMB_CAT_INDEX"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
+                    # Formula: {formula}
                     return value
                 return None
 
@@ -2350,19 +2334,19 @@ class MIN_LOG_COMB_CAT_INDEXSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "MIN_LOG_COMB_CAT_INDEX"
+        self._attr_name = "MIN LOG COMB CAT INDEX"
         self._attr_unique_id = f"{entry.entry_id}_min_log_comb_cat_index"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
-            if advanced_status_data:
-                value = advanced_status_data.get(REGISTER_MAP["MIN_LOG_COMB_CAT_INDEX"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
+                    # Formula: {formula}
                     return value
                 return None
 
@@ -2373,20 +2357,19 @@ class REBUCK_TIMER_SEC_EEPROMSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "REBUCK_TIMER_SEC_EEPROM"
+        self._attr_name = "REBUCK TIMER SEC EEPROM"
         self._attr_unique_id = f"{entry.entry_id}_rebuck_timer_sec_eeprom"
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["REBUCK_TIMER_SEC_EEPROM"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -2398,20 +2381,19 @@ class VOC_QUALIFY_TIMER_MS_EEPROM_LOWSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "VOC_QUALIFY_TIMER_MS_EEPROM_LOW"
+        self._attr_name = "VOC QUALIFY TIMER MS EEPROM LOW"
         self._attr_unique_id = f"{entry.entry_id}_voc_qualify_timer_ms_eeprom_low"
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["VOC_QUALIFY_TIMER_MS_EEPROM_LOW"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -2423,21 +2405,21 @@ class VOC_QUALIFY_TIMER_MS_EEPROMSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "VOC_QUALIFY_TIMER_MS_EEPROM"
+        self._attr_name = "VOC QUALIFY TIMER MS EEPROM"
         self._attr_unique_id = f"{entry.entry_id}_voc_qualify_timer_ms_eeprom"
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["VOC_QUALIFY_TIMER_MS_EEPROM"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
+                    # Formula: {formula}
                     return value
                 return None
 
@@ -2448,18 +2430,17 @@ class IPV_MINUS_RAWSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "IPV_MINUS_RAW"
+        self._attr_name = "IPV MINUS RAW"
         self._attr_unique_id = f"{entry.entry_id}_ipv_minus_raw"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:network"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["IPV_MINUS_RAW"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -2471,20 +2452,19 @@ class RESTART_TIME_MS2Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "RESTART_TIME_MS2"
+        self._attr_name = "RESTART TIME MS2"
         self._attr_unique_id = f"{entry.entry_id}_restart_time_ms2"
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["RESTART_TIME_MS2"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -2496,23 +2476,23 @@ class IBATT_RAW_ASensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "IBATT_RAW_A"
+        self._attr_name = "IBATT RAW A"
         self._attr_unique_id = f"{entry.entry_id}_ibatt_raw_a"
         self._attr_device_class = SensorDeviceClass.CURRENT
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["IBATT_RAW_A"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -2522,20 +2502,20 @@ class OUTPUT_VBATT_RAWSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "OUTPUT_VBATT_RAW"
+        self._attr_name = "OUTPUT VBATT RAW"
         self._attr_unique_id = f"{entry.entry_id}_output_vbatt_raw"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["OUTPUT_VBATT_RAW"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -2545,20 +2525,20 @@ class INPUT_VPV_RAWSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "INPUT_VPV_RAW"
+        self._attr_name = "INPUT VPV RAW"
         self._attr_unique_id = f"{entry.entry_id}_input_vpv_raw"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["INPUT_VPV_RAW"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -2568,21 +2548,20 @@ class PK_HOLD_VPV_STAMPSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "PK_HOLD_VPV_STAMP"
+        self._attr_name = "PK HOLD VPV STAMP"
         self._attr_unique_id = f"{entry.entry_id}_pk_hold_vpv_stamp"
         self._attr_device_class = SensorDeviceClass.CURRENT
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["PK_HOLD_VPV_STAMP"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -2594,20 +2573,20 @@ class VPV_TARGET_RD_TMPSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "VPV_TARGET_RD_TMP"
+        self._attr_name = "VPV TARGET RD TMP"
         self._attr_unique_id = f"{entry.entry_id}_vpv_target_rd_tmp"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["VPV_TARGET_RD_TMP"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -2617,20 +2596,19 @@ class SWP_DEEP_TIMEOUT_SECSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "SWP_DEEP_TIMEOUT_SEC"
+        self._attr_name = "SWP DEEP TIMEOUT SEC"
         self._attr_unique_id = f"{entry.entry_id}_swp_deep_timeout_sec"
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["SWP_DEEP_TIMEOUT_SEC"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -2642,21 +2620,20 @@ class LOW_WATTS_EEPASensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "LOW_WATTS_EEPA"
+        self._attr_name = "LOW WATTS EEPA"
         self._attr_unique_id = f"{entry.entry_id}_low_watts_eepa"
         self._attr_device_class = SensorDeviceClass.POWER
         self._attr_native_unit_of_measurement = UnitOfPower.WATT
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["LOW_WATTS_EEPA"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -2668,21 +2645,20 @@ class WIND_LOW_WATTS_EEPASensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WIND_LOW_WATTS_EEPA"
+        self._attr_name = "WIND LOW WATTS EEPA"
         self._attr_unique_id = f"{entry.entry_id}_wind_low_watts_eepa"
         self._attr_device_class = SensorDeviceClass.POWER
         self._attr_native_unit_of_measurement = UnitOfPower.WATT
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_LOW_WATTS_EEPA"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -2694,21 +2670,20 @@ class WIND_WINDOW_WATTS_REF_EEPASensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WIND_WINDOW_WATTS_REF_EEPA"
+        self._attr_name = "WIND WINDOW WATTS REF EEPA"
         self._attr_unique_id = f"{entry.entry_id}_wind_window_watts_ref_eepa"
         self._attr_device_class = SensorDeviceClass.POWER
         self._attr_native_unit_of_measurement = UnitOfPower.WATT
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_WINDOW_WATTS_REF_EEPA"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -2720,21 +2695,20 @@ class WINDOW_WATTS_RO_DELTA_EEPASensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WINDOW_WATTS_RO_DELTA_EEPA"
+        self._attr_name = "WINDOW WATTS RO DELTA EEPA"
         self._attr_unique_id = f"{entry.entry_id}_window_watts_ro_delta_eepa"
         self._attr_device_class = SensorDeviceClass.POWER
         self._attr_native_unit_of_measurement = UnitOfPower.WATT
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WINDOW_WATTS_RO_DELTA_EEPA"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -2746,20 +2720,19 @@ class WIND_TIMEOUT_REF_EEPASensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WIND_TIMEOUT_REF_EEPA"
+        self._attr_name = "WIND TIMEOUT REF EEPA"
         self._attr_unique_id = f"{entry.entry_id}_wind_timeout_ref_eepa"
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_TIMEOUT_REF_EEPA"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -2771,20 +2744,19 @@ class WIND_TIMEOUT2_REF_EEPASensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WIND_TIMEOUT2_REF_EEPA"
+        self._attr_name = "WIND TIMEOUT2 REF EEPA"
         self._attr_unique_id = f"{entry.entry_id}_wind_timeout2_ref_eepa"
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_TIMEOUT2_REF_EEPA"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -2796,20 +2768,19 @@ class WIND_TIMEOUT_SECONDSSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WIND_TIMEOUT_SECONDS"
+        self._attr_name = "WIND TIMEOUT SECONDS"
         self._attr_unique_id = f"{entry.entry_id}_wind_timeout_seconds"
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_TIMEOUT_SECONDS"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -2821,20 +2792,19 @@ class WIND_TIMEOUT2_SECONDSSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WIND_TIMEOUT2_SECONDS"
+        self._attr_name = "WIND TIMEOUT2 SECONDS"
         self._attr_unique_id = f"{entry.entry_id}_wind_timeout2_seconds"
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_TIMEOUT2_SECONDS"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -2846,18 +2816,17 @@ class MIN_VPV_TURN_ONSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "MIN_VPV_TURN_ON"
+        self._attr_name = "MIN VPV TURN ON"
         self._attr_unique_id = f"{entry.entry_id}_min_vpv_turn_on"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["MIN_VPV_TURN_ON"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -2869,18 +2838,17 @@ class VPV_B4_TURN_OFFSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "VPV_B4_TURN_OFF"
+        self._attr_name = "VPV B4 TURN OFF"
         self._attr_unique_id = f"{entry.entry_id}_vpv_b4_turn_off"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["VPV_B4_TURN_OFF"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -2892,21 +2860,20 @@ class H2O_SWEEP_AMPS_10TIME6_EEPASensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "H2O_SWEEP_AMPS_10TIME6_EEPA"
+        self._attr_name = "H2O SWEEP AMPS 10TIME6 EEPA"
         self._attr_unique_id = f"{entry.entry_id}_h2o_sweep_amps_10time6_eepa"
         self._attr_device_class = SensorDeviceClass.CURRENT
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["H2O_SWEEP_AMPS_10TIME6_EEPA"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -2918,21 +2885,20 @@ class ENDING_AMPS_TIMER_SECSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "ENDING_AMPS_TIMER_SEC"
+        self._attr_name = "ENDING AMPS TIMER SEC"
         self._attr_unique_id = f"{entry.entry_id}_ending_amps_timer_sec"
         self._attr_device_class = SensorDeviceClass.CURRENT
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
-            if advanced_status_data:
-                value = advanced_status_data.get(REGISTER_MAP["ENDING_AMPS_TIMER_SEC"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -2944,21 +2910,20 @@ class PK_AMPS_OVER_LIMIT_HI_EEPASensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "PK_AMPS_OVER_LIMIT_HI_EEPA"
+        self._attr_name = "PK AMPS OVER LIMIT HI EEPA"
         self._attr_unique_id = f"{entry.entry_id}_pk_amps_over_limit_hi_eepa"
         self._attr_device_class = SensorDeviceClass.CURRENT
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["PK_AMPS_OVER_LIMIT_HI_EEPA"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -2970,21 +2935,20 @@ class PK_AMPS_OVER_LIMIT_LO_EEPASensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "PK_AMPS_OVER_LIMIT_LO_EEPA"
+        self._attr_name = "PK AMPS OVER LIMIT LO EEPA"
         self._attr_unique_id = f"{entry.entry_id}_pk_amps_over_limit_lo_eepa"
         self._attr_device_class = SensorDeviceClass.CURRENT
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["PK_AMPS_OVER_LIMIT_LO_EEPA"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -2996,21 +2960,20 @@ class WIND_POWER_TABLE_V_0_EEPASensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WIND_POWER_TABLE_V_0_EEPA"
+        self._attr_name = "WIND POWER TABLE V 0 EEPA"
         self._attr_unique_id = f"{entry.entry_id}_wind_power_table_v_0_eepa"
         self._attr_device_class = SensorDeviceClass.POWER
         self._attr_native_unit_of_measurement = UnitOfPower.WATT
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_V_0_EEPA"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3022,21 +2985,20 @@ class WIND_POWER_TABLE_V_1_EEPASensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WIND_POWER_TABLE_V_1_EEPA"
+        self._attr_name = "WIND POWER TABLE V 1 EEPA"
         self._attr_unique_id = f"{entry.entry_id}_wind_power_table_v_1_eepa"
         self._attr_device_class = SensorDeviceClass.POWER
         self._attr_native_unit_of_measurement = UnitOfPower.WATT
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_V_1_EEPA"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3048,21 +3010,20 @@ class WIND_POWER_TABLE_V_2_EEPASensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WIND_POWER_TABLE_V_2_EEPA"
+        self._attr_name = "WIND POWER TABLE V 2 EEPA"
         self._attr_unique_id = f"{entry.entry_id}_wind_power_table_v_2_eepa"
         self._attr_device_class = SensorDeviceClass.POWER
         self._attr_native_unit_of_measurement = UnitOfPower.WATT
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_V_2_EEPA"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3074,21 +3035,20 @@ class WIND_POWER_TABLE_V_3_EEPASensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WIND_POWER_TABLE_V_3_EEPA"
+        self._attr_name = "WIND POWER TABLE V 3 EEPA"
         self._attr_unique_id = f"{entry.entry_id}_wind_power_table_v_3_eepa"
         self._attr_device_class = SensorDeviceClass.POWER
         self._attr_native_unit_of_measurement = UnitOfPower.WATT
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_V_3_EEPA"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3100,21 +3060,20 @@ class WIND_POWER_TABLE_V_4_EEPASensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WIND_POWER_TABLE_V_4_EEPA"
+        self._attr_name = "WIND POWER TABLE V 4 EEPA"
         self._attr_unique_id = f"{entry.entry_id}_wind_power_table_v_4_eepa"
         self._attr_device_class = SensorDeviceClass.POWER
         self._attr_native_unit_of_measurement = UnitOfPower.WATT
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_V_4_EEPA"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3126,21 +3085,20 @@ class WIND_POWER_TABLE_V_5_EEPASensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WIND_POWER_TABLE_V_5_EEPA"
+        self._attr_name = "WIND POWER TABLE V 5 EEPA"
         self._attr_unique_id = f"{entry.entry_id}_wind_power_table_v_5_eepa"
         self._attr_device_class = SensorDeviceClass.POWER
         self._attr_native_unit_of_measurement = UnitOfPower.WATT
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_V_5_EEPA"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3152,21 +3110,20 @@ class WIND_POWER_TABLE_V_6_EEPASensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WIND_POWER_TABLE_V_6_EEPA"
+        self._attr_name = "WIND POWER TABLE V 6 EEPA"
         self._attr_unique_id = f"{entry.entry_id}_wind_power_table_v_6_eepa"
         self._attr_device_class = SensorDeviceClass.POWER
         self._attr_native_unit_of_measurement = UnitOfPower.WATT
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_V_6_EEPA"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3178,21 +3135,20 @@ class WIND_POWER_TABLE_V_7_EEPASensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WIND_POWER_TABLE_V_7_EEPA"
+        self._attr_name = "WIND POWER TABLE V 7 EEPA"
         self._attr_unique_id = f"{entry.entry_id}_wind_power_table_v_7_eepa"
         self._attr_device_class = SensorDeviceClass.POWER
         self._attr_native_unit_of_measurement = UnitOfPower.WATT
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_V_7_EEPA"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3204,21 +3160,20 @@ class WIND_POWER_TABLE_I_0_EEPASensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WIND_POWER_TABLE_I_0_EEPA"
+        self._attr_name = "WIND POWER TABLE I 0 EEPA"
         self._attr_unique_id = f"{entry.entry_id}_wind_power_table_i_0_eepa"
         self._attr_device_class = SensorDeviceClass.POWER
         self._attr_native_unit_of_measurement = UnitOfPower.WATT
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_I_0_EEPA"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3230,21 +3185,20 @@ class WIND_POWER_TABLE_I_1_EEPASensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WIND_POWER_TABLE_I_1_EEPA"
+        self._attr_name = "WIND POWER TABLE I 1 EEPA"
         self._attr_unique_id = f"{entry.entry_id}_wind_power_table_i_1_eepa"
         self._attr_device_class = SensorDeviceClass.POWER
         self._attr_native_unit_of_measurement = UnitOfPower.WATT
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_I_1_EEPA"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3256,21 +3210,20 @@ class WIND_POWER_TABLE_I_2_EEPASensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WIND_POWER_TABLE_I_2_EEPA"
+        self._attr_name = "WIND POWER TABLE I 2 EEPA"
         self._attr_unique_id = f"{entry.entry_id}_wind_power_table_i_2_eepa"
         self._attr_device_class = SensorDeviceClass.POWER
         self._attr_native_unit_of_measurement = UnitOfPower.WATT
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_I_2_EEPA"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3282,21 +3235,20 @@ class WIND_POWER_TABLE_I_3_EEPASensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WIND_POWER_TABLE_I_3_EEPA"
+        self._attr_name = "WIND POWER TABLE I 3 EEPA"
         self._attr_unique_id = f"{entry.entry_id}_wind_power_table_i_3_eepa"
         self._attr_device_class = SensorDeviceClass.POWER
         self._attr_native_unit_of_measurement = UnitOfPower.WATT
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_I_3_EEPA"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3308,21 +3260,20 @@ class WIND_POWER_TABLE_I_4_EEPASensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WIND_POWER_TABLE_I_4_EEPA"
+        self._attr_name = "WIND POWER TABLE I 4 EEPA"
         self._attr_unique_id = f"{entry.entry_id}_wind_power_table_i_4_eepa"
         self._attr_device_class = SensorDeviceClass.POWER
         self._attr_native_unit_of_measurement = UnitOfPower.WATT
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_I_4_EEPA"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3334,21 +3285,20 @@ class WIND_POWER_TABLE_I_5_EEPASensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WIND_POWER_TABLE_I_5_EEPA"
+        self._attr_name = "WIND POWER TABLE I 5 EEPA"
         self._attr_unique_id = f"{entry.entry_id}_wind_power_table_i_5_eepa"
         self._attr_device_class = SensorDeviceClass.POWER
         self._attr_native_unit_of_measurement = UnitOfPower.WATT
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_I_5_EEPA"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3360,21 +3310,20 @@ class WIND_POWER_TABLE_I_6_EEPASensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WIND_POWER_TABLE_I_6_EEPA"
+        self._attr_name = "WIND POWER TABLE I 6 EEPA"
         self._attr_unique_id = f"{entry.entry_id}_wind_power_table_i_6_eepa"
         self._attr_device_class = SensorDeviceClass.POWER
         self._attr_native_unit_of_measurement = UnitOfPower.WATT
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_I_6_EEPA"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3386,21 +3335,20 @@ class WIND_POWER_TABLE_I_7_EEPASensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WIND_POWER_TABLE_I_7_EEPA"
+        self._attr_name = "WIND POWER TABLE I 7 EEPA"
         self._attr_unique_id = f"{entry.entry_id}_wind_power_table_i_7_eepa"
         self._attr_device_class = SensorDeviceClass.POWER
         self._attr_native_unit_of_measurement = UnitOfPower.WATT
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_I_7_EEPA"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3412,21 +3360,20 @@ class PK_AMPS_OVER_TRIP_EEPROMSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "PK_AMPS_OVER_TRIP_EEPROM"
+        self._attr_name = "PK AMPS OVER TRIP EEPROM"
         self._attr_unique_id = f"{entry.entry_id}_pk_amps_over_trip_eeprom"
         self._attr_device_class = SensorDeviceClass.CURRENT
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["PK_AMPS_OVER_TRIP_EEPROM"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -3438,18 +3385,17 @@ class MNGP_REVISIONSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "MNGP_REVISION"
+        self._attr_name = "MNGP REVISION"
         self._attr_unique_id = f"{entry.entry_id}_mngp_revision"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["MNGP_REVISION"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3461,18 +3407,17 @@ class MNLP_REVISIONSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "MNLP_REVISION"
+        self._attr_name = "MNLP REVISION"
         self._attr_unique_id = f"{entry.entry_id}_mnlp_revision"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["MNLP_REVISION"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3484,18 +3429,17 @@ class CLASSIC_MODBUS_ADDR_EEPROMSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "CLASSIC_MODBUS_ADDR_EEPROM"
+        self._attr_name = "CLASSIC MODBUS ADDR EEPROM"
         self._attr_unique_id = f"{entry.entry_id}_classic_modbus_addr_eeprom"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:network"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            eeprom_config_data = self.coordinator.data["data"].get("eeprom_config")
-            if eeprom_config_data:
-                value = eeprom_config_data.get(REGISTER_MAP["CLASSIC_MODBUS_ADDR_EEPROM"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3507,21 +3451,20 @@ class BATTERY_TEMP_PASSED_EEPROMSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "BATTERY_TEMP_PASSED_EEPROM"
+        self._attr_name = "BATTERY TEMP PASSED EEPROM"
         self._attr_unique_id = f"{entry.entry_id}_battery_temp_passed_eeprom"
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
         self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:thermometer"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            eeprom_config_data = self.coordinator.data["data"].get("eeprom_config")
-            if eeprom_config_data:
-                value = eeprom_config_data.get(REGISTER_MAP["BATTERY_TEMP_PASSED_EEPROM"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3533,18 +3476,17 @@ class MODBUS_CONTROL_EEPROMSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "MODBUS_CONTROL_EEPROM"
+        self._attr_name = "MODBUS CONTROL EEPROM"
         self._attr_unique_id = f"{entry.entry_id}_modbus_control_eeprom"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:network"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            eeprom_config_data = self.coordinator.data["data"].get("eeprom_config")
-            if eeprom_config_data:
-                value = eeprom_config_data.get(REGISTER_MAP["MODBUS_CONTROL_EEPROM"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3556,18 +3498,17 @@ class CLASSIC_FME_PASSED_BITS_EEPROMSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "CLASSIC_FME_PASSED_BITS_EEPROM"
+        self._attr_name = "CLASSIC FME PASSED BITS EEPROM"
         self._attr_unique_id = f"{entry.entry_id}_classic_fme_passed_bits_eeprom"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            eeprom_config_data = self.coordinator.data["data"].get("eeprom_config")
-            if eeprom_config_data:
-                value = eeprom_config_data.get(REGISTER_MAP["CLASSIC_FME_PASSED_BITS_EEPROM"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3579,18 +3520,17 @@ class WIND_SYNCH_A_EEPROMSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WIND_SYNCH_A_EEPROM"
+        self._attr_name = "WIND SYNCH A EEPROM"
         self._attr_unique_id = f"{entry.entry_id}_wind_synch_a_eeprom"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_SYNCH_A_EEPROM"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3602,18 +3542,17 @@ class WIND_SYNCH_V_EEPROMSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WIND_SYNCH_V_EEPROM"
+        self._attr_name = "WIND SYNCH V EEPROM"
         self._attr_unique_id = f"{entry.entry_id}_wind_synch_v_eeprom"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_SYNCH_V_EEPROM"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3625,18 +3564,17 @@ class FOLLOW_ME_PASS_REF_EEPROMSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "FOLLOW_ME_PASS_REF_EEPROM"
+        self._attr_name = "FOLLOW ME PASS REF EEPROM"
         self._attr_unique_id = f"{entry.entry_id}_follow_me_pass_ref_eeprom"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["FOLLOW_ME_PASS_REF_EEPROM"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3648,18 +3586,17 @@ class DABT_U32_DEBUG_01Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "DABT_U32_DEBUG_01"
+        self._attr_name = "DABT U32 DEBUG 01"
         self._attr_unique_id = f"{entry.entry_id}_dabt_u32_debug_01"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
-            if advanced_status_data:
-                value = advanced_status_data.get(REGISTER_MAP["DABT_U32_DEBUG_01"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3671,18 +3608,17 @@ class DABT_U32_DEBUG_02Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "DABT_U32_DEBUG_02"
+        self._attr_name = "DABT U32 DEBUG 02"
         self._attr_unique_id = f"{entry.entry_id}_dabt_u32_debug_02"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
-            if advanced_status_data:
-                value = advanced_status_data.get(REGISTER_MAP["DABT_U32_DEBUG_02"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3694,18 +3630,17 @@ class DABT_U32_DEBUG_03Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "DABT_U32_DEBUG_03"
+        self._attr_name = "DABT U32 DEBUG 03"
         self._attr_unique_id = f"{entry.entry_id}_dabt_u32_debug_03"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
-            if advanced_status_data:
-                value = advanced_status_data.get(REGISTER_MAP["DABT_U32_DEBUG_03"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3717,18 +3652,17 @@ class DABT_U32_DEBUG_04Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "DABT_U32_DEBUG_04"
+        self._attr_name = "DABT U32 DEBUG 04"
         self._attr_unique_id = f"{entry.entry_id}_dabt_u32_debug_04"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
-            if advanced_status_data:
-                value = advanced_status_data.get(REGISTER_MAP["DABT_U32_DEBUG_04"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3740,18 +3674,17 @@ class CLEAR_LOGS_CATSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "CLEAR_LOGS_CAT"
+        self._attr_name = "CLEAR LOGS CAT"
         self._attr_unique_id = f"{entry.entry_id}_clear_logs_cat"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
-            if advanced_status_data:
-                value = advanced_status_data.get(REGISTER_MAP["CLEAR_LOGS_CAT"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3763,18 +3696,17 @@ class CLEAR_LOGS_COUNTER_10MSSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "CLEAR_LOGS_COUNTER_10MS"
+        self._attr_name = "CLEAR LOGS COUNTER 10MS"
         self._attr_unique_id = f"{entry.entry_id}_clear_logs_counter_10ms"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
-            if advanced_status_data:
-                value = advanced_status_data.get(REGISTER_MAP["CLEAR_LOGS_COUNTER_10MS"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3786,18 +3718,17 @@ class USER_VARIABLE_02Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "USER_VARIABLE_02"
+        self._attr_name = "USER VARIABLE 02"
         self._attr_unique_id = f"{entry.entry_id}_user_variable_02"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["USER_VARIABLE_02"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3809,21 +3740,20 @@ class WIZBANG_RX_BUFFER_TEMP_SH1Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WIZBANG_RX_BUFFER_TEMP_SH1"
+        self._attr_name = "WIZBANG RX BUFFER TEMP SH1"
         self._attr_unique_id = f"{entry.entry_id}_wizbang_rx_buffer_temp_sh1"
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
         self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:thermometer-alert"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WIZBANG_RX_BUFFER_TEMP_SH1"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3835,21 +3765,20 @@ class WIZBANG_RX_BUFFER_TEMP_SH2Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WIZBANG_RX_BUFFER_TEMP_SH2"
+        self._attr_name = "WIZBANG RX BUFFER TEMP SH2"
         self._attr_unique_id = f"{entry.entry_id}_wizbang_rx_buffer_temp_sh2"
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
         self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:thermometer-alert"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WIZBANG_RX_BUFFER_TEMP_SH2"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3861,21 +3790,20 @@ class WIZBANG_RX_BUFFER_TEMP_SH3Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WIZBANG_RX_BUFFER_TEMP_SH3"
+        self._attr_name = "WIZBANG RX BUFFER TEMP SH3"
         self._attr_unique_id = f"{entry.entry_id}_wizbang_rx_buffer_temp_sh3"
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
         self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:thermometer-alert"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WIZBANG_RX_BUFFER_TEMP_SH3"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3887,21 +3815,20 @@ class WIZBANG_RX_BUFFER_TEMP_SH4Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WIZBANG_RX_BUFFER_TEMP_SH4"
+        self._attr_name = "WIZBANG RX BUFFER TEMP SH4"
         self._attr_unique_id = f"{entry.entry_id}_wizbang_rx_buffer_temp_sh4"
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
         self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:thermometer-alert"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WIZBANG_RX_BUFFER_TEMP_SH4"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3913,18 +3840,17 @@ class WJRB_CMD_S_EEPROMSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WJRB_CMD_S_EEPROM"
+        self._attr_name = "WJRB CMD S EEPROM"
         self._attr_unique_id = f"{entry.entry_id}_wjrb_cmd_s_eeprom"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WJRB_CMD_S_EEPROM"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3936,21 +3862,20 @@ class WJRB_RAW_CURRENTSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WJRB_RAW_CURRENT"
+        self._attr_name = "WJRB RAW CURRENT"
         self._attr_unique_id = f"{entry.entry_id}_wjrb_raw_current"
         self._attr_device_class = SensorDeviceClass.CURRENT
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WJRB_RAW_CURRENT"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -3962,18 +3887,17 @@ class WJRB_NUMERATOR_SS_EEPROMSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WJRB_NUMERATOR_SS_EEPROM"
+        self._attr_name = "WJRB NUMERATOR SS EEPROM"
         self._attr_unique_id = f"{entry.entry_id}_wjrb_numerator_ss_eeprom"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WJRB_NUMERATOR_SS_EEPROM"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -3985,23 +3909,23 @@ class WJRB_AMP_HOUR_POSITIVESensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WJRB_AMP_HOUR_POSITIVE"
+        self._attr_name = "WJRB AMP HOUR POSITIVE"
         self._attr_unique_id = f"{entry.entry_id}_wjrb_amp_hour_positive"
         self._attr_device_class = SensorDeviceClass.CURRENT
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WJRB_AMP_HOUR_POSITIVE"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -4011,21 +3935,20 @@ class WJRB_AMP_HOUR_POSITIVE_HIGHSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WJRB_AMP_HOUR_POSITIVE_HIGH"
+        self._attr_name = "WJRB AMP HOUR POSITIVE HIGH"
         self._attr_unique_id = f"{entry.entry_id}_wjrb_amp_hour_positive_high"
         self._attr_device_class = SensorDeviceClass.CURRENT
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WJRB_AMP_HOUR_POSITIVE_HIGH"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -4037,23 +3960,23 @@ class WJRB_AMP_HOUR_NEGATIVESensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WJRB_AMP_HOUR_NEGATIVE"
+        self._attr_name = "WJRB AMP HOUR NEGATIVE"
         self._attr_unique_id = f"{entry.entry_id}_wjrb_amp_hour_negative"
         self._attr_device_class = SensorDeviceClass.CURRENT
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WJRB_AMP_HOUR_NEGATIVE"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -4063,21 +3986,20 @@ class WJRB_AMP_HOUR_NEGATIVE_HIGHSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WJRB_AMP_HOUR_NEGATIVE_HIGH"
+        self._attr_name = "WJRB AMP HOUR NEGATIVE HIGH"
         self._attr_unique_id = f"{entry.entry_id}_wjrb_amp_hour_negative_high"
         self._attr_device_class = SensorDeviceClass.CURRENT
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WJRB_AMP_HOUR_NEGATIVE_HIGH"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -4089,23 +4011,23 @@ class WJRB_AMP_HOUR_NETSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WJRB_AMP_HOUR_NET"
+        self._attr_name = "WJRB AMP HOUR NET"
         self._attr_unique_id = f"{entry.entry_id}_wjrb_amp_hour_net"
         self._attr_device_class = SensorDeviceClass.CURRENT
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WJRB_AMP_HOUR_NET"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-                    return value / 10.0
+                    # Formula: {formula}
+                    return value
                 return None
 
 
@@ -4115,21 +4037,20 @@ class WJRB_AMP_HOUR_NET_HIGHSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WJRB_AMP_HOUR_NET_HIGH"
+        self._attr_name = "WJRB AMP HOUR NET HIGH"
         self._attr_unique_id = f"{entry.entry_id}_wjrb_amp_hour_net_high"
         self._attr_device_class = SensorDeviceClass.CURRENT
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WJRB_AMP_HOUR_NET_HIGH"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -4141,21 +4062,20 @@ class WJRB_CURRENT_32_SIGNED_EEPROMSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WJRB_CURRENT_32_SIGNED_EEPROM"
+        self._attr_name = "WJRB CURRENT 32 SIGNED EEPROM"
         self._attr_unique_id = f"{entry.entry_id}_wjrb_current_32_signed_eeprom"
         self._attr_device_class = SensorDeviceClass.CURRENT
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WJRB_CURRENT_32_SIGNED_EEPROM"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value / 10.0
                 return None
@@ -4167,21 +4087,20 @@ class WJRB_RAW_CRC_AND_TEMPSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "WJRB_RAW_CRC_AND_TEMP"
+        self._attr_name = "WJRB RAW CRC AND TEMP"
         self._attr_unique_id = f"{entry.entry_id}_wjrb_raw_crc_and_temp"
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
         self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:thermometer-alert"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WJRB_RAW_CRC_AND_TEMP"])
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -4193,18 +4112,17 @@ class IP_ADDRESS_LSB_1Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "IP_ADDRESS_LSB_1"
+        self._attr_name = "IP ADDRESS LSB 1"
         self._attr_unique_id = f"{entry.entry_id}_ip_address_lsb_1"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:network"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            network_config_data = self.coordinator.data["data"].get("network_config")
-            if network_config_data:
-                value = network_config_data.get(REGISTER_MAP["IP_ADDRESS_LSB_1"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -4216,18 +4134,17 @@ class IP_ADDRESS_LSB_2Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "IP_ADDRESS_LSB_2"
+        self._attr_name = "IP ADDRESS LSB 2"
         self._attr_unique_id = f"{entry.entry_id}_ip_address_lsb_2"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:network"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            network_config_data = self.coordinator.data["data"].get("network_config")
-            if network_config_data:
-                value = network_config_data.get(REGISTER_MAP["IP_ADDRESS_LSB_2"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -4239,18 +4156,17 @@ class GATEWAY_ADDRESS_LSB_1Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "GATEWAY_ADDRESS_LSB_1"
+        self._attr_name = "GATEWAY ADDRESS LSB 1"
         self._attr_unique_id = f"{entry.entry_id}_gateway_address_lsb_1"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:network"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            network_config_data = self.coordinator.data["data"].get("network_config")
-            if network_config_data:
-                value = network_config_data.get(REGISTER_MAP["GATEWAY_ADDRESS_LSB_1"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -4262,18 +4178,17 @@ class GATEWAY_ADDRESS_LSB_2Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "GATEWAY_ADDRESS_LSB_2"
+        self._attr_name = "GATEWAY ADDRESS LSB 2"
         self._attr_unique_id = f"{entry.entry_id}_gateway_address_lsb_2"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:network"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            network_config_data = self.coordinator.data["data"].get("network_config")
-            if network_config_data:
-                value = network_config_data.get(REGISTER_MAP["GATEWAY_ADDRESS_LSB_2"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -4285,18 +4200,17 @@ class SUBNET_MASK_LSB_1Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "SUBNET_MASK_LSB_1"
+        self._attr_name = "SUBNET MASK LSB 1"
         self._attr_unique_id = f"{entry.entry_id}_subnet_mask_lsb_1"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            network_config_data = self.coordinator.data["data"].get("network_config")
-            if network_config_data:
-                value = network_config_data.get(REGISTER_MAP["SUBNET_MASK_LSB_1"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -4308,18 +4222,17 @@ class SUBNET_MASK_LSB_2Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "SUBNET_MASK_LSB_2"
+        self._attr_name = "SUBNET MASK LSB 2"
         self._attr_unique_id = f"{entry.entry_id}_subnet_mask_lsb_2"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            network_config_data = self.coordinator.data["data"].get("network_config")
-            if network_config_data:
-                value = network_config_data.get(REGISTER_MAP["SUBNET_MASK_LSB_2"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -4331,18 +4244,17 @@ class DNS_1_LSB_1Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "DNS_1_LSB_1"
+        self._attr_name = "DNS 1 LSB 1"
         self._attr_unique_id = f"{entry.entry_id}_dns_1_lsb_1"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:network"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            network_config_data = self.coordinator.data["data"].get("network_config")
-            if network_config_data:
-                value = network_config_data.get(REGISTER_MAP["DNS_1_LSB_1"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -4354,18 +4266,17 @@ class DNS_1_LSB_2Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "DNS_1_LSB_2"
+        self._attr_name = "DNS 1 LSB 2"
         self._attr_unique_id = f"{entry.entry_id}_dns_1_lsb_2"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:network"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            network_config_data = self.coordinator.data["data"].get("network_config")
-            if network_config_data:
-                value = network_config_data.get(REGISTER_MAP["DNS_1_LSB_2"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -4377,18 +4288,17 @@ class DNS_2_LSB_1Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "DNS_2_LSB_1"
+        self._attr_name = "DNS 2 LSB 1"
         self._attr_unique_id = f"{entry.entry_id}_dns_2_lsb_1"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:network"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            network_config_data = self.coordinator.data["data"].get("network_config")
-            if network_config_data:
-                value = network_config_data.get(REGISTER_MAP["DNS_2_LSB_1"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
@@ -4400,117 +4310,17 @@ class DNS_2_LSB_2Sensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "DNS_2_LSB_2"
+        self._attr_name = "DNS 2 LSB 2"
         self._attr_unique_id = f"{entry.entry_id}_dns_2_lsb_2"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:network"
-
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            network_config_data = self.coordinator.data["data"].get("network_config")
-            if network_config_data:
-                value = network_config_data.get(REGISTER_MAP["DNS_2_LSB_2"])
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
                     return value
                 return None
-
-
-
-# Special sensors that need custom logic (combining multiple registers, etc.)
-class ChargeStageSensor(MidniteSolarSensor):
-    """Representation of a charge stage sensor."""
-
-    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
-        """Initialize the sensor."""
-        super().__init__(coordinator, entry)
-        self._attr_name = "Charge Stage"
-        self._attr_unique_id = f"{entry.entry_id}_charge_stage"
-        self._attr_device_class = SensorDeviceClass.ENUM
-        self._attr_options = list(CHARGE_STAGES.values())
-
-    @property
-    def native_value(self) -> Optional[str]:
-        """Return the state of the sensor."""
-        if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                raw_value = status_data.get(REGISTER_MAP["COMBO_CHARGE_STAGE"])
-                if raw_value is not None:
-                    # Extract MSB (high byte) for charge stage
-                    charge_stage_value = (raw_value >> 8) & 0xFF
-                    return CHARGE_STAGES.get(charge_stage_value, f"Unknown ({charge_stage_value})")
-        return None
-
-
-class InternalStateSensor(MidniteSolarSensor):
-    """Representation of an internal state sensor."""
-
-    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
-        """Initialize the sensor."""
-        super().__init__(coordinator, entry)
-        self._attr_name = "Internal State"
-        self._attr_unique_id = f"{entry.entry_id}_internal_state"
-        self._attr_device_class = SensorDeviceClass.ENUM
-        self._attr_entity_category = EntityCategory.DIAGNOSTIC
-        self._attr_options = list(INTERNAL_STATES.values())
-
-    @property
-    def native_value(self) -> Optional[str]:
-        """Return the state of the sensor."""
-        if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                raw_value = status_data.get(REGISTER_MAP["COMBO_CHARGE_STAGE"])
-                if raw_value is not None:
-                    # Extract LSB (low byte) for internal state
-                    internal_state_value = raw_value & 0xFF
-                    return INTERNAL_STATES.get(internal_state_value, f"Unknown ({internal_state_value})")
-        return None
-
-
-class DeviceTypeSensor(MidniteSolarSensor):
-    """Representation of the device type sensor."""
-
-    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
-        """Initialize the sensor."""
-        super().__init__(coordinator, entry)
-        self._attr_name = "Device Type"
-        self._attr_unique_id = f"{entry.entry_id}_device_type"
-        self._attr_entity_category = EntityCategory.DIAGNOSTIC
-
-    @property
-    def native_value(self) -> Optional[str]:
-        """Return the state of the sensor."""
-        if self.coordinator.data and "data" in self.coordinator.data:
-            device_info_data = self.coordinator.data["data"].get("device_info")
-            if device_info_data:
-                value = device_info_data.get(REGISTER_MAP["UNIT_ID"])
-                if value is not None:
-                    # Register 4101: [4101]MSB → PCB Rev, [4101]LSB → Unit Type
-                    device_value = value & 0xFF  # Get LSB (unit type)
-                    return DEVICE_TYPES.get(device_value, f"Unknown ({device_value})")
-        return None
-
-
-class RestReasonSensor(MidniteSolarSensor):
-    """Representation of the rest reason sensor."""
-
-    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
-        """Initialize the sensor."""
-        super().__init__(coordinator, entry)
-        self._attr_name = "Rest Reason"
-        self._attr_unique_id = f"{entry.entry_id}_rest_reason"
-        self._attr_entity_category = EntityCategory.DIAGNOSTIC
-
-    @property
-    def native_value(self) -> Optional[str]:
-        """Return the state of the sensor."""
-        if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["REASON_FOR_RESTING"])
-                if value is not None:
-                    return REST_REASONS.get(value, f"Unknown ({value})")
-        return None

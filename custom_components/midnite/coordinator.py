@@ -57,6 +57,25 @@ REGISTER_GROUPS = {
         REGISTER_MAP["KW_HOURS"],
         REGISTER_MAP["STATUSROLL"],
         REGISTER_MAP["INFO_FLAGS_BITS3"],
+        # Additional status registers
+        REGISTER_MAP["RESERVED_4105"],
+        REGISTER_MAP["NITE_MINUTES_NO_PWR"],
+        REGISTER_MAP["REASON_FOR_RESET"],
+        REGISTER_MAP["MPP_W_LAST"],
+        REGISTER_MAP["NO_DOUBLE_CLICK_TIMER"],
+        REGISTER_MAP["SLIDING_CURRENT_LIMIT"],
+        REGISTER_MAP["MIN_ABSORB_TIME"],
+        REGISTER_MAP["GENERAL_PURPOSE_WORD"],
+        REGISTER_MAP["EQUALIZE_RETRY_DAYS"],
+        REGISTER_MAP["FORCE_FLAG_BITS"],
+        # Raw/unfiltered registers
+        REGISTER_MAP["IBATT_RAW_A"],
+        REGISTER_MAP["OUTPUT_VBATT_RAW"],
+        REGISTER_MAP["INPUT_VPV_RAW"],
+        # Additional status registers
+        REGISTER_MAP["PREVOC"],
+        REGISTER_MAP["PK_HOLD_VPV_STAMP"],
+        REGISTER_MAP["IPV_MINUS_RAW"],
     ],
     "temperatures": [
         REGISTER_MAP["BATT_TEMPERATURE"],
@@ -100,6 +119,21 @@ REGISTER_GROUPS = {
         REGISTER_MAP["MINUTE_LOG_INTERVAL_SEC"],
         REGISTER_MAP["MODBUS_PORT_REGISTER"],
         REGISTER_MAP["MPP_W_LAST"],
+        # Additional advanced status registers
+        REGISTER_MAP["ABSORB_TIME_DUPLICATE"],
+        REGISTER_MAP["ARC_FAULT_SENSITIVITY"],
+        REGISTER_MAP["AUX2_A2D_D2A"],
+        REGISTER_MAP["BATTERY_TEMP_PASSED_EEPROM"],
+        REGISTER_MAP["CLEAR_LOGS_CAT"],
+        REGISTER_MAP["CLEAR_LOGS_COUNTER_10MS"],
+        REGISTER_MAP["CLIPPER_CMD_VOLTS"],
+        REGISTER_MAP["CTI_ME0"],
+        REGISTER_MAP["CTI_ME0_HIGH"],
+        REGISTER_MAP["CTI_ME1"],
+        REGISTER_MAP["CTI_ME1_HIGH"],
+        REGISTER_MAP["CTI_ME2"],
+        REGISTER_MAP["DAY_LOG_COMB_CAT_INDEX"],
+        REGISTER_MAP["MIN_LOG_COMB_CAT_INDEX"],
     ],
     # Advanced configuration registers
     "advanced_config": [
@@ -109,6 +143,9 @@ REGISTER_GROUPS = {
         REGISTER_MAP["ENABLE_FLAGS3"],
         REGISTER_MAP["ENABLE_FLAGS2"],
         REGISTER_MAP["ENABLE_FLAGS_BITS"],
+        # Additional config registers
+        REGISTER_MAP["LED_MODE_EEPROM"],
+        REGISTER_MAP["USB_COMM_MODE"],
     ],
     # AUX control registers
     "aux_control": [
@@ -137,6 +174,20 @@ REGISTER_GROUPS = {
         REGISTER_MAP["MAX_BATTERY_TEMP_COMP_VOLTAGE"],
         REGISTER_MAP["MIN_BATTERY_TEMP_COMP_VOLTAGE"],
         REGISTER_MAP["BATTERY_TEMP_COMP_VALUE"],
+    ],
+    # Network configuration registers
+    "network_config": [
+        REGISTER_MAP["IP_SETTINGS_FLAGS"],
+        REGISTER_MAP["IP_ADDRESS_LSB_1"],
+        REGISTER_MAP["IP_ADDRESS_LSB_2"],
+        REGISTER_MAP["GATEWAY_ADDRESS_LSB_1"],
+        REGISTER_MAP["GATEWAY_ADDRESS_LSB_2"],
+        REGISTER_MAP["SUBNET_MASK_LSB_1"],
+        REGISTER_MAP["SUBNET_MASK_LSB_2"],
+        REGISTER_MAP["DNS_1_LSB_1"],
+        REGISTER_MAP["DNS_1_LSB_2"],
+        REGISTER_MAP["DNS_2_LSB_1"],
+        REGISTER_MAP["DNS_2_LSB_2"],
     ],
 }
 

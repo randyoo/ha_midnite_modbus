@@ -732,7 +732,7 @@ class HIGHEST_VINPUT_LOGSensor(MidniteSolarSensor):
             if advanced_status_data:
                 value = advanced_status_data.get(REGISTER_MAP["HIGHEST_VINPUT_LOG"])
                 if value is not None:
-                    return value
+                    return value / 10.0
                 return None
 
 

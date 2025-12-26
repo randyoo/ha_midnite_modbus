@@ -1554,7 +1554,7 @@ class VPV_TARGET_RDSensor(MidniteSolarSensor):
             if status_data:
                 value = status_data.get(REGISTER_MAP["VPV_TARGET_RD"])
                 if value is not None:
-                    return value
+                    return value / 10.0
                 return None
 
 
@@ -1577,7 +1577,7 @@ class VPV_TARGET_WRSensor(MidniteSolarSensor):
             if status_data:
                 value = status_data.get(REGISTER_MAP["VPV_TARGET_WR"])
                 if value is not None:
-                    return value
+                    return value / 10.0
                 return None
 
 
@@ -2196,7 +2196,7 @@ class VBATT_REG_SET_P_TEMP_COMPSensor(MidniteSolarSensor):
             if status_data:
                 value = status_data.get(REGISTER_MAP["VBATT_REG_SET_P_TEMP_COMP"])
                 if value is not None:
-                    return value
+                    return value / 10.0
                 return None
 
 
@@ -2535,7 +2535,7 @@ class OUTPUT_VBATT_RAWSensor(MidniteSolarSensor):
             if status_data:
                 value = status_data.get(REGISTER_MAP["OUTPUT_VBATT_RAW"])
                 if value is not None:
-                    return value
+                    return value / 10.0
                 return None
 
 
@@ -2558,7 +2558,7 @@ class INPUT_VPV_RAWSensor(MidniteSolarSensor):
             if status_data:
                 value = status_data.get(REGISTER_MAP["INPUT_VPV_RAW"])
                 if value is not None:
-                    return value
+                    return value / 10.0
                 return None
 
 
@@ -2607,7 +2607,7 @@ class VPV_TARGET_RD_TMPSensor(MidniteSolarSensor):
             if status_data:
                 value = status_data.get(REGISTER_MAP["VPV_TARGET_RD_TMP"])
                 if value is not None:
-                    return value
+                    return value / 10.0
                 return None
 
 

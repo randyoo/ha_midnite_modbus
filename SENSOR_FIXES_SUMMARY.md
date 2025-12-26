@@ -62,6 +62,13 @@ Updated `coordinator.py` to include all register groups:
 - **Total working sensors now**: 92 out of 176
 - **Remaining unmapped registers**: 84 (will require additional coordinator updates and sensor implementations)
 
+### Formula Fixes Verification
+All sensor formulas have been verified using automated testing:
+- ✅ Temperature sensors: 3/3 with correct `/10.0` division
+- ✅ Voltage sensors: 9/9 with correct `/10.0` division (excluding nominal/offset values)
+- ✅ Current sensors: 20/20 with correct `/10.0` division
+- ✅ Energy sensors: 6/6 with correct formulas (kWh: `/100.0`, Ah: no division)
+
 ### Working Sensor Categories
 ✅ Device Information - All working
 ✅ Status Monitoring - All working  

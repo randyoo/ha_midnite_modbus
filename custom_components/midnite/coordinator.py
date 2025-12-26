@@ -58,8 +58,6 @@ REGISTER_GROUPS = {
         REGISTER_MAP["STATUSROLL"],
         REGISTER_MAP["INFO_FLAGS_BITS3"],
         # Additional status registers
-        REGISTER_MAP["RESERVED_4105"],
-        REGISTER_MAP["NITE_MINUTES_NO_PWR"],
         REGISTER_MAP["REASON_FOR_RESET"],
         REGISTER_MAP["MPP_W_LAST"],
         REGISTER_MAP["NO_DOUBLE_CLICK_TIMER"],
@@ -140,6 +138,8 @@ REGISTER_GROUPS = {
         # Ending condition EEPROM values
         REGISTER_MAP["ENDING_AMPES_EEPROM"],
         REGISTER_MAP["ENDING_SOC_EEPROM"],
+        # Modbus control EEPROM
+        REGISTER_MAP["MODBUS_CONTROL_EEPROM"],
     ],
     # Advanced status registers
     "advanced_status": [
@@ -170,6 +170,9 @@ REGISTER_GROUPS = {
         REGISTER_MAP["DABT_U32_DEBUG_04"],
         # Ending condition timer values
         REGISTER_MAP["ENDING_AMPS_TIMER_SEC"],
+        # Additional diagnostic registers
+        REGISTER_MAP["RESERVED_4105"],
+        REGISTER_MAP["NITE_MINUTES_NO_PWR"],
     ],
     # Advanced configuration registers
     "advanced_config": [

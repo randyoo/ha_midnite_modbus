@@ -338,9 +338,9 @@ class RESERVED_4105Sensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["RESERVED_4105"])
+            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
+            if advanced_status_data:
+                value = advanced_status_data.get(REGISTER_MAP["RESERVED_4105"])
                 if value is not None:
                     return value
                 return None
@@ -984,9 +984,9 @@ class NITE_MINUTES_NO_PWRSensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["NITE_MINUTES_NO_PWR"])
+            advanced_status_data = self.coordinator.data["data"].get("advanced_status")
+            if advanced_status_data:
+                value = advanced_status_data.get(REGISTER_MAP["NITE_MINUTES_NO_PWR"])
                 if value is not None:
                     return value
                 return None
@@ -3542,9 +3542,9 @@ class MODBUS_CONTROL_EEPROMSensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["MODBUS_CONTROL_EEPROM"])
+            eeprom_config_data = self.coordinator.data["data"].get("eeprom_config")
+            if eeprom_config_data:
+                value = eeprom_config_data.get(REGISTER_MAP["MODBUS_CONTROL_EEPROM"])
                 if value is not None:
                     return value
                 return None

@@ -1,83 +1,86 @@
-# Sensor Fix Summary
+# Sensor Data Group Fix Summary
 
 ## Problem Analysis
-Many sensors in the Midnite Solar integration were showing "unknown" values while input_numbers and a few key sensors were working correctly.
 
-### Root Cause
-The coordinator (`coordinator.py`) only reads specific groups of registers, but many sensor registers defined in `sensor.py` were not included in these register groups. The sensors that worked were those whose registers were already being read by the coordinator.
+Most sensors in `custom_components/midnite/sensor.py` are hardcoded to look for their data in the `status` data group:
 
-## Solution Implemented
+```python
+status_data = self.coordinator.data["data"].get("status")
+value = status_data.get(REGISTER_MAP["SENSOR_NAME"])
+```
 
-Updated `custom_components/midnite/coordinator.py` to add missing registers to the appropriate register groups based on their category:
-- **B** = Basic (always enabled)
-- **A** = Advanced (opt-in via advanced mode)
-- **D** = Debug (opt-in via debug mode)
+However, the coordinator (`custom_components/midnite/coordinator.py`) organizes registers into multiple groups:
+- `device_info`
+- `status`
+- `temperatures`
+- `energy`
+- `time_settings`
+- `diagnostics`
+- `setpoints`
+- `eeprom_settings`
+- `advanced_status`
 
-### Registers Added
+## Root Cause
 
-#### Basic Sensors (Category "B" - Always Enabled)
-Added to the coordinator's register groups:
+Sensors are looking in the wrong data group for their register values. For example:
 
-1. **KW_HOURS** (4118) - Energy to the battery (reset daily)
-   - Added to: `status` group
-   
-2. **STATUSROLL** (4113) - 12-bit status value, updated once per second
-   - Added to: `status` group
-   
-3. **INFO_FLAGS_BITS3** (4104) - Classic system status flags (bitfield)
-   - Added to: `status` group
-   
-4. **RESTART_TIME_MS** (4114) - Time after which classic can wake up
-   - Added to: `time_settings` group
-   
-5. **UNIT_SW_DATE_RO** (4102) - Software build date
-   - Added to: `device_info` group
-   
-6. **UNIT_SW_DATE_MONTH_DAY** (4103) - Software build month/day
-   - Added to: `device_info` group
+1. **PCB_TEMPERATURE** (register 4123) is in the `temperatures` group, but the sensor looks in `status`
+2. **EQUALIZE_TIME** (register 4126) is in the `time_settings` group, but the sensor looks in `status`
+3. **DNS_1_LSB_1** and similar network sensors are not being read at all
 
-#### Advanced Sensors (Category "A" - Opt-in via Advanced Mode)
-Added to the coordinator's register groups:
+## Solution Strategy
 
-7. **HIGHEST_VINPUT_LOG** (4123) - Highest input voltage seen (eeprom)
-   - Added to: `advanced_status` group
-   
-8. **JrAmpHourNET** (4109) - Whizbang jr. net amp-hours
-   - Added to: `advanced_status` group
-   
-9. **MATCH_POINT_SHADOW** (4124) - Current wind power curve step (1-16)
-   - Already present in: `advanced_status` group
+### Immediate Fix (Priority)
+Update sensors to look in the correct data groups based on their register:
 
-### Sensors Still Showing "Unknown"
-The following sensors remain showing "unknown" because they are in the Debug category and require debug mode to be enabled:
+```python
+# Current (wrong):
+status_data = self.coordinator.data["data"].get("status")
+value = status_data.get(REGISTER_MAP["PCB_TEMPERATURE"])
 
-- **RESERVED_4105** (4105) - Unimplemented - avoid writing
-- Other debug registers (DABT_U32_DEBUG_*, WIZBANG_RX_BUFFER_TEMP_*, etc.)
+# Fixed:
+temperatures_data = self.coordinator.data["data"].get("temperatures")
+value = temperatures_data.get(REGISTER_MAP["PCB_TEMPERATURE"])
+```
 
-These can be added if you enable debug mode in the configuration.
+### Register Group Mapping
 
-## Why Input Numbers Worked
-Input numbers continued to work because they read from registers that were already included in the coordinator's register groups:
-- Setpoints: ABSORB_SETPOINT_VOLTAGE, FLOAT_VOLTAGE_SETPOINT, EQUALIZE_VOLTAGE_SETPOINT, BATTERY_OUTPUT_CURRENT_LIMIT
-- EEPROM settings: ABSORB_TIME_EEPROM, EQUALIZE_TIME_EEPROM, EQUALIZE_INTERVAL_DAYS_EEPROM
+| Sensor Name | Register | Coordinator Group | Current Lookup | Fixed Lookup |
+|-------------|----------|-------------------|----------------|--------------|
+| PCB_TEMPERATURE | 4123 | temperatures | status_data | temperatures_data |
+| BATT_TEMPERATURE | 4121 | temperatures | status_data | temperatures_data |
+| FET_TEMPERATURE | 4122 | temperatures | status_data | temperatures_data |
+| EQUALIZE_TIME | 4126 | time_settings | status_data | time_settings_data |
+| ABSORB_TIME | 4125 | time_settings | status_data | time_settings_data |
+| FLOAT_TIME_TODAY_SEC | 4124 | time_settings | status_data | time_settings_data |
+| RESTART_TIME_MS | 4127 | time_settings | time_settings_data ✓ | (already correct) |
+| AMP_HOURS_DAILY | 4115 | energy | status_data | energy_data |
+| LIFETIME_KW_HOURS_1 | 4116 | energy | status_data | energy_data |
+| HIGHEST_VINPUT_LOG | 4137 | advanced_status | advanced_status_data ✓ | (already correct) |
+| JrAmpHourNET | 4138 | advanced_status | advanced_status_data ✓ | (already correct) |
+| MATCH_POINT_SHADOW | 4139 | advanced_status | advanced_status_data ✓ | (already correct) |
 
-## Testing
-After this fix, the following sensors should now display values instead of "unknown":
-- ✅ KW_HOURS
-- ✅ STATUSROLL  
-- ✅ INFO_FLAGS_BITS3
-- ✅ RESTART_TIME_MS
-- ✅ UNIT_SW_DATE_RO
-- ✅ UNIT_SW_DATE_MONTH_DAY
-- ✅ HIGHEST_VINPUT_LOG (when advanced mode is enabled)
-- ✅ JrAmpHourNET (when advanced mode is enabled)
-- ✅ MATCH_POINT_SHADOW (when advanced mode is enabled)
+### Sensors Not Being Read
 
-## Files Modified
-- `custom_components/midnite/coordinator.py` - Added missing registers to REGISTER_GROUPS
+These sensors reference registers that are NOT in any coordinator group and therefore won't work until the coordinator is updated:
 
-## Next Steps
-If you need additional sensors to work, you can:
-1. Enable Advanced mode in the integration configuration for more sensors
-2. Enable Debug mode for debug-level sensors (not recommended for production use)
-3. The coordinator already has groups defined for these categories that just need to be populated with more registers as needed
+- DNS_1_LSB_1, DNS_1_LSB_2, DNS_2_LSB_1, DNS_2_LSB_2 (network settings)
+- IP_ADDRESS_LSB_1, IP_ADDRESS_LSB_2, GATEWAY_ADDRESS_LSB_1, etc. (network settings)
+- Many EEPROM and configuration registers
+
+## Implementation Plan
+
+### Phase 1: Fix Existing Sensors (High Priority)
+Update all sensors to look in the correct data group based on their register.
+
+### Phase 2: Add Missing Register Groups (Medium Priority)
+Add network settings and other commonly used registers to coordinator groups.
+
+### Phase 3: Sensor Naming Improvements (Low Priority)
+Create improved display names for sensors as requested.
+
+## Files to Modify
+
+1. `custom_components/midnite/sensor.py` - Update sensor data group lookups
+2. `custom_components/midnite/coordinator.py` - Add missing register groups (Phase 2)
+3. Create `registers_improved.csv` - For sensor naming improvements (Phase 3)

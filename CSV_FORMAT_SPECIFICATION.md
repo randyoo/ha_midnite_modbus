@@ -23,8 +23,11 @@ The CSV file has the following columns (in order):
 | **Unit** | string | No | Unit of measurement (e.g., `V`, `A`, `°C`, `kWh`) |
 | **Precision** | integer or float | No | Number of decimal places to display (e.g., 1, 2) |
 | **Icon** | string | Yes | Material Design icon name (e.g., `mdi:flash-alert`, `mdi:thermometer`) |
-| **Enabled By Default** | boolean | Yes | `TRUE` or `FALSE` indicating if entity should be enabled by default |
 | **Description** | string | Yes | Human-readable description of the register's purpose |
+| **Formula** | string | No | Optional formula for computing value from registers (e.g., `[4109]/10` or `(([4110]<<16)+[4109])/10`) |
+| **Friendly Name** | string | No | User-friendly display name for the entity (defaults to Register Name if not provided) |
+| **Scan Interval** | integer | No | Update interval in seconds (default: 30, typically 15 for basic sensors, 60 for advanced/debug) |
+| **Select Options** | string | No | Pipe-separated list of options for select entities (e.g., `Option1|Option2|Option3`) |
 
 ## Category System
 

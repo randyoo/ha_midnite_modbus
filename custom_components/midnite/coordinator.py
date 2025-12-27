@@ -270,6 +270,11 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
         if not self.api.is_still_connected():
             _LOGGER.debug("Connection not active, attempting to reconnect")
             try:
+                # Check if another coordinator might be using this connection
+                for entry_id, other_coordinator in self.hass.data.get(DOMAIN, {}).items():
+                    if other_coordinator != self and hasattr(other_coordinator, 'api'):
+                        _LOGGER.warning(f"Potential concurrent access detected! This coordinator ({self}) vs {other_coordinator}")
+                
                 await self.hass.async_add_executor_job(self.api.connect)
                 # Add delay after connect to allow device to respond
                 await asyncio.sleep(0.5)

@@ -122,24 +122,48 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
             sig = inspect.signature(ModbusTcpClient.read_holding_registers)
             _LOGGER.info(f"read_holding_registers signature: {sig}")
             
-            # Test connection
+            # Test connection - check if we already have an active connection first
+            existing_entry = None
+            for entry_id, existing_coordinator in self.hass.data.get(DOMAIN, {}).items():
+                if hasattr(existing_coordinator, 'api') and existing_coordinator.api.is_still_connected():
+                    _LOGGER.warning(f"Connection test: Existing connection detected to {existing_coordinator.api.host}")
+                    if existing_coordinator.api.host == user_input[CONF_HOST]:
+                        # Same device - skip connection test
+                        _LOGGER.info("Skipping connection test for already connected device")
+                        break
+                    else:
+                        # Different device - we need to test but be careful
+                        _LOGGER.warning(f"Testing new device {user_input[CONF_HOST]} while connected to {existing_coordinator.api.host}")
+            
             client = ModbusTcpClient(user_input[CONF_HOST], port=user_input[CONF_PORT])
             try:
-                connected = await self.hass.async_add_executor_job(client.connect)
-                if not connected:
-                    errors["base"] = "cannot_connect"
+                # Check if already connected before attempting
+                if not client.is_socket_open():
+                    _LOGGER.debug(f"Testing connection to {user_input[CONF_HOST]}:{user_input[CONF_PORT]}")
+                    connected = await self.hass.async_add_executor_job(client.connect)
+                    if not connected:
+                        errors["base"] = "cannot_connect"
+                    else:
+                        # Try to read a register to verify communication
+                        result = await self.hass.async_add_executor_job(
+                            lambda: client.read_holding_registers(address=4100, count=1)
+                        )
+                        if result is None or result.isError():
+                            errors["base"] = "cannot_read"
                 else:
-                    # Try to read a register to verify communication
-                    result = await self.hass.async_add_executor_job(
-                        lambda: client.read_holding_registers(address=4100, count=1)
-                    )
-                    if result.isError():
-                        errors["base"] = "cannot_read"
-                    
-                client.close()
+                    _LOGGER.debug(f"Already connected to {user_input[CONF_HOST]}")
+
             except Exception as ex:
-                _LOGGER.exception("Unexpected exception during connection test")
+                _LOGGER.exception("Unexpected exception during connection test: %s", ex)
                 errors["base"] = "unknown"
+            finally:
+                # Ensure client is closed even if an error occurred
+                try:
+                    if client.is_socket_open():
+                        client.close()
+                        _LOGGER.debug(f"Closed test connection to {user_input[CONF_HOST]}")
+                except Exception as e:
+                    _LOGGER.warning(f"Error closing test connection: {e}")
             
             if not errors:
                 # Determine title based on discovery or manual entry
@@ -234,23 +258,40 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
             {CONF_HOST: user_input[CONF_HOST], CONF_PORT: user_input[CONF_PORT]}
         )
         
+        # Check for existing connection to avoid conflicts
+        for entry_id, existing_coordinator in self.hass.data.get(DOMAIN, {}).items():
+            if hasattr(existing_coordinator, 'api') and existing_coordinator.api.is_still_connected():
+                _LOGGER.warning(f"Import: Existing connection detected to {existing_coordinator.api.host}")
+                if existing_coordinator.api.host == user_input[CONF_HOST]:
+                    # Same device - skip connection test
+                    _LOGGER.info("Skipping import connection test for already connected device")
+                    break
+        
         client = ModbusTcpClient(user_input[CONF_HOST], port=user_input[CONF_PORT])
         try:
-            connected = await self.hass.async_add_executor_job(client.connect)
-            if not connected:
-                return self.async_abort(reason="cannot_connect")
+            if not client.is_socket_open():
+                _LOGGER.debug(f"Testing YAML import connection to {user_input[CONF_HOST]}:{user_input[CONF_PORT]}")
+                connected = await self.hass.async_add_executor_job(client.connect)
+                if not connected:
+                    return self.async_abort(reason="cannot_connect")
             
             # Try to read a register to verify communication
             result = await self.hass.async_add_executor_job(
                 lambda: client.read_holding_registers(address=4100, count=1)
             )
-            if result.isError():
+            if result is None or result.isError():
                 return self.async_abort(reason="cannot_read")
-            
-            client.close()
-        except Exception:
-            _LOGGER.exception("Unexpected exception during import connection test")
+        except Exception as ex:
+            _LOGGER.exception("Unexpected exception during import connection test: %s", ex)
             return self.async_abort(reason="unknown")
+        finally:
+            # Ensure client is closed even if an error occurred
+            try:
+                if client.is_socket_open():
+                    client.close()
+                    _LOGGER.debug(f"Closed YAML import test connection to {user_input[CONF_HOST]}")
+            except Exception as e:
+                _LOGGER.warning(f"Error closing YAML import test connection: {e}")
 
         return self.async_create_entry(
             title=f"Midnite Solar @ {user_input[CONF_HOST]}",

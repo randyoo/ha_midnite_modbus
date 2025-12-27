@@ -97,7 +97,7 @@ class INFO_FLAGS_BITS2_1Select(MidniteSolarSelect):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the selector."""
         super().__init__(coordinator, entry)
-        self._attr_name = "INFO FLAGS BITS2 1"
+        self._attr_name = "Info Flags Bit 2 1"
         self._attr_unique_id = f"{entry.entry_id}_info_flags_bits2_1_select"
         self._attr_icon = "mdi:cog"
 
@@ -113,7 +113,7 @@ class INFO_FLAGS_BITS2_0Select(MidniteSolarSelect):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the selector."""
         super().__init__(coordinator, entry)
-        self._attr_name = "INFO FLAGS BITS2 0"
+        self._attr_name = "Info Flags Bit 2 0"
         self._attr_unique_id = f"{entry.entry_id}_info_flags_bits2_0_select"
         self._attr_icon = "mdi:cog"
 
@@ -129,7 +129,7 @@ class USB_COMM_MODESelect(MidniteSolarSelect):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the selector."""
         super().__init__(coordinator, entry)
-        self._attr_name = "USB COMM MODE"
+        self._attr_name = "Usb Comm Mode"
         self._attr_unique_id = f"{entry.entry_id}_usb_comm_mode_select"
         self._attr_icon = "mdi:usb-port"
 
@@ -145,7 +145,7 @@ class MPPT_MODESelect(MidniteSolarSelect):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the selector."""
         super().__init__(coordinator, entry)
-        self._attr_name = "MPPT MODE"
+        self._attr_name = "Mppt Mode"
         self._attr_unique_id = f"{entry.entry_id}_mppt_mode_select"
         self._attr_icon = "mdi:cog"
 
@@ -161,7 +161,7 @@ class AUX_1_AND_2_FUNCTIONSelect(MidniteSolarSelect):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the selector."""
         super().__init__(coordinator, entry)
-        self._attr_name = "AUX 1 AND 2 FUNCTION"
+        self._attr_name = "Aux 1 And 2 Function"
         self._attr_unique_id = f"{entry.entry_id}_aux_1_and_2_function_select"
         self._attr_icon = "mdi:radiobox-marked"
 
@@ -177,7 +177,7 @@ class ENABLE_FLAGS2Select(MidniteSolarSelect):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the selector."""
         super().__init__(coordinator, entry)
-        self._attr_name = "ENABLE FLAGS2"
+        self._attr_name = "Enable Flag 2"
         self._attr_unique_id = f"{entry.entry_id}_enable_flags2_select"
         self._attr_icon = "mdi:cog"
 
@@ -193,7 +193,7 @@ class ENABLE_FLAGS_BITSSelect(MidniteSolarSelect):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the selector."""
         super().__init__(coordinator, entry)
-        self._attr_name = "ENABLE FLAGS BITS"
+        self._attr_name = "Enable Flags Bits"
         self._attr_unique_id = f"{entry.entry_id}_enable_flags_bits_select"
         self._attr_icon = "mdi:cog"
 
@@ -209,7 +209,7 @@ class LED_MODE_EEPROMSelect(MidniteSolarSelect):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the selector."""
         super().__init__(coordinator, entry)
-        self._attr_name = "LED MODE EEPROM"
+        self._attr_name = "Led Mode Eeprom"
         self._attr_unique_id = f"{entry.entry_id}_led_mode_eeprom_select"
         self._attr_icon = "mdi:cog"
 
@@ -225,7 +225,7 @@ class REMOTE_MENU_MODESelect(MidniteSolarSelect):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the selector."""
         super().__init__(coordinator, entry)
-        self._attr_name = "REMOTE MENU MODE"
+        self._attr_name = "Remote Menu Mode"
         self._attr_unique_id = f"{entry.entry_id}_remote_menu_mode_select"
         self._attr_icon = "mdi:cog"
 
@@ -241,7 +241,7 @@ class FLAGS_RD_32BITSelect(MidniteSolarSelect):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the selector."""
         super().__init__(coordinator, entry)
-        self._attr_name = "FLAGS RD 32BIT"
+        self._attr_name = "Flags Rd 32 Bit"
         self._attr_unique_id = f"{entry.entry_id}_flags_rd_32bit_select"
         self._attr_icon = "mdi:cog"
 
@@ -257,7 +257,7 @@ class I_FLAGS_RO_HIGHSelect(MidniteSolarSelect):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the selector."""
         super().__init__(coordinator, entry)
-        self._attr_name = "I FLAGS RO HIGH"
+        self._attr_name = "I Flags Ro High"
         self._attr_unique_id = f"{entry.entry_id}_i_flags_ro_high_select"
         self._attr_icon = "mdi:cog"
 
@@ -273,7 +273,7 @@ class IP_SETTINGS_FLAGSSelect(MidniteSolarSelect):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the selector."""
         super().__init__(coordinator, entry)
-        self._attr_name = "IP SETTINGS FLAGS"
+        self._attr_name = "Ip Settings Flags"
         self._attr_unique_id = f"{entry.entry_id}_ip_settings_flags_select"
         self._attr_icon = "mdi:cog"
 

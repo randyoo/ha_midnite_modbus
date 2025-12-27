@@ -417,7 +417,7 @@ class MidniteSolarSensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], Senso
         formula = sensor.get('Formula', '')
         if formula:
             # Use the formula from CSV if available
-            content += '''    @property
+            content += f'''    @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
@@ -428,10 +428,10 @@ class MidniteSolarSensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], Senso
                     # Formula: {formula}
                     return value
                 return None
-'''
+'''.format(name=name, formula=formula)
         else:
             # Use unit-based conversion as fallback
-            content += '''    @property
+            content += f'''    @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
@@ -439,7 +439,7 @@ class MidniteSolarSensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], Senso
             if status_data:
                 value = status_data.get(REGISTER_MAP["{name}"])
                 if value is not None:
-'''
+'''.format(name=name)
             
             # Add conversion logic based on unit
             if unit == 'V' or unit == 'A':

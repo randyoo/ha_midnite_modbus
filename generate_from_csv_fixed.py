@@ -77,6 +77,189 @@ def generate_const_py(data: List[Dict[str, str]], output_path: str) -> None:
         register_map[name] = address
         register_categories[name] = category
     
+    # Build REGISTER_GROUPS based on the coordinator.py structure
+    # This organizes registers into logical groups for reading efficiency
+    register_groups = {
+        "device_info": [
+            register_map.get("UNIT_ID"),
+            register_map.get("DEVICE_ID_LSW"),
+            register_map.get("DEVICE_ID_MSW"),
+            register_map.get("UNIT_NAME_0"),
+            register_map.get("UNIT_NAME_1"),
+            register_map.get("UNIT_NAME_2"),
+            register_map.get("UNIT_NAME_3"),
+            register_map.get("MAC_ADDRESS_PART_1"),
+            register_map.get("MAC_ADDRESS_PART_2"),
+            register_map.get("MAC_ADDRESS_PART_3"),
+            register_map.get("UNIT_SW_DATE_RO"),
+            register_map.get("UNIT_SW_DATE_MONTH_DAY"),
+        ],
+        "status": [
+            register_map.get("DISP_AVG_VBATT"),
+            register_map.get("DISP_AVG_VPV"),
+            register_map.get("IBATT_DISPLAY_S"),
+            register_map.get("WATTS"),
+            register_map.get("COMBO_CHARGE_STAGE"),
+            register_map.get("PV_INPUT_CURRENT"),
+            register_map.get("VOC_LAST_MEASURED"),
+            register_map.get("KW_HOURS"),
+            register_map.get("STATUSROLL"),
+            register_map.get("INFO_FLAGS_BITS3"),
+            register_map.get("REASON_FOR_RESET"),
+            register_map.get("MPP_W_LAST"),
+            register_map.get("NO_DOUBLE_CLICK_TIMER"),
+            register_map.get("SLIDING_CURRENT_LIMIT"),
+            register_map.get("MIN_ABSORB_TIME"),
+            register_map.get("GENERAL_PURPOSE_WORD"),
+            register_map.get("EQUALIZE_RETRY_DAYS"),
+            register_map.get("FORCE_FLAG_BITS"),
+            register_map.get("IBATT_RAW_A"),
+            register_map.get("OUTPUT_VBATT_RAW"),
+            register_map.get("INPUT_VPV_RAW"),
+            register_map.get("PREVOC"),
+            register_map.get("PK_HOLD_VPV_STAMP"),
+            register_map.get("IPV_MINUS_RAW"),
+            register_map.get("MNGP_REVISION"),
+            register_map.get("MNLP_REVISION"),
+        ],
+        "temperatures": [
+            register_map.get("BATT_TEMPERATURE"),
+            register_map.get("FET_TEMPERATURE"),
+            register_map.get("PCB_TEMPERATURE"),
+        ],
+        "energy": [
+            register_map.get("AMP_HOURS_DAILY"),
+            register_map.get("LIFETIME_KW_HOURS_1"),
+            register_map.get("LIFETIME_KW_HOURS_1") + 1 if register_map.get("LIFETIME_KW_HOURS_1") else None,
+            register_map.get("LIFETIME_AMP_HOURS_1"),
+            register_map.get("LIFETIME_AMP_HOURS_1") + 1 if register_map.get("LIFETIME_AMP_HOURS_1") else None,
+        ],
+        "time_settings": [
+            register_map.get("FLOAT_TIME_TODAY_SEC"),
+            register_map.get("ABSORB_TIME"),
+            register_map.get("EQUALIZE_TIME"),
+            register_map.get("RESTART_TIME_MS"),
+        ],
+        "diagnostics": [
+            register_map.get("REASON_FOR_RESTING"),
+        ],
+        "setpoints": [
+            register_map.get("ABSORB_SETPOINT_VOLTAGE"),
+            register_map.get("FLOAT_VOLTAGE_SETPOINT"),
+            register_map.get("EQUALIZE_VOLTAGE_SETPOINT"),
+            register_map.get("BATTERY_OUTPUT_CURRENT_LIMIT"),
+        ],
+        "eeprom_settings": [
+            register_map.get("ABSORB_TIME_EEPROM"),
+            register_map.get("EQUALIZE_TIME_EEPROM"),
+            register_map.get("EQUALIZE_INTERVAL_DAYS_EEPROM"),
+        ],
+        "aux_control": [
+            register_map.get("AUX1_VOLTS_HI_REL"),
+            register_map.get("AUX1_VOLTS_LO_REL"),
+            register_map.get("AUX2_A2D_D2A"),
+            register_map.get("AUX2_VOLTS_HI_REL"),
+            register_map.get("AUX2_VOLTS_LO_REL"),
+        ],
+        "network_config": [
+            register_map.get("IP_SETTINGS_FLAGS"),
+            register_map.get("IP_ADDRESS_LSB_1"),
+            register_map.get("IP_ADDRESS_LSB_2"),
+            register_map.get("SUBNET_MASK_LSB_1"),
+            register_map.get("SUBNET_MASK_LSB_2"),
+            register_map.get("GATEWAY_ADDRESS_LSB_1"),
+            register_map.get("GATEWAY_ADDRESS_LSB_2"),
+            register_map.get("DNS_1_LSB_1"),
+            register_map.get("DNS_1_LSB_2"),
+            register_map.get("DNS_2_LSB_1"),
+            register_map.get("DNS_2_LSB_2"),
+        ],
+        "eeprom_config": [
+            register_map.get("BATTERY_TEMP_PASSED_EEPROM"),
+            register_map.get("CLASSIC_FME_PASSED_BITS_EEPROM"),
+            register_map.get("CLASSIC_MODBUS_ADDR_EEPROM"),
+            register_map.get("ENDING_AMPES_EEPROM"),
+            register_map.get("ENDING_SOC_EEPROM"),
+            register_map.get("MODBUS_CONTROL_EEPROM"),
+            register_map.get("FOLLOW_ME_PASS_REF_EEPROM"),
+            register_map.get("H2O_SWEEP_AMPS_10TIME6_EEPA"),
+            register_map.get("MAX_INPUT_CURRENT_EEPROM"),
+            register_map.get("MIN_SWP_VOLTAGE_EEPROM"),
+            register_map.get("MIN_VPV_TURN_ON"),
+            register_map.get("REBUCK_TIMER_SEC_EEPROM"),
+            register_map.get("REBUCK_VOLTS_EEPROM"),
+            register_map.get("VOC_QUALIFY_TIMER_MS_EEPROM"),
+            register_map.get("VOC_QUALIFY_TIMER_MS_EEPROM_LOW"),
+            register_map.get("VBATT_NOMINAL_EEPROM"),
+            register_map.get("VBATT_REG_SET_P_TEMP_COMP"),
+            register_map.get("PK_AMPS_OVER_LIMIT_HI_EEPA"),
+            register_map.get("PK_AMPS_OVER_LIMIT_LO_EEPA"),
+            register_map.get("PK_AMPS_OVER_TRIP_EEPROM"),
+            register_map.get("WIND_LOW_WATTS_EEPA"),
+        ],
+        "advanced_status": [
+            register_map.get("HIGHEST_VINPUT_LOG"),
+            register_map.get("JrAmpHourNET"),
+            register_map.get("MATCH_POINT_SHADOW"),
+            register_map.get("MINUTE_LOG_INTERVAL_SEC"),
+            register_map.get("MODBUS_PORT_REGISTER"),
+            register_map.get("MPP_W_LAST"),
+            register_map.get("ABSORB_TIME_DUPLICATE"),
+            register_map.get("ARC_FAULT_SENSITIVITY"),
+            register_map.get("BATTERY_TEMP_PASSED_EEPROM"),
+            register_map.get("CLEAR_LOGS_CAT"),
+            register_map.get("CLEAR_LOGS_COUNTER_10MS"),
+            register_map.get("CLIPPER_CMD_VOLTS"),
+            register_map.get("CTI_ME0"),
+            register_map.get("CTI_ME0_HIGH"),
+            register_map.get("CTI_ME1"),
+            register_map.get("CTI_ME1_HIGH"),
+            register_map.get("CTI_ME2"),
+            register_map.get("DAY_LOG_COMB_CAT_INDEX"),
+            register_map.get("MIN_LOG_COMB_CAT_INDEX"),
+            register_map.get("DABT_U32_DEBUG_01"),
+            register_map.get("DABT_U32_DEBUG_02"),
+            register_map.get("DABT_U32_DEBUG_03"),
+            register_map.get("DABT_U32_DEBUG_04"),
+            register_map.get("ENDING_AMPS_TIMER_SEC"),
+            register_map.get("RESERVED_4105"),
+            register_map.get("NITE_MINUTES_NO_PWR"),
+            register_map.get("OUTPUT_VBATT_RAW"),
+            register_map.get("PREVOC"),
+            register_map.get("REMOTE_BUTTONS"),
+            register_map.get("SIESTA_TIME_SEC"),
+            register_map.get("SIESTA_ABORT_VOC_ADJ"),
+            register_map.get("SWEEP_DEPTH"),
+            register_map.get("SWEEP_INTERVAL_SECS_EEPROM"),
+            register_map.get("SWP_DEEP_TIMEOUT_SEC"),
+            register_map.get("USER_VARIABLE_02"),
+            register_map.get("VPV_B4_TURN_OFF"),
+            register_map.get("VPV_TARGET_RD"),
+            register_map.get("VPV_TARGET_RD_TMP"),
+        ],
+        "advanced_config": [
+            register_map.get("MPPT_MODE"),
+            register_map.get("AUX_1_AND_2_FUNCTION"),
+            register_map.get("VARIMAX"),
+            register_map.get("ENABLE_FLAGS3"),
+            register_map.get("ENABLE_FLAGS2"),
+            register_map.get("ENABLE_FLAGS_BITS"),
+            register_map.get("LED_MODE_EEPROM"),
+            register_map.get("USB_COMM_MODE"),
+        ],
+        "voltage_offsets": [
+            register_map.get("VBATT_OFFSET"),
+            register_map.get("VPV_OFFSET"),
+            register_map.get("VPV_TARGET_RD"),
+            register_map.get("VPV_TARGET_WR"),
+        ],
+        "temp_comp": [
+            register_map.get("MAX_BATTERY_TEMP_COMP_VOLTAGE"),
+            register_map.get("MIN_BATTERY_TEMP_COMP_VOLTAGE"),
+            register_map.get("BATTERY_TEMP_COMP_VALUE"),
+        ],
+    }
+    
     # Sort by address for better readability
     sorted_registers = sorted(register_map.items(), key=lambda x: x[1])
     
@@ -110,6 +293,24 @@ REGISTER_MAP = {
     # Add register map in sorted order by address
     for name, address in sorted_registers:
         content += f'    "{name}": {address},\n'
+    
+    # Add REGISTER_GROUPS to the output
+    content += '''}
+
+# Register groups for efficient reading and organization
+REGISTER_GROUPS = {
+'''
+    
+    # Filter out None values from register_groups
+    filtered_register_groups = {}
+    for group_name, registers in register_groups.items():
+        # Remove None values and convert to list
+        filtered_list = [reg for reg in registers if reg is not None]
+        if filtered_list:  # Only add non-empty groups
+            content += f'    "{group_name}": [\n'
+            for reg in filtered_list:
+                content += f'        {reg},\n'
+            content += '    ],\n'
     
     content += '''}
 

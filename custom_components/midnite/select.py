@@ -99,17 +99,19 @@ class INFO_FLAGS_BITS2_1Select(MidniteSolarSelect):
         super().__init__(coordinator, entry)
         self._attr_name = "Info Flags Bit 2 1"
         self._attr_unique_id = f"{entry.entry_id}_info_flags_bits2_1_select"
+        self.register_name = "INFO_FLAGS_BITS2_1"
         self._attr_icon = "mdi:cog"
-    @property
+    
     def current_option(self) -> Optional[str]:
         """Return the currently selected option."""
         if self.coordinator.data and "data" in self.coordinator.data:
             # Try to find which group this register belongs to
             for group_name, registers in REGISTER_GROUPS.items():
-                if REGISTER_MAP.get(name) in registers:
+                reg_addr = REGISTER_MAP.get(self.register_name)
+                if reg_addr is not None and reg_addr in registers:
                     data = self.coordinator.data["data"].get(group_name)
                     if data is not None:
-                        value = data.get(REGISTER_MAP[name])
+                        value = data.get(reg_addr)
                         if value is not None:
                             return str(value)
         return None
@@ -119,7 +121,6 @@ class INFO_FLAGS_BITS2_1Select(MidniteSolarSelect):
         """Return a set of available options."""
         # Generic implementation - could be enhanced with specific options per register
         return ["0", "1", "2", "3", "4", "5"]
-
 
 class INFO_FLAGS_BITS2_0Select(MidniteSolarSelect):
     """Representation of a 32-bit info flags (high word) selector."""
@@ -129,17 +130,19 @@ class INFO_FLAGS_BITS2_0Select(MidniteSolarSelect):
         super().__init__(coordinator, entry)
         self._attr_name = "Info Flags Bit 2 0"
         self._attr_unique_id = f"{entry.entry_id}_info_flags_bits2_0_select"
+        self.register_name = "INFO_FLAGS_BITS2_0"
         self._attr_icon = "mdi:cog"
-    @property
+    
     def current_option(self) -> Optional[str]:
         """Return the currently selected option."""
         if self.coordinator.data and "data" in self.coordinator.data:
             # Try to find which group this register belongs to
             for group_name, registers in REGISTER_GROUPS.items():
-                if REGISTER_MAP.get(name) in registers:
+                reg_addr = REGISTER_MAP.get(self.register_name)
+                if reg_addr is not None and reg_addr in registers:
                     data = self.coordinator.data["data"].get(group_name)
                     if data is not None:
-                        value = data.get(REGISTER_MAP[name])
+                        value = data.get(reg_addr)
                         if value is not None:
                             return str(value)
         return None
@@ -149,7 +152,6 @@ class INFO_FLAGS_BITS2_0Select(MidniteSolarSelect):
         """Return a set of available options."""
         # Generic implementation - could be enhanced with specific options per register
         return ["0", "1", "2", "3", "4", "5"]
-
 
 class USB_COMM_MODESelect(MidniteSolarSelect):
     """Representation of a usb function # selector."""
@@ -159,17 +161,19 @@ class USB_COMM_MODESelect(MidniteSolarSelect):
         super().__init__(coordinator, entry)
         self._attr_name = "Usb Comm Mode"
         self._attr_unique_id = f"{entry.entry_id}_usb_comm_mode_select"
+        self.register_name = "USB_COMM_MODE"
         self._attr_icon = "mdi:usb-port"
-    @property
+    
     def current_option(self) -> Optional[str]:
         """Return the currently selected option."""
         if self.coordinator.data and "data" in self.coordinator.data:
             # Try to find which group this register belongs to
             for group_name, registers in REGISTER_GROUPS.items():
-                if REGISTER_MAP.get(name) in registers:
+                reg_addr = REGISTER_MAP.get(self.register_name)
+                if reg_addr is not None and reg_addr in registers:
                     data = self.coordinator.data["data"].get(group_name)
                     if data is not None:
-                        value = data.get(REGISTER_MAP[name])
+                        value = data.get(reg_addr)
                         if value is not None:
                             return str(value)
         return None
@@ -179,7 +183,6 @@ class USB_COMM_MODESelect(MidniteSolarSelect):
         """Return a set of available options."""
         # Generic implementation - could be enhanced with specific options per register
         return ["0", "1", "2", "3", "4", "5"]
-
 
 class MPPT_MODESelect(MidniteSolarSelect):
     """Representation of a solar, wind, etc. (bit 0 = on/off) selector."""
@@ -189,17 +192,19 @@ class MPPT_MODESelect(MidniteSolarSelect):
         super().__init__(coordinator, entry)
         self._attr_name = "Mppt Mode"
         self._attr_unique_id = f"{entry.entry_id}_mppt_mode_select"
+        self.register_name = "MPPT_MODE"
         self._attr_icon = "mdi:cog"
-    @property
+    
     def current_option(self) -> Optional[str]:
         """Return the currently selected option."""
         if self.coordinator.data and "data" in self.coordinator.data:
             # Try to find which group this register belongs to
             for group_name, registers in REGISTER_GROUPS.items():
-                if REGISTER_MAP.get(name) in registers:
+                reg_addr = REGISTER_MAP.get(self.register_name)
+                if reg_addr is not None and reg_addr in registers:
                     data = self.coordinator.data["data"].get(group_name)
                     if data is not None:
-                        value = data.get(REGISTER_MAP[name])
+                        value = data.get(reg_addr)
                         if value is not None:
                             return str(value)
         return None
@@ -209,7 +214,6 @@ class MPPT_MODESelect(MidniteSolarSelect):
         """Return a set of available options."""
         # Generic implementation - could be enhanced with specific options per register
         return ["0", "1", "2", "3", "4", "5"]
-
 
 class AUX_1_AND_2_FUNCTIONSelect(MidniteSolarSelect):
     """Representation of a combined aux 1 & 2 function + on/off selector."""
@@ -219,17 +223,19 @@ class AUX_1_AND_2_FUNCTIONSelect(MidniteSolarSelect):
         super().__init__(coordinator, entry)
         self._attr_name = "Aux 1 And 2 Function"
         self._attr_unique_id = f"{entry.entry_id}_aux_1_and_2_function_select"
+        self.register_name = "AUX_1_AND_2_FUNCTION"
         self._attr_icon = "mdi:radiobox-marked"
-    @property
+    
     def current_option(self) -> Optional[str]:
         """Return the currently selected option."""
         if self.coordinator.data and "data" in self.coordinator.data:
             # Try to find which group this register belongs to
             for group_name, registers in REGISTER_GROUPS.items():
-                if REGISTER_MAP.get(name) in registers:
+                reg_addr = REGISTER_MAP.get(self.register_name)
+                if reg_addr is not None and reg_addr in registers:
                     data = self.coordinator.data["data"].get(group_name)
                     if data is not None:
-                        value = data.get(REGISTER_MAP[name])
+                        value = data.get(reg_addr)
                         if value is not None:
                             return str(value)
         return None
@@ -239,7 +245,6 @@ class AUX_1_AND_2_FUNCTIONSelect(MidniteSolarSelect):
         """Return a set of available options."""
         # Generic implementation - could be enhanced with specific options per register
         return ["0", "1", "2", "3", "4", "5"]
-
 
 class ENABLE_FLAGS2Select(MidniteSolarSelect):
     """Representation of a various feature flags selector."""
@@ -249,17 +254,19 @@ class ENABLE_FLAGS2Select(MidniteSolarSelect):
         super().__init__(coordinator, entry)
         self._attr_name = "Enable Flag 2"
         self._attr_unique_id = f"{entry.entry_id}_enable_flags2_select"
+        self.register_name = "ENABLE_FLAGS2"
         self._attr_icon = "mdi:cog"
-    @property
+    
     def current_option(self) -> Optional[str]:
         """Return the currently selected option."""
         if self.coordinator.data and "data" in self.coordinator.data:
             # Try to find which group this register belongs to
             for group_name, registers in REGISTER_GROUPS.items():
-                if REGISTER_MAP.get(name) in registers:
+                reg_addr = REGISTER_MAP.get(self.register_name)
+                if reg_addr is not None and reg_addr in registers:
                     data = self.coordinator.data["data"].get(group_name)
                     if data is not None:
-                        value = data.get(REGISTER_MAP[name])
+                        value = data.get(reg_addr)
                         if value is not None:
                             return str(value)
         return None
@@ -269,7 +276,6 @@ class ENABLE_FLAGS2Select(MidniteSolarSelect):
         """Return a set of available options."""
         # Generic implementation - could be enhanced with specific options per register
         return ["0", "1", "2", "3", "4", "5"]
-
 
 class ENABLE_FLAGS_BITSSelect(MidniteSolarSelect):
     """Representation of a legacy flags moved to enableflags2 selector."""
@@ -279,17 +285,19 @@ class ENABLE_FLAGS_BITSSelect(MidniteSolarSelect):
         super().__init__(coordinator, entry)
         self._attr_name = "Enable Flags Bits"
         self._attr_unique_id = f"{entry.entry_id}_enable_flags_bits_select"
+        self.register_name = "ENABLE_FLAGS_BITS"
         self._attr_icon = "mdi:cog"
-    @property
+    
     def current_option(self) -> Optional[str]:
         """Return the currently selected option."""
         if self.coordinator.data and "data" in self.coordinator.data:
             # Try to find which group this register belongs to
             for group_name, registers in REGISTER_GROUPS.items():
-                if REGISTER_MAP.get(name) in registers:
+                reg_addr = REGISTER_MAP.get(self.register_name)
+                if reg_addr is not None and reg_addr in registers:
                     data = self.coordinator.data["data"].get(group_name)
                     if data is not None:
-                        value = data.get(REGISTER_MAP[name])
+                        value = data.get(reg_addr)
                         if value is not None:
                             return str(value)
         return None
@@ -299,7 +307,6 @@ class ENABLE_FLAGS_BITSSelect(MidniteSolarSelect):
         """Return a set of available options."""
         # Generic implementation - could be enhanced with specific options per register
         return ["0", "1", "2", "3", "4", "5"]
-
 
 class LED_MODE_EEPROMSelect(MidniteSolarSelect):
     """Representation of a led display mode selector."""
@@ -309,17 +316,19 @@ class LED_MODE_EEPROMSelect(MidniteSolarSelect):
         super().__init__(coordinator, entry)
         self._attr_name = "Led Mode Eeprom"
         self._attr_unique_id = f"{entry.entry_id}_led_mode_eeprom_select"
+        self.register_name = "LED_MODE_EEPROM"
         self._attr_icon = "mdi:cog"
-    @property
+    
     def current_option(self) -> Optional[str]:
         """Return the currently selected option."""
         if self.coordinator.data and "data" in self.coordinator.data:
             # Try to find which group this register belongs to
             for group_name, registers in REGISTER_GROUPS.items():
-                if REGISTER_MAP.get(name) in registers:
+                reg_addr = REGISTER_MAP.get(self.register_name)
+                if reg_addr is not None and reg_addr in registers:
                     data = self.coordinator.data["data"].get(group_name)
                     if data is not None:
-                        value = data.get(REGISTER_MAP[name])
+                        value = data.get(reg_addr)
                         if value is not None:
                             return str(value)
         return None
@@ -329,7 +338,6 @@ class LED_MODE_EEPROMSelect(MidniteSolarSelect):
         """Return a set of available options."""
         # Generic implementation - could be enhanced with specific options per register
         return ["0", "1", "2", "3", "4", "5"]
-
 
 class REMOTE_MENU_MODESelect(MidniteSolarSelect):
     """Representation of a remote menu sent from mngp selector."""
@@ -339,17 +347,19 @@ class REMOTE_MENU_MODESelect(MidniteSolarSelect):
         super().__init__(coordinator, entry)
         self._attr_name = "Remote Menu Mode"
         self._attr_unique_id = f"{entry.entry_id}_remote_menu_mode_select"
+        self.register_name = "REMOTE_MENU_MODE"
         self._attr_icon = "mdi:cog"
-    @property
+    
     def current_option(self) -> Optional[str]:
         """Return the currently selected option."""
         if self.coordinator.data and "data" in self.coordinator.data:
             # Try to find which group this register belongs to
             for group_name, registers in REGISTER_GROUPS.items():
-                if REGISTER_MAP.get(name) in registers:
+                reg_addr = REGISTER_MAP.get(self.register_name)
+                if reg_addr is not None and reg_addr in registers:
                     data = self.coordinator.data["data"].get(group_name)
                     if data is not None:
-                        value = data.get(REGISTER_MAP[name])
+                        value = data.get(reg_addr)
                         if value is not None:
                             return str(value)
         return None
@@ -359,7 +369,6 @@ class REMOTE_MENU_MODESelect(MidniteSolarSelect):
         """Return a set of available options."""
         # Generic implementation - could be enhanced with specific options per register
         return ["0", "1", "2", "3", "4", "5"]
-
 
 class FLAGS_RD_32BITSelect(MidniteSolarSelect):
     """Representation of a internal status flags (32-bit) selector."""
@@ -369,17 +378,19 @@ class FLAGS_RD_32BITSelect(MidniteSolarSelect):
         super().__init__(coordinator, entry)
         self._attr_name = "Flags Rd 32 Bit"
         self._attr_unique_id = f"{entry.entry_id}_flags_rd_32bit_select"
+        self.register_name = "FLAGS_RD_32BIT"
         self._attr_icon = "mdi:cog"
-    @property
+    
     def current_option(self) -> Optional[str]:
         """Return the currently selected option."""
         if self.coordinator.data and "data" in self.coordinator.data:
             # Try to find which group this register belongs to
             for group_name, registers in REGISTER_GROUPS.items():
-                if REGISTER_MAP.get(name) in registers:
+                reg_addr = REGISTER_MAP.get(self.register_name)
+                if reg_addr is not None and reg_addr in registers:
                     data = self.coordinator.data["data"].get(group_name)
                     if data is not None:
-                        value = data.get(REGISTER_MAP[name])
+                        value = data.get(reg_addr)
                         if value is not None:
                             return str(value)
         return None
@@ -389,7 +400,6 @@ class FLAGS_RD_32BITSelect(MidniteSolarSelect):
         """Return a set of available options."""
         # Generic implementation - could be enhanced with specific options per register
         return ["0", "1", "2", "3", "4", "5"]
-
 
 class I_FLAGS_RO_HIGHSelect(MidniteSolarSelect):
     """Representation of a follow-me high bits - charge stage coordination selector."""
@@ -399,17 +409,19 @@ class I_FLAGS_RO_HIGHSelect(MidniteSolarSelect):
         super().__init__(coordinator, entry)
         self._attr_name = "I Flags Ro High"
         self._attr_unique_id = f"{entry.entry_id}_i_flags_ro_high_select"
+        self.register_name = "I_FLAGS_RO_HIGH"
         self._attr_icon = "mdi:cog"
-    @property
+    
     def current_option(self) -> Optional[str]:
         """Return the currently selected option."""
         if self.coordinator.data and "data" in self.coordinator.data:
             # Try to find which group this register belongs to
             for group_name, registers in REGISTER_GROUPS.items():
-                if REGISTER_MAP.get(name) in registers:
+                reg_addr = REGISTER_MAP.get(self.register_name)
+                if reg_addr is not None and reg_addr in registers:
                     data = self.coordinator.data["data"].get(group_name)
                     if data is not None:
-                        value = data.get(REGISTER_MAP[name])
+                        value = data.get(reg_addr)
                         if value is not None:
                             return str(value)
         return None
@@ -420,7 +432,6 @@ class I_FLAGS_RO_HIGHSelect(MidniteSolarSelect):
         # Generic implementation - could be enhanced with specific options per register
         return ["0", "1", "2", "3", "4", "5"]
 
-
 class IP_SETTINGS_FLAGSSelect(MidniteSolarSelect):
     """Representation of a network settings flags - see table 20481-1 (dhcp, web access) selector."""
 
@@ -429,17 +440,19 @@ class IP_SETTINGS_FLAGSSelect(MidniteSolarSelect):
         super().__init__(coordinator, entry)
         self._attr_name = "Ip Settings Flags"
         self._attr_unique_id = f"{entry.entry_id}_ip_settings_flags_select"
+        self.register_name = "IP_SETTINGS_FLAGS"
         self._attr_icon = "mdi:cog"
-    @property
+    
     def current_option(self) -> Optional[str]:
         """Return the currently selected option."""
         if self.coordinator.data and "data" in self.coordinator.data:
             # Try to find which group this register belongs to
             for group_name, registers in REGISTER_GROUPS.items():
-                if REGISTER_MAP.get(name) in registers:
+                reg_addr = REGISTER_MAP.get(self.register_name)
+                if reg_addr is not None and reg_addr in registers:
                     data = self.coordinator.data["data"].get(group_name)
                     if data is not None:
-                        value = data.get(REGISTER_MAP[name])
+                        value = data.get(reg_addr)
                         if value is not None:
                             return str(value)
         return None

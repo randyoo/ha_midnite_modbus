@@ -277,6 +277,8 @@ class UNIT_IDSensor(MidniteSolarSensor):
         self._attr_name = "Unit Id"
         self._attr_unique_id = f"{entry.entry_id}_unit_id"
         self._attr_icon = "mdi:identifier"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -296,7 +298,7 @@ class UNIT_IDSensor(MidniteSolarSensor):
 
                 # Compute formula by replacing [addr] with values_dict[addr]
                 try:
-                    computed_formula = "[4101]MSB -> PCB Rev (0‑255) , [4101]LSB -> Unit Type"
+                    computed_formula = "[4101]    (0-255)  [4101]   "
                     computed_formula = computed_formula.replace("[4101]", "values_dict[4101]")
                     computed_formula = computed_formula.replace("[4101]", "values_dict[4101]")
 
@@ -318,6 +320,8 @@ class UNIT_SW_DATE_ROSensor(MidniteSolarSensor):
         self._attr_name = "Unit Sw Date Ro"
         self._attr_unique_id = f"{entry.entry_id}_unit_sw_date_ro"
         self._attr_icon = "mdi:calendar"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -337,7 +341,7 @@ class UNIT_SW_DATE_ROSensor(MidniteSolarSensor):
 
                 # Compute formula by replacing [addr] with values_dict[addr]
                 try:
-                    computed_formula = "[4102] -> Year, [4103]MSB -> Month, [4103]LSB -> Day"
+                    computed_formula = "[4102]  Year [4103]  Month [4103]  "
                     computed_formula = computed_formula.replace("[4102]", "values_dict[4102]")
                     computed_formula = computed_formula.replace("[4103]", "values_dict[4103]")
                     computed_formula = computed_formula.replace("[4103]", "values_dict[4103]")
@@ -361,15 +365,20 @@ class UNIT_SW_DATE_MONTH_DAYSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_unit_sw_date_month_day"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["UNIT_SW_DATE_MONTH_DAY"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("UNIT_SW_DATE_MONTH_DAY")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -382,15 +391,20 @@ class INFO_FLAGS_BITS3Sensor(MidniteSolarSensor):
         self._attr_name = "System Status Flags"
         self._attr_unique_id = f"{entry.entry_id}_info_flags_bits3"
         self._attr_icon = "mdi:flag"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["INFO_FLAGS_BITS3"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("INFO_FLAGS_BITS3")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -404,15 +418,20 @@ class RESERVED_4105Sensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_reserved_4105"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["RESERVED_4105"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("RESERVED_4105")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -425,6 +444,8 @@ class MAC_ADDRESS_PART_1Sensor(MidniteSolarSensor):
         self._attr_name = "Mac Address Part 1"
         self._attr_unique_id = f"{entry.entry_id}_mac_address_part_1"
         self._attr_icon = "mdi:wifi"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -444,7 +465,7 @@ class MAC_ADDRESS_PART_1Sensor(MidniteSolarSensor):
 
                 # Compute formula by replacing [addr] with values_dict[addr]
                 try:
-                    computed_formula = "[4108]MSB:[4108]LSB:[4107]MSB:[4107]LSB:[4106]MSB:[4106]LSB"
+                    computed_formula = "[4108]:[4108]:[4107]:[4107]:[4106]:[4106]"
                     computed_formula = computed_formula.replace("[4108]", "values_dict[4108]")
                     computed_formula = computed_formula.replace("[4108]", "values_dict[4108]")
                     computed_formula = computed_formula.replace("[4107]", "values_dict[4107]")
@@ -470,15 +491,20 @@ class MAC_ADDRESS_PART_2Sensor(MidniteSolarSensor):
         self._attr_name = "Mac Address Part 2"
         self._attr_unique_id = f"{entry.entry_id}_mac_address_part_2"
         self._attr_icon = "mdi:wifi"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["MAC_ADDRESS_PART_2"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("MAC_ADDRESS_PART_2")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -491,15 +517,20 @@ class MAC_ADDRESS_PART_3Sensor(MidniteSolarSensor):
         self._attr_name = "Mac Address Part 3"
         self._attr_unique_id = f"{entry.entry_id}_mac_address_part_3"
         self._attr_icon = "mdi:wifi"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["MAC_ADDRESS_PART_3"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("MAC_ADDRESS_PART_3")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -516,6 +547,8 @@ class JrAmpHourNETSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -558,15 +591,20 @@ class DEVICE_ID_LSWSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_device_id_lsw"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["DEVICE_ID_LSW"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("DEVICE_ID_LSW")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -580,15 +618,20 @@ class DEVICE_ID_MSWSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_device_id_msw"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["DEVICE_ID_MSW"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("DEVICE_ID_MSW")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -601,6 +644,8 @@ class STATUSROLLSensor(MidniteSolarSensor):
         self._attr_name = "Statusroll"
         self._attr_unique_id = f"{entry.entry_id}_statusroll"
         self._attr_icon = "mdi:counter"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -608,7 +653,7 @@ class STATUSROLLSensor(MidniteSolarSensor):
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
                 # Parse formula for register references
-                register_refs = ['4113', '4113']
+                register_refs = ['4113']
                 values_dict = {}
 
                 # Get all required register values by building a mapping first
@@ -620,8 +665,7 @@ class STATUSROLLSensor(MidniteSolarSensor):
 
                 # Compute formula by replacing [addr] with values_dict[addr]
                 try:
-                    computed_formula = "([4113]>>12)+([4113]&0x0FFF)"
-                    computed_formula = computed_formula.replace("[4113]", "values_dict[4113]")
+                    computed_formula = "([4113]>>12)+"
                     computed_formula = computed_formula.replace("[4113]", "values_dict[4113]")
 
                     # Execute the computed formula safely
@@ -645,15 +689,20 @@ class RESTART_TIME_MSSensor(MidniteSolarSensor):
         self._attr_native_unit_of_measurement = "ms"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["RESTART_TIME_MS"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("RESTART_TIME_MS")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -670,6 +719,8 @@ class DISP_AVG_VBATTSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:flash-alert"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -714,6 +765,8 @@ class DISP_AVG_VPVSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:solar-power"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -758,6 +811,8 @@ class IBATT_DISPLAY_SSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -802,6 +857,8 @@ class KW_HOURSSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
         self._attr_suggested_display_precision = 2
         self._attr_icon = "mdi:lightning-bolt"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -846,15 +903,20 @@ class WATTSSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WATTS"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WATTS")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -871,6 +933,8 @@ class PV_INPUT_CURRENTSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:solar-power"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -915,6 +979,8 @@ class VOC_LAST_MEASUREDSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:flash-triangle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -956,15 +1022,20 @@ class HIGHEST_VINPUT_LOGSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_highest_vinput_log"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["HIGHEST_VINPUT_LOG"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("HIGHEST_VINPUT_LOG")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -978,15 +1049,20 @@ class MATCH_POINT_SHADOWSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_match_point_shadow"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:chart-line"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["MATCH_POINT_SHADOW"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("MATCH_POINT_SHADOW")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -1003,15 +1079,20 @@ class AMP_HOURS_DAILYSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:calendar-clock"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["AMP_HOURS_DAILY"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("AMP_HOURS_DAILY")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -1028,6 +1109,8 @@ class LIFETIME_KW_HOURS_1Sensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
         self._attr_suggested_display_precision = 2
         self._attr_icon = "mdi:history"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -1073,15 +1156,20 @@ class LIFETIME_KW_HOURS_1_HIGHSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
         self._attr_suggested_display_precision = 2
         self._attr_icon = "mdi:history"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["LIFETIME_KW_HOURS_1_HIGH"])
-                if value is not None:
-                    return value / 100.0
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("LIFETIME_KW_HOURS_1_HIGH")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value / 100.0
                 return None
 
 
@@ -1098,6 +1186,8 @@ class LIFETIME_AMP_HOURS_1Sensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:history"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -1143,15 +1233,20 @@ class LIFETIME_AMP_HOURS_1_HIGHSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["LIFETIME_AMP_HOURS_1_HIGH"])
-                if value is not None:
-                    return value / 10.0
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("LIFETIME_AMP_HOURS_1_HIGH")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value / 10.0
                 return None
 
 
@@ -1168,6 +1263,8 @@ class BATT_TEMPERATURESensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:thermometer"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -1212,6 +1309,8 @@ class FET_TEMPERATURESensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:thermometer-high"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -1256,6 +1355,8 @@ class PCB_TEMPERATURESensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:thermometer-alert"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -1299,15 +1400,20 @@ class NITE_MINUTES_NO_PWRSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["NITE_MINUTES_NO_PWR"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("NITE_MINUTES_NO_PWR")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -1323,15 +1429,20 @@ class FLOAT_TIME_TODAY_SECSensor(MidniteSolarSensor):
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:clock-outline"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["FLOAT_TIME_TODAY_SEC"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("FLOAT_TIME_TODAY_SEC")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -1347,15 +1458,20 @@ class ABSORB_TIMESensor(MidniteSolarSensor):
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:clock-start"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["ABSORB_TIME"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("ABSORB_TIME")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -1369,15 +1485,20 @@ class PWM_READONLYSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_pwm_readonly"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["PWM_READONLY"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("PWM_READONLY")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -1391,15 +1512,20 @@ class REASON_FOR_RESETSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_reason_for_reset"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:alert-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["REASON_FOR_RESET"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("REASON_FOR_RESET")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -1415,15 +1541,20 @@ class EQUALIZE_TIMESensor(MidniteSolarSensor):
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:progress-wrench"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["EQUALIZE_TIME"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("EQUALIZE_TIME")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -1439,15 +1570,20 @@ class MPP_W_LASTSensor(MidniteSolarSensor):
         self._attr_native_unit_of_measurement = UnitOfPower.WATT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:lightning-bolt-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["MPP_W_LAST"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("MPP_W_LAST")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -1463,15 +1599,20 @@ class NO_DOUBLE_CLICK_TIMERSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["NO_DOUBLE_CLICK_TIMER"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("NO_DOUBLE_CLICK_TIMER")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -1488,15 +1629,20 @@ class SLIDING_CURRENT_LIMITSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["SLIDING_CURRENT_LIMIT"])
-                if value is not None:
-                    return value / 10.0
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("SLIDING_CURRENT_LIMIT")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value / 10.0
                 return None
 
 
@@ -1512,15 +1658,20 @@ class MIN_ABSORB_TIMESensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["MIN_ABSORB_TIME"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("MIN_ABSORB_TIME")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -1534,15 +1685,20 @@ class GENERAL_PURPOSE_WORDSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_general_purpose_word"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["GENERAL_PURPOSE_WORD"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("GENERAL_PURPOSE_WORD")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -1556,15 +1712,20 @@ class EQUALIZE_RETRY_DAYSSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_equalize_retry_days"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["EQUALIZE_RETRY_DAYS"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("EQUALIZE_RETRY_DAYS")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -1578,15 +1739,20 @@ class FORCE_FLAG_BITSSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_force_flag_bits"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:flag"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["FORCE_FLAG_BITS"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("FORCE_FLAG_BITS")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -1603,6 +1769,8 @@ class AUX1_VOLTS_LO_RELSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:flash-alert"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -1647,6 +1815,8 @@ class AUX1_VOLTS_HI_RELSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:flash-alert"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -1691,6 +1861,8 @@ class AUX2_VOLTS_LO_RELSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:flash-alert"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -1735,6 +1907,8 @@ class AUX2_VOLTS_HI_RELSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:flash-alert"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -1779,6 +1953,8 @@ class AUX1_VOLTS_LO_PV_ABSSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:flash-alert"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -1823,6 +1999,8 @@ class AUX1_VOLTS_HI_PV_ABSSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:flash-alert"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -1866,6 +2044,8 @@ class VARIMAXSensor(MidniteSolarSensor):
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:arrow-expand-vertical"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -1885,7 +2065,7 @@ class VARIMAXSensor(MidniteSolarSensor):
 
                 # Compute formula by replacing [addr] with values_dict[addr]
                 try:
-                    computed_formula = "[4180]LSB -> Amps, [4180]MSB -> (Vabsorb-Vrelative)/10"
+                    computed_formula = "[4180]   [4180]  /10"
                     computed_formula = computed_formula.replace("[4180]", "values_dict[4180]")
                     computed_formula = computed_formula.replace("[4180]", "values_dict[4180]")
 
@@ -1911,6 +2091,8 @@ class AUX2_VOLTS_HI_PV_ABSSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:flash-alert"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -1951,15 +2133,20 @@ class ENABLE_FLAGS3Sensor(MidniteSolarSensor):
         self._attr_name = "Enable Flag 3"
         self._attr_unique_id = f"{entry.entry_id}_enable_flags3"
         self._attr_icon = "mdi:check-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["ENABLE_FLAGS3"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("ENABLE_FLAGS3")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -1973,15 +2160,20 @@ class ARC_FAULT_SENSITIVITYSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_arc_fault_sensitivity"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["ARC_FAULT_SENSITIVITY"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("ARC_FAULT_SENSITIVITY")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -1995,6 +2187,8 @@ class VPV_TARGET_RDSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_vpv_target_rd"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -2036,6 +2230,8 @@ class VPV_TARGET_WRSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_vpv_target_wr"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -2079,15 +2275,20 @@ class SWEEP_INTERVAL_SECS_EEPROMSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["SWEEP_INTERVAL_SECS_EEPROM"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("SWEEP_INTERVAL_SECS_EEPROM")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -2104,6 +2305,8 @@ class MIN_SWP_VOLTAGE_EEPROMSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:flash-alert"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -2148,6 +2351,8 @@ class MAX_INPUT_CURRENT_EEPROMSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -2189,15 +2394,20 @@ class SWEEP_DEPTHSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_sweep_depth"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["SWEEP_DEPTH"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("SWEEP_DEPTH")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -2214,15 +2424,20 @@ class NEGATIVE_CURRENT_ADJSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["NEGATIVE_CURRENT_ADJ"])
-                if value is not None:
-                    return value / 10.0
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("NEGATIVE_CURRENT_ADJ")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value / 10.0
                 return None
 
 
@@ -2239,15 +2454,20 @@ class CLIPPER_CMD_VOLTSSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:flash-alert"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["CLIPPER_CMD_VOLTS"])
-                if value is not None:
-                    return value / 10.0
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("CLIPPER_CMD_VOLTS")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value / 10.0
                 return None
 
 
@@ -2261,15 +2481,20 @@ class WIND_NUMBER_OF_POLES_EEPROMSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_wind_number_of_poles_eeprom"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_NUMBER_OF_POLES_EEPROM"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WIND_NUMBER_OF_POLES_EEPROM")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -2283,15 +2508,20 @@ class MPP_PERCENT_VOC_EEPROMSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_mpp_percent_voc_eeprom"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["MPP_PERCENT_VOC_EEPROM"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("MPP_PERCENT_VOC_EEPROM")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -2305,15 +2535,20 @@ class WIND_TABLE_TO_USE_EEPROMSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_wind_table_to_use_eeprom"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_TABLE_TO_USE_EEPROM"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WIND_TABLE_TO_USE_EEPROM")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -2327,15 +2562,20 @@ class UNIT_NAME_0Sensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_unit_name_0"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["UNIT_NAME_0"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("UNIT_NAME_0")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -2349,15 +2589,20 @@ class UNIT_NAME_1Sensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_unit_name_1"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["UNIT_NAME_1"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("UNIT_NAME_1")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -2371,15 +2616,20 @@ class UNIT_NAME_2Sensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_unit_name_2"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["UNIT_NAME_2"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("UNIT_NAME_2")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -2393,15 +2643,20 @@ class UNIT_NAME_3Sensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_unit_name_3"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["UNIT_NAME_3"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("UNIT_NAME_3")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -2415,6 +2670,8 @@ class CTI_ME0Sensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_cti_me0"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -2457,15 +2714,20 @@ class CTI_ME0_HIGHSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_cti_me0_high"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["CTI_ME0_HIGH"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("CTI_ME0_HIGH")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -2479,6 +2741,8 @@ class CTI_ME1Sensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_cti_me1"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -2521,15 +2785,20 @@ class CTI_ME1_HIGHSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_cti_me1_high"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["CTI_ME1_HIGH"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("CTI_ME1_HIGH")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -2543,15 +2812,20 @@ class CTI_ME2Sensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_cti_me2"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["CTI_ME2"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("CTI_ME2")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -2565,15 +2839,20 @@ class REMOTE_BUTTONSSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_remote_buttons"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["REMOTE_BUTTONS"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("REMOTE_BUTTONS")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -2587,6 +2866,8 @@ class PREVOCSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_prevoc"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -2628,15 +2909,20 @@ class AUX2_A2D_D2ASensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_aux2_a2d_d2a"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["AUX2_A2D_D2A"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("AUX2_A2D_D2A")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -2650,6 +2936,8 @@ class VOC_RDSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_voc_rd"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -2693,15 +2981,20 @@ class ABSORB_TIME_DUPLICATESensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["ABSORB_TIME_DUPLICATE"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("ABSORB_TIME_DUPLICATE")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -2717,15 +3010,20 @@ class SIESTA_TIME_SECSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["SIESTA_TIME_SEC"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("SIESTA_TIME_SEC")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -2739,6 +3037,8 @@ class SIESTA_ABORT_VOC_ADJSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_siesta_abort_voc_adj"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -2783,6 +3083,8 @@ class VBATT_REG_SET_P_TEMP_COMPSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:thermometer"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -2824,15 +3126,20 @@ class VBATT_NOMINAL_EEPROMSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_vbatt_nominal_eeprom"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["VBATT_NOMINAL_EEPROM"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("VBATT_NOMINAL_EEPROM")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -2849,6 +3156,8 @@ class ENDING_AMPES_EEPROMSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -2890,15 +3199,20 @@ class ENDING_SOC_EEPROMSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_ending_soc_eeprom"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["ENDING_SOC_EEPROM"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("ENDING_SOC_EEPROM")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -2915,6 +3229,8 @@ class REBUCK_VOLTS_EEPROMSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:flash-alert"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -2956,15 +3272,20 @@ class DAYS_BTW_BULK_ABS_EEPROMSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_days_btw_bulk_abs_eeprom"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["DAYS_BTW_BULK_ABS_EEPROM"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("DAYS_BTW_BULK_ABS_EEPROM")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -2978,34 +3299,7 @@ class DAY_LOG_COMB_CAT_INDEXSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_day_log_comb_cat_index"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-    @property
-    def native_value(self) -> Optional[float]:
-        """Return the state of the sensor."""
-        if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                # Parse formula for register references
-                register_refs = []
-                values_dict = {}
-
-                # Get all required register values by building a mapping first
-                for ref in register_refs:
-                    reg_addr = int(ref)
-                    if status_data is not None:
-                        val = status_data.get(reg_addr, 0)
-                        values_dict[ref] = val
-
-                # Compute formula by replacing [addr] with values_dict[addr]
-                try:
-                    computed_formula = "(index >> 10) & 0x3F (category), index & 0x03FF (day offset)"
-
-                    # Execute the computed formula safely
-                    result = eval(computed_formula)
-                    return float(result) if result is not None else None
-                except (KeyError, TypeError, NameError):
-                    pass
-
-                return None
+    
 
 
 class MIN_LOG_COMB_CAT_INDEXSensor(MidniteSolarSensor):
@@ -3018,34 +3312,7 @@ class MIN_LOG_COMB_CAT_INDEXSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_min_log_comb_cat_index"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
-    @property
-    def native_value(self) -> Optional[float]:
-        """Return the state of the sensor."""
-        if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                # Parse formula for register references
-                register_refs = []
-                values_dict = {}
-
-                # Get all required register values by building a mapping first
-                for ref in register_refs:
-                    reg_addr = int(ref)
-                    if status_data is not None:
-                        val = status_data.get(reg_addr, 0)
-                        values_dict[ref] = val
-
-                # Compute formula by replacing [addr] with values_dict[addr]
-                try:
-                    computed_formula = "(index >> 10) & 0x3F (category), index & 0x03FF (sample offset)"
-
-                    # Execute the computed formula safely
-                    result = eval(computed_formula)
-                    return float(result) if result is not None else None
-                except (KeyError, TypeError, NameError):
-                    pass
-
-                return None
+    
 
 
 class REBUCK_TIMER_SEC_EEPROMSensor(MidniteSolarSensor):
@@ -3060,15 +3327,20 @@ class REBUCK_TIMER_SEC_EEPROMSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["REBUCK_TIMER_SEC_EEPROM"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("REBUCK_TIMER_SEC_EEPROM")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -3084,15 +3356,20 @@ class VOC_QUALIFY_TIMER_MS_EEPROM_LOWSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["VOC_QUALIFY_TIMER_MS_EEPROM_LOW"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("VOC_QUALIFY_TIMER_MS_EEPROM_LOW")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -3108,6 +3385,8 @@ class VOC_QUALIFY_TIMER_MS_EEPROMSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -3150,15 +3429,20 @@ class IPV_MINUS_RAWSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_ipv_minus_raw"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:network"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["IPV_MINUS_RAW"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("IPV_MINUS_RAW")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -3174,15 +3458,20 @@ class RESTART_TIME_MS2Sensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["RESTART_TIME_MS2"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("RESTART_TIME_MS2")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -3199,6 +3488,8 @@ class IBATT_RAW_ASensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -3240,6 +3531,8 @@ class OUTPUT_VBATT_RAWSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_output_vbatt_raw"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -3281,6 +3574,8 @@ class INPUT_VPV_RAWSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_input_vpv_raw"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -3325,15 +3620,20 @@ class PK_HOLD_VPV_STAMPSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["PK_HOLD_VPV_STAMP"])
-                if value is not None:
-                    return value / 10.0
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("PK_HOLD_VPV_STAMP")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value / 10.0
                 return None
 
 
@@ -3347,6 +3647,8 @@ class VPV_TARGET_RD_TMPSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_vpv_target_rd_tmp"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -3390,15 +3692,20 @@ class SWP_DEEP_TIMEOUT_SECSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["SWP_DEEP_TIMEOUT_SEC"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("SWP_DEEP_TIMEOUT_SEC")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -3415,15 +3722,20 @@ class LOW_WATTS_EEPASensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["LOW_WATTS_EEPA"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("LOW_WATTS_EEPA")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -3440,15 +3752,20 @@ class WIND_LOW_WATTS_EEPASensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_LOW_WATTS_EEPA"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WIND_LOW_WATTS_EEPA")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -3465,15 +3782,20 @@ class WIND_WINDOW_WATTS_REF_EEPASensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_WINDOW_WATTS_REF_EEPA"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WIND_WINDOW_WATTS_REF_EEPA")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -3490,15 +3812,20 @@ class WINDOW_WATTS_RO_DELTA_EEPASensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WINDOW_WATTS_RO_DELTA_EEPA"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WINDOW_WATTS_RO_DELTA_EEPA")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -3514,15 +3841,20 @@ class WIND_TIMEOUT_REF_EEPASensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_TIMEOUT_REF_EEPA"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WIND_TIMEOUT_REF_EEPA")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -3538,15 +3870,20 @@ class WIND_TIMEOUT2_REF_EEPASensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_TIMEOUT2_REF_EEPA"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WIND_TIMEOUT2_REF_EEPA")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -3562,15 +3899,20 @@ class WIND_TIMEOUT_SECONDSSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_TIMEOUT_SECONDS"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WIND_TIMEOUT_SECONDS")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -3586,15 +3928,20 @@ class WIND_TIMEOUT2_SECONDSSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:timer"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_TIMEOUT2_SECONDS"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WIND_TIMEOUT2_SECONDS")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -3608,15 +3955,20 @@ class MIN_VPV_TURN_ONSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_min_vpv_turn_on"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["MIN_VPV_TURN_ON"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("MIN_VPV_TURN_ON")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -3630,15 +3982,20 @@ class VPV_B4_TURN_OFFSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_vpv_b4_turn_off"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["VPV_B4_TURN_OFF"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("VPV_B4_TURN_OFF")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -3655,15 +4012,20 @@ class H2O_SWEEP_AMPS_10TIME6_EEPASensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["H2O_SWEEP_AMPS_10TIME6_EEPA"])
-                if value is not None:
-                    return value / 10.0
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("H2O_SWEEP_AMPS_10TIME6_EEPA")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value / 10.0
                 return None
 
 
@@ -3680,15 +4042,20 @@ class ENDING_AMPS_TIMER_SECSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["ENDING_AMPS_TIMER_SEC"])
-                if value is not None:
-                    return value / 10.0
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("ENDING_AMPS_TIMER_SEC")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value / 10.0
                 return None
 
 
@@ -3705,15 +4072,20 @@ class PK_AMPS_OVER_LIMIT_HI_EEPASensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["PK_AMPS_OVER_LIMIT_HI_EEPA"])
-                if value is not None:
-                    return value / 10.0
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("PK_AMPS_OVER_LIMIT_HI_EEPA")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value / 10.0
                 return None
 
 
@@ -3730,15 +4102,20 @@ class PK_AMPS_OVER_LIMIT_LO_EEPASensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["PK_AMPS_OVER_LIMIT_LO_EEPA"])
-                if value is not None:
-                    return value / 10.0
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("PK_AMPS_OVER_LIMIT_LO_EEPA")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value / 10.0
                 return None
 
 
@@ -3755,15 +4132,20 @@ class WIND_POWER_TABLE_V_0_EEPASensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_V_0_EEPA"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WIND_POWER_TABLE_V_0_EEPA")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -3780,15 +4162,20 @@ class WIND_POWER_TABLE_V_1_EEPASensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_V_1_EEPA"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WIND_POWER_TABLE_V_1_EEPA")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -3805,15 +4192,20 @@ class WIND_POWER_TABLE_V_2_EEPASensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_V_2_EEPA"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WIND_POWER_TABLE_V_2_EEPA")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -3830,15 +4222,20 @@ class WIND_POWER_TABLE_V_3_EEPASensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_V_3_EEPA"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WIND_POWER_TABLE_V_3_EEPA")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -3855,15 +4252,20 @@ class WIND_POWER_TABLE_V_4_EEPASensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_V_4_EEPA"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WIND_POWER_TABLE_V_4_EEPA")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -3880,15 +4282,20 @@ class WIND_POWER_TABLE_V_5_EEPASensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_V_5_EEPA"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WIND_POWER_TABLE_V_5_EEPA")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -3905,15 +4312,20 @@ class WIND_POWER_TABLE_V_6_EEPASensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_V_6_EEPA"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WIND_POWER_TABLE_V_6_EEPA")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -3930,15 +4342,20 @@ class WIND_POWER_TABLE_V_7_EEPASensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_V_7_EEPA"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WIND_POWER_TABLE_V_7_EEPA")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -3955,15 +4372,20 @@ class WIND_POWER_TABLE_I_0_EEPASensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_I_0_EEPA"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WIND_POWER_TABLE_I_0_EEPA")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -3980,15 +4402,20 @@ class WIND_POWER_TABLE_I_1_EEPASensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_I_1_EEPA"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WIND_POWER_TABLE_I_1_EEPA")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4005,15 +4432,20 @@ class WIND_POWER_TABLE_I_2_EEPASensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_I_2_EEPA"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WIND_POWER_TABLE_I_2_EEPA")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4030,15 +4462,20 @@ class WIND_POWER_TABLE_I_3_EEPASensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_I_3_EEPA"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WIND_POWER_TABLE_I_3_EEPA")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4055,15 +4492,20 @@ class WIND_POWER_TABLE_I_4_EEPASensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_I_4_EEPA"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WIND_POWER_TABLE_I_4_EEPA")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4080,15 +4522,20 @@ class WIND_POWER_TABLE_I_5_EEPASensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_I_5_EEPA"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WIND_POWER_TABLE_I_5_EEPA")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4105,15 +4552,20 @@ class WIND_POWER_TABLE_I_6_EEPASensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_I_6_EEPA"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WIND_POWER_TABLE_I_6_EEPA")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4130,15 +4582,20 @@ class WIND_POWER_TABLE_I_7_EEPASensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:gauge"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_POWER_TABLE_I_7_EEPA"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WIND_POWER_TABLE_I_7_EEPA")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4155,15 +4612,20 @@ class PK_AMPS_OVER_TRIP_EEPROMSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["PK_AMPS_OVER_TRIP_EEPROM"])
-                if value is not None:
-                    return value / 10.0
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("PK_AMPS_OVER_TRIP_EEPROM")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value / 10.0
                 return None
 
 
@@ -4177,15 +4639,20 @@ class MNGP_REVISIONSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_mngp_revision"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["MNGP_REVISION"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("MNGP_REVISION")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4199,15 +4666,20 @@ class MNLP_REVISIONSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_mnlp_revision"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["MNLP_REVISION"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("MNLP_REVISION")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4221,15 +4693,20 @@ class CLASSIC_MODBUS_ADDR_EEPROMSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_classic_modbus_addr_eeprom"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:network"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["CLASSIC_MODBUS_ADDR_EEPROM"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("CLASSIC_MODBUS_ADDR_EEPROM")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4246,15 +4723,20 @@ class BATTERY_TEMP_PASSED_EEPROMSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:thermometer"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["BATTERY_TEMP_PASSED_EEPROM"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("BATTERY_TEMP_PASSED_EEPROM")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4268,15 +4750,20 @@ class MODBUS_CONTROL_EEPROMSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_modbus_control_eeprom"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:network"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["MODBUS_CONTROL_EEPROM"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("MODBUS_CONTROL_EEPROM")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4290,15 +4777,20 @@ class CLASSIC_FME_PASSED_BITS_EEPROMSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_classic_fme_passed_bits_eeprom"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["CLASSIC_FME_PASSED_BITS_EEPROM"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("CLASSIC_FME_PASSED_BITS_EEPROM")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4312,15 +4804,20 @@ class WIND_SYNCH_A_EEPROMSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_wind_synch_a_eeprom"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_SYNCH_A_EEPROM"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WIND_SYNCH_A_EEPROM")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4334,15 +4831,20 @@ class WIND_SYNCH_V_EEPROMSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_wind_synch_v_eeprom"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WIND_SYNCH_V_EEPROM"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WIND_SYNCH_V_EEPROM")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4356,15 +4858,20 @@ class FOLLOW_ME_PASS_REF_EEPROMSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_follow_me_pass_ref_eeprom"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["FOLLOW_ME_PASS_REF_EEPROM"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("FOLLOW_ME_PASS_REF_EEPROM")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4378,15 +4885,20 @@ class DABT_U32_DEBUG_01Sensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_dabt_u32_debug_01"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["DABT_U32_DEBUG_01"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("DABT_U32_DEBUG_01")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4400,15 +4912,20 @@ class DABT_U32_DEBUG_02Sensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_dabt_u32_debug_02"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["DABT_U32_DEBUG_02"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("DABT_U32_DEBUG_02")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4422,15 +4939,20 @@ class DABT_U32_DEBUG_03Sensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_dabt_u32_debug_03"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["DABT_U32_DEBUG_03"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("DABT_U32_DEBUG_03")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4444,15 +4966,20 @@ class DABT_U32_DEBUG_04Sensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_dabt_u32_debug_04"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["DABT_U32_DEBUG_04"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("DABT_U32_DEBUG_04")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4466,15 +4993,20 @@ class CLEAR_LOGS_CATSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_clear_logs_cat"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["CLEAR_LOGS_CAT"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("CLEAR_LOGS_CAT")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4488,15 +5020,20 @@ class CLEAR_LOGS_COUNTER_10MSSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_clear_logs_counter_10ms"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["CLEAR_LOGS_COUNTER_10MS"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("CLEAR_LOGS_COUNTER_10MS")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4510,15 +5047,20 @@ class USER_VARIABLE_02Sensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_user_variable_02"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["USER_VARIABLE_02"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("USER_VARIABLE_02")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4535,15 +5077,20 @@ class WIZBANG_RX_BUFFER_TEMP_SH1Sensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:thermometer-alert"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WIZBANG_RX_BUFFER_TEMP_SH1"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WIZBANG_RX_BUFFER_TEMP_SH1")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4560,15 +5107,20 @@ class WIZBANG_RX_BUFFER_TEMP_SH2Sensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:thermometer-alert"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WIZBANG_RX_BUFFER_TEMP_SH2"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WIZBANG_RX_BUFFER_TEMP_SH2")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4585,15 +5137,20 @@ class WIZBANG_RX_BUFFER_TEMP_SH3Sensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:thermometer-alert"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WIZBANG_RX_BUFFER_TEMP_SH3"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WIZBANG_RX_BUFFER_TEMP_SH3")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4610,15 +5167,20 @@ class WIZBANG_RX_BUFFER_TEMP_SH4Sensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:thermometer-alert"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WIZBANG_RX_BUFFER_TEMP_SH4"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WIZBANG_RX_BUFFER_TEMP_SH4")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4632,15 +5194,20 @@ class WJRB_CMD_S_EEPROMSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_wjrb_cmd_s_eeprom"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WJRB_CMD_S_EEPROM"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WJRB_CMD_S_EEPROM")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4657,15 +5224,20 @@ class WJRB_RAW_CURRENTSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WJRB_RAW_CURRENT"])
-                if value is not None:
-                    return value / 10.0
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WJRB_RAW_CURRENT")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value / 10.0
                 return None
 
 
@@ -4679,15 +5251,20 @@ class WJRB_NUMERATOR_SS_EEPROMSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_wjrb_numerator_ss_eeprom"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WJRB_NUMERATOR_SS_EEPROM"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WJRB_NUMERATOR_SS_EEPROM")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4704,6 +5281,8 @@ class WJRB_AMP_HOUR_POSITIVESensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -4749,15 +5328,20 @@ class WJRB_AMP_HOUR_POSITIVE_HIGHSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WJRB_AMP_HOUR_POSITIVE_HIGH"])
-                if value is not None:
-                    return value / 10.0
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WJRB_AMP_HOUR_POSITIVE_HIGH")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value / 10.0
                 return None
 
 
@@ -4774,6 +5358,8 @@ class WJRB_AMP_HOUR_NEGATIVESensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -4819,15 +5405,20 @@ class WJRB_AMP_HOUR_NEGATIVE_HIGHSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WJRB_AMP_HOUR_NEGATIVE_HIGH"])
-                if value is not None:
-                    return value / 10.0
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WJRB_AMP_HOUR_NEGATIVE_HIGH")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value / 10.0
                 return None
 
 
@@ -4844,6 +5435,8 @@ class WJRB_AMP_HOUR_NETSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -4889,15 +5482,20 @@ class WJRB_AMP_HOUR_NET_HIGHSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WJRB_AMP_HOUR_NET_HIGH"])
-                if value is not None:
-                    return value / 10.0
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WJRB_AMP_HOUR_NET_HIGH")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value / 10.0
                 return None
 
 
@@ -4914,15 +5512,20 @@ class WJRB_CURRENT_32_SIGNED_EEPROMSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:current-dc"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WJRB_CURRENT_32_SIGNED_EEPROM"])
-                if value is not None:
-                    return value / 10.0
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WJRB_CURRENT_32_SIGNED_EEPROM")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value / 10.0
                 return None
 
 
@@ -4939,15 +5542,20 @@ class WJRB_RAW_CRC_AND_TEMPSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_suggested_display_precision = 1
         self._attr_icon = "mdi:thermometer-alert"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["WJRB_RAW_CRC_AND_TEMP"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("WJRB_RAW_CRC_AND_TEMP")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4961,15 +5569,20 @@ class IP_ADDRESS_LSB_1Sensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_ip_address_lsb_1"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:network"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["IP_ADDRESS_LSB_1"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("IP_ADDRESS_LSB_1")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -4983,15 +5596,20 @@ class IP_ADDRESS_LSB_2Sensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_ip_address_lsb_2"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:network"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["IP_ADDRESS_LSB_2"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("IP_ADDRESS_LSB_2")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -5005,15 +5623,20 @@ class GATEWAY_ADDRESS_LSB_1Sensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_gateway_address_lsb_1"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:network"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["GATEWAY_ADDRESS_LSB_1"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("GATEWAY_ADDRESS_LSB_1")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -5027,15 +5650,20 @@ class GATEWAY_ADDRESS_LSB_2Sensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_gateway_address_lsb_2"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:network"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["GATEWAY_ADDRESS_LSB_2"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("GATEWAY_ADDRESS_LSB_2")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -5049,15 +5677,20 @@ class SUBNET_MASK_LSB_1Sensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_subnet_mask_lsb_1"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["SUBNET_MASK_LSB_1"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("SUBNET_MASK_LSB_1")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -5071,15 +5704,20 @@ class SUBNET_MASK_LSB_2Sensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_subnet_mask_lsb_2"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:help-circle"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["SUBNET_MASK_LSB_2"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("SUBNET_MASK_LSB_2")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -5093,15 +5731,20 @@ class DNS_1_LSB_1Sensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_dns_1_lsb_1"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:network"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["DNS_1_LSB_1"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("DNS_1_LSB_1")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -5115,15 +5758,20 @@ class DNS_1_LSB_2Sensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_dns_1_lsb_2"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:network"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["DNS_1_LSB_2"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("DNS_1_LSB_2")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -5137,15 +5785,20 @@ class DNS_2_LSB_1Sensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_dns_2_lsb_1"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:network"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["DNS_2_LSB_1"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("DNS_2_LSB_1")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None
 
 
@@ -5159,13 +5812,18 @@ class DNS_2_LSB_2Sensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_dns_2_lsb_2"
         self._attr_suggested_display_precision = 0
         self._attr_icon = "mdi:network"
+    
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["DNS_2_LSB_2"])
-                if value is not None:
-                    return value
+            for group_name, registers in REGISTER_GROUPS.items():
+                reg_addr = REGISTER_MAP.get("DNS_2_LSB_2")
+                if reg_addr is not None and reg_addr in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(reg_addr)
+                        if value is not None:
+                            return value
                 return None

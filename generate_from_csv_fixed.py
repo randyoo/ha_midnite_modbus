@@ -616,63 +616,84 @@ class MidniteSolarSensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], Senso
         if icon:
             content += f'        self._attr_icon = "{icon}"\n'
         
+        # Close the __init__ method properly
+        content += '    \n'  # Blank line before closing __init__
+        
         # Add formula-based conversion logic or unit-based fallback
-        if formula:
+        if formula and formula.strip():
             # Extract register references at generation time and clean formula
-            # Remove arrow characters and other non-Python syntax
-            cleaned_formula = formula.replace('→', '->').replace('–', '-')
+            # Remove arrow characters, en-dashes (multiple variants), commas, and other non-Python syntax
+            cleaned_formula = formula.replace('→', '').replace('–', '-').replace('‑', '-').replace(',', '')
+            
+            # Remove known descriptive keywords (case insensitive)
+            cleaned_formula = re.sub(r'\b(?:MSB|LSB|PCB|Rev|Unit|Type|EEprom|min|max|A|Volts|Voltage|Amps|Current|seconds?|days?)\b', '', cleaned_formula, flags=re.IGNORECASE)
+            
+            # Remove parentheses that contain descriptive text (letters or spaces)
+            # This preserves mathematical parentheses like (([4110]<<16)+[4109])/10
+            # Pattern: ( followed by anything with at least one letter, then )
+            cleaned_formula = re.sub(r'\([^)]*[a-zA-Z][^)]*\)', '', cleaned_formula, flags=re.IGNORECASE)
+            
             register_refs = re.findall(r'\[(\d+)\]', cleaned_formula)
             
-            content += '    @property\n'
-            content += '    def native_value(self) -> Optional[float]:\n'
-            content += '        """Return the state of the sensor."""\n'
-            content += '        if self.coordinator.data and "data" in self.coordinator.data:\n'
-            content += '            status_data = self.coordinator.data["data"].get("status")\n'
-            content += '            if status_data:\n'
-            content += '                # Parse formula for register references\n'
-            content += f'                register_refs = {register_refs}\n'
-            content += '                values_dict = {}\n'
-            content += '\n'
-            content += '                # Get all required register values by building a mapping first\n'
-            content += '                for ref in register_refs:\n'
-            content += '                    reg_addr = int(ref)\n'
-            content += '                    if status_data is not None:\n'
-            content += f'                        val = status_data.get(reg_addr, 0)\n'
-            content += '                        values_dict[ref] = val\n'
-            content += '\n'
-            content += '                # Compute formula by replacing [addr] with values_dict[addr]\n'
-            content += '                try:\n'
-            # Build the formula replacement code dynamically
-            replacement_code = '                    computed_formula = "{}"\n'.format(cleaned_formula)
-            for ref in register_refs:
-                replacement_code += '                    computed_formula = computed_formula.replace("[{}]", "values_dict[{}]")\n'.format(ref, ref)
-            content += replacement_code
-            content += '\n'
-            content += '                    # Execute the computed formula safely\n'
-            content += '                    result = eval(computed_formula)\n'
-            content += '                    return float(result) if result is not None else None\n'
-            content += '                except (KeyError, TypeError, NameError):\n'
-            content += '                    pass\n'
-            content += '\n'
-            content += '                return None\n'
+            # Only use formula approach if we found register references
+            if register_refs:
+                
+                content += '\n'  # Blank line before @property
+                content += '    @property\n'
+                content += '    def native_value(self) -> Optional[float]:\n'
+                content += '        """Return the state of the sensor."""\n'
+                content += '        if self.coordinator.data and "data" in self.coordinator.data:\n'
+                content += '            status_data = self.coordinator.data["data"].get("status")\n'
+                content += '            if status_data:\n'
+                content += '                # Parse formula for register references\n'
+                content += f'                register_refs = {register_refs}\n'
+                content += '                values_dict = {}\n'
+                content += '\n'
+                content += '                # Get all required register values by building a mapping first\n'
+                content += '                for ref in register_refs:\n'
+                content += '                    reg_addr = int(ref)\n'
+                content += '                    if status_data is not None:\n'
+                content += f'                        val = status_data.get(reg_addr, 0)\n'
+                content += '                        values_dict[ref] = val\n'
+                content += '\n'
+                content += '                # Compute formula by replacing [addr] with values_dict[addr]\n'
+                content += '                try:\n'
+                # Build the formula replacement code dynamically
+                replacement_code = '                    computed_formula = "{}"\n'.format(cleaned_formula)
+                for ref in register_refs:
+                    replacement_code += '                    computed_formula = computed_formula.replace("[{}]", "values_dict[{}]")\n'.format(ref, ref)
+                content += replacement_code
+                content += '\n'
+                content += '                    # Execute the computed formula safely\n'
+                content += '                    result = eval(computed_formula)\n'
+                content += '                    return float(result) if result is not None else None\n'
+                content += '                except (KeyError, TypeError, NameError):\n'
+                content += '                    pass\n'
+                content += '\n'
+                content += '                return None\n'
         else:
             # Use unit-based conversion as fallback
+            content += '\n'  # Blank line before @property
             content += '    @property\n'
             content += '    def native_value(self) -> Optional[float]:\n'
             content += '        """Return the state of the sensor."""\n'
             content += '        if self.coordinator.data and "data" in self.coordinator.data:\n'
-            content += '            status_data = self.coordinator.data["data"].get("status")\n'
-            content += '            if status_data:\n'
-            content += f'                value = status_data.get(REGISTER_MAP["{name}"])\n'
-            content += '                if value is not None:\n'
+            # Try to find the value in any register group
+            content += '            for group_name, registers in REGISTER_GROUPS.items():\n'
+            content += '                reg_addr = REGISTER_MAP.get("'+name+'")\n'
+            content += '                if reg_addr is not None and reg_addr in registers:\n'
+            content += '                    data = self.coordinator.data["data"].get(group_name)\n'
+            content += '                    if data is not None:\n'
+            content += f'                        value = data.get(reg_addr)\n'
+            content += '                        if value is not None:\n'
             
             # Add conversion logic based on unit
             if unit == 'V' or unit == 'A':
-                content += f'                    return value / 10.0\n'
+                content += f'                            return value / 10.0\n'
             elif unit == 'kWh':
-                content += f'                    return value / 100.0\n'
+                content += f'                            return value / 100.0\n'
             else:
-                content += f'                    return value\n'
+                content += f'                            return value\n'
             
             content += '                return None\n'
     
@@ -985,23 +1006,27 @@ class MidniteSolarSelect(CoordinatorEntity[MidniteSolarUpdateCoordinator], Selec
         content += '        super().__init__(coordinator, entry)\n'
         content += f'        self._attr_name = "{friendly_name}"\n'
         content += f'        self._attr_unique_id = f"{{entry.entry_id}}_{name.lower().replace(" ", "_")}_select"\n'
+        content += f'        self.register_name = "{name}"\n'
         
         # Add icon if specified
         if icon:
             content += f'        self._attr_icon = "{icon}"\n'
         
+        # Close the __init__ method and add a blank line
+        content += '    \n'  # Blank line before @property decorators
+        
         # Add options based on select type or use a generic approach
         # For now, we'll add a basic implementation that reads the register value
-        content += '''    @property
-    def current_option(self) -> Optional[str]:
+        content += '''    def current_option(self) -> Optional[str]:
         """Return the currently selected option."""
         if self.coordinator.data and "data" in self.coordinator.data:
             # Try to find which group this register belongs to
             for group_name, registers in REGISTER_GROUPS.items():
-                if REGISTER_MAP.get(name) in registers:
+                reg_addr = REGISTER_MAP.get(self.register_name)
+                if reg_addr is not None and reg_addr in registers:
                     data = self.coordinator.data["data"].get(group_name)
                     if data is not None:
-                        value = data.get(REGISTER_MAP[name])
+                        value = data.get(reg_addr)
                         if value is not None:
                             return str(value)
         return None
@@ -1010,8 +1035,8 @@ class MidniteSolarSelect(CoordinatorEntity[MidniteSolarUpdateCoordinator], Selec
     def options(self) -> list[str]:
         """Return a set of available options."""
         # Generic implementation - could be enhanced with specific options per register
-        return ["0", "1", "2", "3", "4", "5"]
-'''
+        return ["0", "1", "2", "3", "4", "5"]'''
+        # Generic implementation - could be enhanced with specific options per register
     
     with open(output_path, 'w') as f:
         f.write(content)

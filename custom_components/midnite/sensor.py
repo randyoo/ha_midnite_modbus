@@ -296,7 +296,7 @@ class UNIT_IDSensor(MidniteSolarSensor):
 
                 # Compute formula by replacing [addr] with values_dict[addr]
                 try:
-                    computed_formula = "[4101]MSB → PCB Rev (0‑255) , [4101]LSB → Unit Type"
+                    computed_formula = "[4101]MSB -> PCB Rev (0‑255) , [4101]LSB -> Unit Type"
                     computed_formula = computed_formula.replace("[4101]", "values_dict[4101]")
                     computed_formula = computed_formula.replace("[4101]", "values_dict[4101]")
 
@@ -337,7 +337,7 @@ class UNIT_SW_DATE_ROSensor(MidniteSolarSensor):
 
                 # Compute formula by replacing [addr] with values_dict[addr]
                 try:
-                    computed_formula = "[4102] → Year, [4103]MSB → Month, [4103]LSB → Day"
+                    computed_formula = "[4102] -> Year, [4103]MSB -> Month, [4103]LSB -> Day"
                     computed_formula = computed_formula.replace("[4102]", "values_dict[4102]")
                     computed_formula = computed_formula.replace("[4103]", "values_dict[4103]")
                     computed_formula = computed_formula.replace("[4103]", "values_dict[4103]")
@@ -1885,7 +1885,7 @@ class VARIMAXSensor(MidniteSolarSensor):
 
                 # Compute formula by replacing [addr] with values_dict[addr]
                 try:
-                    computed_formula = "[4180]LSB → Amps, [4180]MSB → (Vabsorb–Vrelative)/10"
+                    computed_formula = "[4180]LSB -> Amps, [4180]MSB -> (Vabsorb-Vrelative)/10"
                     computed_formula = computed_formula.replace("[4180]", "values_dict[4180]")
                     computed_formula = computed_formula.replace("[4180]", "values_dict[4180]")
 

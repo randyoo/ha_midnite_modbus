@@ -417,8 +417,10 @@ class MidniteSolarSensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], Senso
         
         # Add formula-based conversion logic or unit-based fallback
         if formula:
-            # Extract register references at generation time
-            register_refs = re.findall(r'\[(\d+)\]', formula)
+            # Extract register references at generation time and clean formula
+            # Remove arrow characters and other non-Python syntax
+            cleaned_formula = formula.replace('→', '->').replace('–', '-')
+            register_refs = re.findall(r'\[(\d+)\]', cleaned_formula)
             
             content += '    @property\n'
             content += '    def native_value(self) -> Optional[float]:\n'
@@ -440,7 +442,7 @@ class MidniteSolarSensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], Senso
             content += '                # Compute formula by replacing [addr] with values_dict[addr]\n'
             content += '                try:\n'
             # Build the formula replacement code dynamically
-            replacement_code = '                    computed_formula = "{}"\n'.format(formula)
+            replacement_code = '                    computed_formula = "{}"\n'.format(cleaned_formula)
             for ref in register_refs:
                 replacement_code += '                    computed_formula = computed_formula.replace("[{}]", "values_dict[{}]")\n'.format(ref, ref)
             content += replacement_code
@@ -686,7 +688,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DEVICE_TYPES, DOMAIN, FORCE_FLAGS, REGISTER_MAP
+from .const import DEVICE_TYPES, DOMAIN, FORCE_FLAGS, REGISTER_MAP, REGISTER_GROUPS
 from .coordinator import MidniteSolarUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)

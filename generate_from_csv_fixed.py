@@ -432,14 +432,10 @@ class MidniteSolarSensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], Senso
             content += '\n'
             content += '                # Get all required register values by building a mapping first\n'
             content += '                for ref in register_refs:\n'
-            content += '                    reg_name = None\n'
-            content += '                    for r in data:\n'
-            content += '                        if int(r["Address"]) == int(ref):\n'
-            content += '                            reg_name = r["Register Name"]\n'
-            content += '                            break\n'
-            content += '                    if reg_name:\n'
-            content += f'                        val = status_data.get(REGISTER_MAP["{name}"])  # TODO: Use ref instead of name\n'
-            content += '                        values_dict[ref] = val if val is not None else 0\n'
+            content += '                    reg_addr = int(ref)\n'
+            content += '                    if status_data is not None:\n'
+            content += f'                        val = status_data.get(reg_addr, 0)\n'
+            content += '                        values_dict[ref] = val\n'
             content += '\n'
             content += '                # Compute formula by replacing [addr] with values_dict[addr]\n'
             content += '                try:\n'
@@ -629,6 +625,27 @@ class MidniteSolarNumber(CoordinatorEntity[MidniteSolarUpdateCoordinator], Numbe
         if icon:
             content += f'        self._attr_icon = "{icon}"\n'
         
+        # Add min/max values based on unit type
+        if unit == 'V':
+            content += '        self._attr_native_min_value = 0\n'
+            content += '        self._attr_native_max_value = 200\n'  # 200V max
+        elif unit == 'A':
+            content += '        self._attr_native_min_value = 0\n'
+            content += '        self._attr_native_max_value = 1000\n'  # 1000A max
+        elif unit == 's' or unit == 'seconds':
+            content += '        self._attr_native_min_value = 0\n'
+            content += '        self._attr_native_max_value = 86400\n'  # 24 hours in seconds
+        elif unit == 'ms' or unit == 'milliseconds':
+            content += '        self._attr_native_min_value = 0\n'
+            content += '        self._attr_native_max_value = 65535\n'
+        elif unit == 'days':
+            content += '        self._attr_native_min_value = 0\n'
+            content += '        self._attr_native_max_value = 365\n'
+        else:
+            # Default for other values
+            content += '        self._attr_native_min_value = 0\n'
+            content += '        self._attr_native_max_value = 65535\n'
+        
         # Add native_value property with conversion logic
         content += '''    @property
     def native_value(self) -> float | None:
@@ -770,10 +787,27 @@ class MidniteSolarSelect(CoordinatorEntity[MidniteSolarUpdateCoordinator], Selec
         if icon:
             content += f'        self._attr_icon = "{icon}"\n'
         
+        # Add options based on select type or use a generic approach
+        # For now, we'll add a basic implementation that reads the register value
         content += '''    @property
     def current_option(self) -> Optional[str]:
         """Return the currently selected option."""
+        if self.coordinator.data and "data" in self.coordinator.data:
+            # Try to find which group this register belongs to
+            for group_name, registers in REGISTER_GROUPS.items():
+                if REGISTER_MAP.get(name) in registers:
+                    data = self.coordinator.data["data"].get(group_name)
+                    if data is not None:
+                        value = data.get(REGISTER_MAP[name])
+                        if value is not None:
+                            return str(value)
         return None
+    
+    @property
+    def options(self) -> list[str]:
+        """Return a set of available options."""
+        # Generic implementation - could be enhanced with specific options per register
+        return ["0", "1", "2", "3", "4", "5"]
 '''
     
     with open(output_path, 'w') as f:

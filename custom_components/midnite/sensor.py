@@ -283,10 +283,29 @@ class UNIT_IDSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["UNIT_ID"])
-                if value is not None:
-                    # Formula: [4101]MSB → PCB Rev (0‑255) , [4101]LSB → Unit Type
-                    return value
+                # Parse formula for register references
+                register_refs = ['4101', '4101']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4101]MSB → PCB Rev (0‑255) , [4101]LSB → Unit Type"
+                    computed_formula = computed_formula.replace("[4101]", "values_dict[4101]")
+                    computed_formula = computed_formula.replace("[4101]", "values_dict[4101]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -305,10 +324,30 @@ class UNIT_SW_DATE_ROSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["UNIT_SW_DATE_RO"])
-                if value is not None:
-                    # Formula: [4102] → Year, [4103]MSB → Month, [4103]LSB → Day
-                    return value
+                # Parse formula for register references
+                register_refs = ['4102', '4103', '4103']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4102] → Year, [4103]MSB → Month, [4103]LSB → Day"
+                    computed_formula = computed_formula.replace("[4102]", "values_dict[4102]")
+                    computed_formula = computed_formula.replace("[4103]", "values_dict[4103]")
+                    computed_formula = computed_formula.replace("[4103]", "values_dict[4103]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -392,10 +431,33 @@ class MAC_ADDRESS_PART_1Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["MAC_ADDRESS_PART_1"])
-                if value is not None:
-                    # Formula: [4108]MSB:[4108]LSB:[4107]MSB:[4107]LSB:[4106]MSB:[4106]LSB
-                    return value
+                # Parse formula for register references
+                register_refs = ['4108', '4108', '4107', '4107', '4106', '4106']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4108]MSB:[4108]LSB:[4107]MSB:[4107]LSB:[4106]MSB:[4106]LSB"
+                    computed_formula = computed_formula.replace("[4108]", "values_dict[4108]")
+                    computed_formula = computed_formula.replace("[4108]", "values_dict[4108]")
+                    computed_formula = computed_formula.replace("[4107]", "values_dict[4107]")
+                    computed_formula = computed_formula.replace("[4107]", "values_dict[4107]")
+                    computed_formula = computed_formula.replace("[4106]", "values_dict[4106]")
+                    computed_formula = computed_formula.replace("[4106]", "values_dict[4106]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -460,10 +522,29 @@ class JrAmpHourNETSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["JrAmpHourNET"])
-                if value is not None:
-                    # Formula: ((([4110]<<16)+[4109])/10)
-                    return value
+                # Parse formula for register references
+                register_refs = ['4110', '4109']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "((([4110]<<16)+[4109])/10)"
+                    computed_formula = computed_formula.replace("[4110]", "values_dict[4110]")
+                    computed_formula = computed_formula.replace("[4109]", "values_dict[4109]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -526,10 +607,29 @@ class STATUSROLLSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["STATUSROLL"])
-                if value is not None:
-                    # Formula: ([4113]>>12)+([4113]&0x0FFF)
-                    return value
+                # Parse formula for register references
+                register_refs = ['4113', '4113']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "([4113]>>12)+([4113]&0x0FFF)"
+                    computed_formula = computed_formula.replace("[4113]", "values_dict[4113]")
+                    computed_formula = computed_formula.replace("[4113]", "values_dict[4113]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -576,10 +676,28 @@ class DISP_AVG_VBATTSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["DISP_AVG_VBATT"])
-                if value is not None:
-                    # Formula: [4115]/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4115']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4115]/10"
+                    computed_formula = computed_formula.replace("[4115]", "values_dict[4115]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -602,10 +720,28 @@ class DISP_AVG_VPVSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["DISP_AVG_VPV"])
-                if value is not None:
-                    # Formula: [4116]/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4116']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4116]/10"
+                    computed_formula = computed_formula.replace("[4116]", "values_dict[4116]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -628,10 +764,28 @@ class IBATT_DISPLAY_SSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["IBATT_DISPLAY_S"])
-                if value is not None:
-                    # Formula: [4117]/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4117']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4117]/10"
+                    computed_formula = computed_formula.replace("[4117]", "values_dict[4117]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -654,10 +808,28 @@ class KW_HOURSSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["KW_HOURS"])
-                if value is not None:
-                    # Formula: [4118]/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4118']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4118]/10"
+                    computed_formula = computed_formula.replace("[4118]", "values_dict[4118]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -705,10 +877,28 @@ class PV_INPUT_CURRENTSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["PV_INPUT_CURRENT"])
-                if value is not None:
-                    # Formula: [4121]/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4121']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4121]/10"
+                    computed_formula = computed_formula.replace("[4121]", "values_dict[4121]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -731,10 +921,28 @@ class VOC_LAST_MEASUREDSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["VOC_LAST_MEASURED"])
-                if value is not None:
-                    # Formula: [4122]/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4122']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4122]/10"
+                    computed_formula = computed_formula.replace("[4122]", "values_dict[4122]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -826,10 +1034,29 @@ class LIFETIME_KW_HOURS_1Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["LIFETIME_KW_HOURS_1"])
-                if value is not None:
-                    # Formula: (([4127]<<16)+[4126])
-                    return value
+                # Parse formula for register references
+                register_refs = ['4127', '4126']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "(([4127]<<16)+[4126])"
+                    computed_formula = computed_formula.replace("[4127]", "values_dict[4127]")
+                    computed_formula = computed_formula.replace("[4126]", "values_dict[4126]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -877,10 +1104,29 @@ class LIFETIME_AMP_HOURS_1Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["LIFETIME_AMP_HOURS_1"])
-                if value is not None:
-                    # Formula: (([4129]<<16)+[4128])
-                    return value
+                # Parse formula for register references
+                register_refs = ['4129', '4128']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "(([4129]<<16)+[4128])"
+                    computed_formula = computed_formula.replace("[4129]", "values_dict[4129]")
+                    computed_formula = computed_formula.replace("[4128]", "values_dict[4128]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -928,10 +1174,28 @@ class BATT_TEMPERATURESensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["BATT_TEMPERATURE"])
-                if value is not None:
-                    # Formula: [4132]/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4132']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4132]/10"
+                    computed_formula = computed_formula.replace("[4132]", "values_dict[4132]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -954,10 +1218,28 @@ class FET_TEMPERATURESensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["FET_TEMPERATURE"])
-                if value is not None:
-                    # Formula: [4133]/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4133']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4133]/10"
+                    computed_formula = computed_formula.replace("[4133]", "values_dict[4133]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -980,10 +1262,28 @@ class PCB_TEMPERATURESensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["PCB_TEMPERATURE"])
-                if value is not None:
-                    # Formula: [4134]/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4134']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4134]/10"
+                    computed_formula = computed_formula.replace("[4134]", "values_dict[4134]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -1309,10 +1609,28 @@ class AUX1_VOLTS_LO_RELSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["AUX1_VOLTS_LO_REL"])
-                if value is not None:
-                    # Formula: [4174]/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4174']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4174]/10"
+                    computed_formula = computed_formula.replace("[4174]", "values_dict[4174]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -1335,10 +1653,28 @@ class AUX1_VOLTS_HI_RELSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["AUX1_VOLTS_HI_REL"])
-                if value is not None:
-                    # Formula: [4175]/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4175']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4175]/10"
+                    computed_formula = computed_formula.replace("[4175]", "values_dict[4175]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -1361,10 +1697,28 @@ class AUX2_VOLTS_LO_RELSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["AUX2_VOLTS_LO_REL"])
-                if value is not None:
-                    # Formula: [4176]/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4176']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4176]/10"
+                    computed_formula = computed_formula.replace("[4176]", "values_dict[4176]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -1387,10 +1741,28 @@ class AUX2_VOLTS_HI_RELSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["AUX2_VOLTS_HI_REL"])
-                if value is not None:
-                    # Formula: [4177]/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4177']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4177]/10"
+                    computed_formula = computed_formula.replace("[4177]", "values_dict[4177]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -1413,10 +1785,28 @@ class AUX1_VOLTS_LO_PV_ABSSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["AUX1_VOLTS_LO_PV_ABS"])
-                if value is not None:
-                    # Formula: [4178]/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4178']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4178]/10"
+                    computed_formula = computed_formula.replace("[4178]", "values_dict[4178]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -1439,10 +1829,28 @@ class AUX1_VOLTS_HI_PV_ABSSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["AUX1_VOLTS_HI_PV_ABS"])
-                if value is not None:
-                    # Formula: [4179]/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4179']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4179]/10"
+                    computed_formula = computed_formula.replace("[4179]", "values_dict[4179]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -1464,10 +1872,29 @@ class VARIMAXSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["VARIMAX"])
-                if value is not None:
-                    # Formula: [4180]LSB → Amps, [4180]MSB → (Vabsorb–Vrelative)/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4180', '4180']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4180]LSB → Amps, [4180]MSB → (Vabsorb–Vrelative)/10"
+                    computed_formula = computed_formula.replace("[4180]", "values_dict[4180]")
+                    computed_formula = computed_formula.replace("[4180]", "values_dict[4180]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -1490,10 +1917,28 @@ class AUX2_VOLTS_HI_PV_ABSSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["AUX2_VOLTS_HI_PV_ABS"])
-                if value is not None:
-                    # Formula: [4181]/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4181']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4181]/10"
+                    computed_formula = computed_formula.replace("[4181]", "values_dict[4181]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -1556,10 +2001,28 @@ class VPV_TARGET_RDSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["VPV_TARGET_RD"])
-                if value is not None:
-                    # Formula: [4191]/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4191']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4191]/10"
+                    computed_formula = computed_formula.replace("[4191]", "values_dict[4191]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -1579,10 +2042,28 @@ class VPV_TARGET_WRSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["VPV_TARGET_WR"])
-                if value is not None:
-                    # Formula: [4192]/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4192']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4192]/10"
+                    computed_formula = computed_formula.replace("[4192]", "values_dict[4192]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -1629,10 +2110,28 @@ class MIN_SWP_VOLTAGE_EEPROMSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["MIN_SWP_VOLTAGE_EEPROM"])
-                if value is not None:
-                    # Formula: [4198]/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4198']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4198]/10"
+                    computed_formula = computed_formula.replace("[4198]", "values_dict[4198]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -1655,10 +2154,28 @@ class MAX_INPUT_CURRENT_EEPROMSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["MAX_INPUT_CURRENT_EEPROM"])
-                if value is not None:
-                    # Formula: [4199]/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4199']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4199]/10"
+                    computed_formula = computed_formula.replace("[4199]", "values_dict[4199]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -1904,10 +2421,29 @@ class CTI_ME0Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["CTI_ME0"])
-                if value is not None:
-                    # Formula: ([4215]<<16)+[4214]
-                    return value
+                # Parse formula for register references
+                register_refs = ['4215', '4214']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "([4215]<<16)+[4214]"
+                    computed_formula = computed_formula.replace("[4215]", "values_dict[4215]")
+                    computed_formula = computed_formula.replace("[4214]", "values_dict[4214]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -1949,10 +2485,29 @@ class CTI_ME1Sensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["CTI_ME1"])
-                if value is not None:
-                    # Formula: ([4217]<<16)+[4216]
-                    return value
+                # Parse formula for register references
+                register_refs = ['4217', '4216']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "([4217]<<16)+[4216]"
+                    computed_formula = computed_formula.replace("[4217]", "values_dict[4217]")
+                    computed_formula = computed_formula.replace("[4216]", "values_dict[4216]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -2038,10 +2593,28 @@ class PREVOCSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["PREVOC"])
-                if value is not None:
-                    # Formula: [4224]/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4224']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4224]/10"
+                    computed_formula = computed_formula.replace("[4224]", "values_dict[4224]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -2083,10 +2656,28 @@ class VOC_RDSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["VOC_RD"])
-                if value is not None:
-                    # Formula: [4231]/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4231']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4231]/10"
+                    computed_formula = computed_formula.replace("[4231]", "values_dict[4231]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -2154,10 +2745,28 @@ class SIESTA_ABORT_VOC_ADJSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["SIESTA_ABORT_VOC_ADJ"])
-                if value is not None:
-                    # Formula: [4239]/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4239']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4239]/10"
+                    computed_formula = computed_formula.replace("[4239]", "values_dict[4239]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -2180,10 +2789,28 @@ class VBATT_REG_SET_P_TEMP_COMPSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["VBATT_REG_SET_P_TEMP_COMP"])
-                if value is not None:
-                    # Formula: [4244]/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4244']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4244]/10"
+                    computed_formula = computed_formula.replace("[4244]", "values_dict[4244]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -2228,10 +2855,28 @@ class ENDING_AMPES_EEPROMSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["ENDING_AMPES_EEPROM"])
-                if value is not None:
-                    # Formula: [4246]/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4246']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4246]/10"
+                    computed_formula = computed_formula.replace("[4246]", "values_dict[4246]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -2276,10 +2921,28 @@ class REBUCK_VOLTS_EEPROMSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["REBUCK_VOLTS_EEPROM"])
-                if value is not None:
-                    # Formula: [4249]/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4249']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4249]/10"
+                    computed_formula = computed_formula.replace("[4249]", "values_dict[4249]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -2321,10 +2984,27 @@ class DAY_LOG_COMB_CAT_INDEXSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["DAY_LOG_COMB_CAT_INDEX"])
-                if value is not None:
-                    # Formula: (index >> 10) & 0x3F (category), index & 0x03FF (day offset)
-                    return value
+                # Parse formula for register references
+                register_refs = []
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "(index >> 10) & 0x3F (category), index & 0x03FF (day offset)"
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -2344,10 +3024,27 @@ class MIN_LOG_COMB_CAT_INDEXSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["MIN_LOG_COMB_CAT_INDEX"])
-                if value is not None:
-                    # Formula: (index >> 10) & 0x3F (category), index & 0x03FF (sample offset)
-                    return value
+                # Parse formula for register references
+                register_refs = []
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "(index >> 10) & 0x3F (category), index & 0x03FF (sample offset)"
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -2417,10 +3114,29 @@ class VOC_QUALIFY_TIMER_MS_EEPROMSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["VOC_QUALIFY_TIMER_MS_EEPROM"])
-                if value is not None:
-                    # Formula: ((([4265]<<16)+[4264]) & 0xFFFF)
-                    return value
+                # Parse formula for register references
+                register_refs = ['4265', '4264']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "((([4265]<<16)+[4264]) & 0xFFFF)"
+                    computed_formula = computed_formula.replace("[4265]", "values_dict[4265]")
+                    computed_formula = computed_formula.replace("[4264]", "values_dict[4264]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -2489,10 +3205,28 @@ class IBATT_RAW_ASensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["IBATT_RAW_A"])
-                if value is not None:
-                    # Formula: [4272]/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4272']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4272]/10"
+                    computed_formula = computed_formula.replace("[4272]", "values_dict[4272]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -2512,10 +3246,28 @@ class OUTPUT_VBATT_RAWSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["OUTPUT_VBATT_RAW"])
-                if value is not None:
-                    # Formula: [4376]/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4376']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4376]/10"
+                    computed_formula = computed_formula.replace("[4376]", "values_dict[4376]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -2535,10 +3287,28 @@ class INPUT_VPV_RAWSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["INPUT_VPV_RAW"])
-                if value is not None:
-                    # Formula: [4377]/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4377']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4377]/10"
+                    computed_formula = computed_formula.replace("[4377]", "values_dict[4377]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -2583,10 +3353,28 @@ class VPV_TARGET_RD_TMPSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["VPV_TARGET_RD_TMP"])
-                if value is not None:
-                    # Formula: [4283]/10
-                    return value
+                # Parse formula for register references
+                register_refs = ['4283']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "[4283]/10"
+                    computed_formula = computed_formula.replace("[4283]", "values_dict[4283]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -3922,10 +4710,29 @@ class WJRB_AMP_HOUR_POSITIVESensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WJRB_AMP_HOUR_POSITIVE"])
-                if value is not None:
-                    # Formula: ([4366]<<16)+[4365]
-                    return value
+                # Parse formula for register references
+                register_refs = ['4366', '4365']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "([4366]<<16)+[4365]"
+                    computed_formula = computed_formula.replace("[4366]", "values_dict[4366]")
+                    computed_formula = computed_formula.replace("[4365]", "values_dict[4365]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -3973,10 +4780,29 @@ class WJRB_AMP_HOUR_NEGATIVESensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WJRB_AMP_HOUR_NEGATIVE"])
-                if value is not None:
-                    # Formula: ([4368]<<16)+[4367]
-                    return value
+                # Parse formula for register references
+                register_refs = ['4368', '4367']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "([4368]<<16)+[4367]"
+                    computed_formula = computed_formula.replace("[4368]", "values_dict[4368]")
+                    computed_formula = computed_formula.replace("[4367]", "values_dict[4367]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 
@@ -4024,10 +4850,29 @@ class WJRB_AMP_HOUR_NETSensor(MidniteSolarSensor):
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WJRB_AMP_HOUR_NET"])
-                if value is not None:
-                    # Formula: ([4370]<<16)+[4369]
-                    return value
+                # Parse formula for register references
+                register_refs = ['4370', '4369']
+                values_dict = {}
+
+                # Get all required register values by building a mapping first
+                for ref in register_refs:
+                    reg_addr = int(ref)
+                    if status_data is not None:
+                        val = status_data.get(reg_addr, 0)
+                        values_dict[ref] = val
+
+                # Compute formula by replacing [addr] with values_dict[addr]
+                try:
+                    computed_formula = "([4370]<<16)+[4369]"
+                    computed_formula = computed_formula.replace("[4370]", "values_dict[4370]")
+                    computed_formula = computed_formula.replace("[4369]", "values_dict[4369]")
+
+                    # Execute the computed formula safely
+                    result = eval(computed_formula)
+                    return float(result) if result is not None else None
+                except (KeyError, TypeError, NameError):
+                    pass
+
                 return None
 
 

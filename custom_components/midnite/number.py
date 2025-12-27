@@ -123,7 +123,8 @@ class MINUTE_LOG_INTERVAL_SECNumber(MidniteSolarNumber):
         self._attr_device_class = "duration"
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
         self._attr_icon = "mdi:clock"
-
+        self._attr_native_min_value = 0
+        self._attr_native_max_value = 86400
     @property
     def native_value(self) -> float | None:
         """Return the current value."""
@@ -144,7 +145,8 @@ class MODBUS_PORT_REGISTERNumber(MidniteSolarNumber):
         self._attr_unique_id = f"{entry.entry_id}_modbus_port_register_number"
         self.register_address = 4137
         self._attr_icon = "mdi:lan"
-
+        self._attr_native_min_value = 0
+        self._attr_native_max_value = 65535
     @property
     def native_value(self) -> float | None:
         """Return the current value."""
@@ -167,7 +169,8 @@ class BATTERY_OUTPUT_CURRENT_LIMITNumber(MidniteSolarNumber):
         self._attr_device_class = "current"
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
         self._attr_icon = "mdi:current-dc"
-
+        self._attr_native_min_value = 0
+        self._attr_native_max_value = 1000
     @property
     def native_value(self) -> float | None:
         """Return the current value."""
@@ -190,7 +193,8 @@ class ABSORB_SETPOINT_VOLTAGENumber(MidniteSolarNumber):
         self._attr_device_class = "voltage"
         self._attr_native_unit_of_measurement = "V"
         self._attr_icon = "mdi:tune"
-
+        self._attr_native_min_value = 0
+        self._attr_native_max_value = 200
     @property
     def native_value(self) -> float | None:
         """Return the current value."""
@@ -213,7 +217,8 @@ class FLOAT_VOLTAGE_SETPOINTNumber(MidniteSolarNumber):
         self._attr_device_class = "voltage"
         self._attr_native_unit_of_measurement = "V"
         self._attr_icon = "mdi:tune"
-
+        self._attr_native_min_value = 0
+        self._attr_native_max_value = 200
     @property
     def native_value(self) -> float | None:
         """Return the current value."""
@@ -236,7 +241,8 @@ class EQUALIZE_VOLTAGE_SETPOINTNumber(MidniteSolarNumber):
         self._attr_device_class = "voltage"
         self._attr_native_unit_of_measurement = "V"
         self._attr_icon = "mdi:tune"
-
+        self._attr_native_min_value = 0
+        self._attr_native_max_value = 200
     @property
     def native_value(self) -> float | None:
         """Return the current value."""
@@ -259,7 +265,8 @@ class ABSORB_TIME_EEPROMNumber(MidniteSolarNumber):
         self._attr_device_class = "duration"
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
         self._attr_icon = "mdi:clock-edit"
-
+        self._attr_native_min_value = 0
+        self._attr_native_max_value = 86400
     @property
     def native_value(self) -> float | None:
         """Return the current value."""
@@ -282,7 +289,8 @@ class MAX_BATTERY_TEMP_COMP_VOLTAGENumber(MidniteSolarNumber):
         self._attr_device_class = "voltage"
         self._attr_native_unit_of_measurement = "V"
         self._attr_icon = "mdi:thermometer-plus"
-
+        self._attr_native_min_value = 0
+        self._attr_native_max_value = 200
     @property
     def native_value(self) -> float | None:
         """Return the current value."""
@@ -305,7 +313,8 @@ class MIN_BATTERY_TEMP_COMP_VOLTAGENumber(MidniteSolarNumber):
         self._attr_device_class = "voltage"
         self._attr_native_unit_of_measurement = "V"
         self._attr_icon = "mdi:thermometer-minus"
-
+        self._attr_native_min_value = 0
+        self._attr_native_max_value = 200
     @property
     def native_value(self) -> float | None:
         """Return the current value."""
@@ -328,7 +337,8 @@ class BATTERY_TEMP_COMP_VALUENumber(MidniteSolarNumber):
         self._attr_device_class = "voltage"
         self._attr_native_unit_of_measurement = "V"
         self._attr_icon = "mdi:snowflake-thermometer"
-
+        self._attr_native_min_value = 0
+        self._attr_native_max_value = 200
     @property
     def native_value(self) -> float | None:
         """Return the current value."""
@@ -351,7 +361,8 @@ class EQUALIZE_TIME_EEPROMNumber(MidniteSolarNumber):
         self._attr_device_class = "duration"
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
         self._attr_icon = "mdi:clock-edit"
-
+        self._attr_native_min_value = 0
+        self._attr_native_max_value = 86400
     @property
     def native_value(self) -> float | None:
         """Return the current value."""
@@ -373,7 +384,8 @@ class EQUALIZE_INTERVAL_DAYS_EEPROMNumber(MidniteSolarNumber):
         self.register_address = 4163
         self._attr_native_unit_of_measurement = "days"
         self._attr_icon = "mdi:calendar-range"
-
+        self._attr_native_min_value = 0
+        self._attr_native_max_value = 365
     @property
     def native_value(self) -> float | None:
         """Return the current value."""
@@ -396,7 +408,8 @@ class AUX1_VOLTS_LO_ABSNumber(MidniteSolarNumber):
         self._attr_device_class = "voltage"
         self._attr_native_unit_of_measurement = "V"
         self._attr_icon = "mdi:gauge-low"
-
+        self._attr_native_min_value = 0
+        self._attr_native_max_value = 200
     @property
     def native_value(self) -> float | None:
         """Return the current value."""
@@ -419,7 +432,8 @@ class AUX1_DELAY_T_MSNumber(MidniteSolarNumber):
         self._attr_device_class = "duration"
         self._attr_native_unit_of_measurement = "ms"
         self._attr_icon = "mdi:timer-sand"
-
+        self._attr_native_min_value = 0
+        self._attr_native_max_value = 65535
     @property
     def native_value(self) -> float | None:
         """Return the current value."""
@@ -442,7 +456,8 @@ class AUX1_HOLD_T_MSNumber(MidniteSolarNumber):
         self._attr_device_class = "duration"
         self._attr_native_unit_of_measurement = "ms"
         self._attr_icon = "mdi:timer-sand"
-
+        self._attr_native_min_value = 0
+        self._attr_native_max_value = 65535
     @property
     def native_value(self) -> float | None:
         """Return the current value."""
@@ -465,7 +480,8 @@ class AUX2_PWM_VWIDTHNumber(MidniteSolarNumber):
         self._attr_device_class = "voltage"
         self._attr_native_unit_of_measurement = "V"
         self._attr_icon = "mdi:sine-wave"
-
+        self._attr_native_min_value = 0
+        self._attr_native_max_value = 200
     @property
     def native_value(self) -> float | None:
         """Return the current value."""
@@ -488,7 +504,8 @@ class AUX1_VOLTS_HI_ABSNumber(MidniteSolarNumber):
         self._attr_device_class = "voltage"
         self._attr_native_unit_of_measurement = "V"
         self._attr_icon = "mdi:gauge-high"
-
+        self._attr_native_min_value = 0
+        self._attr_native_max_value = 200
     @property
     def native_value(self) -> float | None:
         """Return the current value."""
@@ -511,7 +528,8 @@ class AUX2_VOLTS_HI_ABSNumber(MidniteSolarNumber):
         self._attr_device_class = "voltage"
         self._attr_native_unit_of_measurement = "V"
         self._attr_icon = "mdi:gauge-high"
-
+        self._attr_native_min_value = 0
+        self._attr_native_max_value = 200
     @property
     def native_value(self) -> float | None:
         """Return the current value."""
@@ -534,7 +552,8 @@ class VBATT_OFFSETNumber(MidniteSolarNumber):
         self._attr_device_class = "voltage"
         self._attr_native_unit_of_measurement = "V"
         self._attr_icon = "mdi:tune-vertical"
-
+        self._attr_native_min_value = 0
+        self._attr_native_max_value = 200
     @property
     def native_value(self) -> float | None:
         """Return the current value."""
@@ -557,7 +576,8 @@ class VPV_OFFSETNumber(MidniteSolarNumber):
         self._attr_device_class = "voltage"
         self._attr_native_unit_of_measurement = "V"
         self._attr_icon = "mdi:tune-vertical"
-
+        self._attr_native_min_value = 0
+        self._attr_native_max_value = 200
     @property
     def native_value(self) -> float | None:
         """Return the current value."""
@@ -578,7 +598,8 @@ class FACTORY_VBATT_OFFSET_EEPANumber(MidniteSolarNumber):
         self._attr_unique_id = f"{entry.entry_id}_factory_vbatt_offset_eepa_number"
         self.register_address = 4300
         self._attr_icon = "mdi:tune"
-
+        self._attr_native_min_value = 0
+        self._attr_native_max_value = 65535
     @property
     def native_value(self) -> float | None:
         """Return the current value."""

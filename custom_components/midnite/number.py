@@ -256,7 +256,9 @@ class AbsorbTimeNumber(MidniteSolarNumber):
         value = self.coordinator.get_register_value(self.register_address)
         if value is not None:
             # Convert from seconds to minutes for display
-            return float(value) / 60.0
+            minutes = float(value) / 60.0
+            # Return as int if it's a whole number, otherwise as float
+            return int(minutes) if minutes.is_integer() else minutes
         return None
 
     async def _async_set_value(self, value: float) -> None:
@@ -313,7 +315,9 @@ class EqualizeTimeNumber(MidniteSolarNumber):
         value = self.coordinator.get_register_value(self.register_address)
         if value is not None:
             # Convert from seconds to minutes for display
-            return float(value) / 60.0
+            minutes = float(value) / 60.0
+            # Return as int if it's a whole number, otherwise as float
+            return int(minutes) if minutes.is_integer() else minutes
         return None
 
     async def _async_set_value(self, value: float) -> None:

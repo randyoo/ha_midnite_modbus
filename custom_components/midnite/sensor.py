@@ -512,8 +512,9 @@ class DailyAmpHoursSensor(MidniteSolarSensor):
         self._attr_name = "Daily Amp-Hours"
         self._attr_unique_id = f"{entry.entry_id}_daily_ah"
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
-        self._attr_device_class = SensorDeviceClass.ENERGY
-        self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
+        # Use no device class for amp-hours (not a standard HA device class)
+        self._attr_device_class = None
+        self._attr_native_unit_of_measurement = "Ah"
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
 
     @property
@@ -524,8 +525,8 @@ class DailyAmpHoursSensor(MidniteSolarSensor):
             if energy_data:
                 value = energy_data.get(REGISTER_MAP["AMP_HOURS_DAILY"])
                 if value is not None:
-                    # Convert Ah to kWh (1Ah = 0.001kWh for 12V system, but we'll keep as is)
-                    return value / 1000.0
+                    # Value is already in amp-hours from the register
+                    return float(value)
         return None
 
 
@@ -566,8 +567,9 @@ class LifetimeAmpHoursSensor(MidniteSolarSensor):
         self._attr_name = "Lifetime Amp-Hours"
         self._attr_unique_id = f"{entry.entry_id}_lifetime_ah"
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
-        self._attr_device_class = SensorDeviceClass.ENERGY
-        self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
+        # Use no device class for amp-hours (not a standard HA device class)
+        self._attr_device_class = None
+        self._attr_native_unit_of_measurement = "Ah"
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
         self._attr_suggested_display_precision = 1
 
@@ -581,7 +583,8 @@ class LifetimeAmpHoursSensor(MidniteSolarSensor):
                 high_value = energy_data.get(REGISTER_MAP["LIFETIME_AMP_HOURS_1"] + 1)
                 if low_value is not None and high_value is not None:
                     value = (high_value << 16) | low_value
-                    return value / 10.0
+                    # Value is in amp-hours from the register (divided by 10 for precision)
+                    return float(value) / 10.0
         return None
 
 

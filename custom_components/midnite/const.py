@@ -45,6 +45,12 @@ REGISTER_MAP = {
     "AUX_1_AND_2_FUNCTION": 4165,
     "VARIMAX": 4180,
     "CLASSIC_MODBUS_ADDR_EEPROM": 4326,
+    # Temperature compensation settings
+    "MAX_BATTERY_TEMP_COMP_VOLTAGE": 4155,
+    "MIN_BATTERY_TEMP_COMP_VOLTAGE": 4156,
+    "BATTERY_TEMP_COMP_VALUE": 4157,
+    # Equalize settings
+    "EQUALIZE_RETRY_DAYS": 4159,
     
     # Network configuration
     "IP_SETTINGS_FLAGS": 20481,

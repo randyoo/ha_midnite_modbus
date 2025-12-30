@@ -37,6 +37,10 @@ async def async_setup_entry(
         EqualizeTimeNumber(coordinator, entry),
         EqualizeIntervalDaysNumber(coordinator, entry),
         ModbusAddressNumber(coordinator, entry),
+        MaxBatteryTempCompVoltageNumber(coordinator, entry),
+        MinBatteryTempCompVoltageNumber(coordinator, entry),
+        BatteryTempCompValueNumber(coordinator, entry),
+        EqualizeRetryDaysNumber(coordinator, entry),
     ]
     
     async_add_entities(numbers)
@@ -133,6 +137,130 @@ class AbsorbVoltageNumber(MidniteSolarNumber):
         self._attr_native_min_value = 10.0
         self._attr_native_max_value = 65.0
         self._attr_native_step = 0.1
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Update the current value."""
+        await self._async_set_value(value)
+
+
+class MaxBatteryTempCompVoltageNumber(MidniteSolarNumber):
+    """Number to set maximum battery temperature compensation voltage."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Max Battery Temp Comp Voltage"
+        self._attr_unique_id = f"{entry.entry_id}_max_batt_temp_comp_voltage"
+        self._attr_native_unit_of_measurement = "V"
+        self._attr_mode = NumberMode.BOX
+        self.register_address = REGISTER_MAP["MAX_BATTERY_TEMP_COMP_VOLTAGE"]
+        # Voltage range: 10V to 65V (typical for 12V, 24V, and 48V systems)
+        self._attr_native_min_value = 10.0
+        self._attr_native_max_value = 65.0
+        self._attr_native_step = 0.1
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Update the current value."""
+        await self._async_set_value(value)
+
+
+class MinBatteryTempCompVoltageNumber(MidniteSolarNumber):
+    """Number to set minimum battery temperature compensation voltage."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Min Battery Temp Comp Voltage"
+        self._attr_unique_id = f"{entry.entry_id}_min_batt_temp_comp_voltage"
+        self._attr_native_unit_of_measurement = "V"
+        self._attr_mode = NumberMode.BOX
+        self.register_address = REGISTER_MAP["MIN_BATTERY_TEMP_COMP_VOLTAGE"]
+        # Voltage range: 10V to 65V (typical for 12V, 24V, and 48V systems)
+        self._attr_native_min_value = 10.0
+        self._attr_native_max_value = 65.0
+        self._attr_native_step = 0.1
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Update the current value."""
+        await self._async_set_value(value)
+
+
+class BatteryTempCompValueNumber(MidniteSolarNumber):
+    """Number to set battery temperature compensation value per 2V cell."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Battery Temp Comp Value"
+        self._attr_unique_id = f"{entry.entry_id}_batt_temp_comp_value"
+        # Formula: -([4157]/10) - negative value representing mV/°C per 2V cell
+        self._attr_native_unit_of_measurement = "mV/°C per 2V cell"
+        self._attr_mode = NumberMode.BOX
+        self.register_address = REGISTER_MAP["BATTERY_TEMP_COMP_VALUE"]
+        # Typical temperature compensation range: -1 to -5 mV/°C per 2V cell (negative values)
+        self._attr_native_min_value = -10.0
+        self._attr_native_max_value = 0.0
+        self._attr_native_step = 0.1
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value (negative of register value)."""
+        value = self.coordinator.get_register_value(self.register_address)
+        if value is not None:
+            return -float(value) / 10.0
+        return None
+
+    async def _async_set_value(self, value: float) -> None:
+        """Set the value on the device (convert to negative register value)."""
+        # Convert to register value (negative of input)
+        register_value = int(-value * 10)
+        
+        _LOGGER.debug(f"Writing battery temp comp value {value} to register {self.register_address} (raw value: {register_value})")
+        
+        try:
+            result = await self.hass.async_add_executor_job(
+                self.coordinator.api.write_register, self.register_address, register_value
+            )
+            if not result or result.isError():
+                _LOGGER.error(f"Failed to write value {value} to register {self.register_address}")
+                return False
+        except Exception as e:
+            _LOGGER.error(f"Error writing to register {self.register_address}: {e}")
+            return False
+        
+        # Request a refresh after writing
+        await self.coordinator.async_request_refresh()
+        return True
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Update the current value."""
+        await self._async_set_value(value)
+
+
+class EqualizeRetryDaysNumber(MidniteSolarNumber):
+    """Number to set equalize retry days until giving up."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "EQ Retry Days"
+        self._attr_unique_id = f"{entry.entry_id}_equalize_retry_days"
+        self._attr_native_unit_of_measurement = UnitOfTime.DAYS
+        self._attr_mode = NumberMode.BOX
+        self.register_address = REGISTER_MAP["EQUALIZE_RETRY_DAYS"]
+        # Typical retry days: 0 to 365 (0 = disabled)
+        self._attr_native_min_value = 0
+        self._attr_native_max_value = 365
+        self._attr_native_step = 1
+        self.is_raw_value = True  # Don't divide by 10 for days
+        self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
 
     async def async_set_native_value(self, value: float) -> None:

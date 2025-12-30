@@ -31,6 +31,11 @@ This document tracks entities that need to be implemented based on the registers
 - SUBNET_MASK_LSB_1/2 (20486, 20487) - Subnet Mask ✓
 - DNS_1_LSB_1/2 (20488, 20489) - Primary DNS Server ✓
 - DNS_2_LSB_1/2 (20490, 20491) - Secondary DNS Server ✓
+- STATUSROLL (4113) - Status Roll ✓
+- KW_HOURS (4118) - Daily Energy ✓
+- HIGHEST_VINPUT_LOG (4123) - Highest Input Voltage ✓
+- MINUTE_LOG_INTERVAL_SEC (4136) - Logging Interval ✓
+- SLIDING_CURRENT_LIMIT (4152) - Sliding Current Limit ✓
 
 ### Numbers (number.py)
 - ABSORB_SETPOINT_VOLTAGE (4149) - Absorb Voltage Setpoint ✓
@@ -41,10 +46,17 @@ This document tracks entities that need to be implemented based on the registers
 - EQUALIZE_TIME_EEPROM (4162) - Equalize Time ✓
 - EQUALIZE_INTERVAL_DAYS_EEPROM (4163) - Equalize Interval Days ✓
 - CLASSIC_MODBUS_ADDR_EEPROM (4326) - Modbus Address ✓
+- MAX_BATTERY_TEMP_COMP_VOLTAGE (4155) - Max Battery Temp Comp Voltage ✓
+- MIN_BATTERY_TEMP_COMP_VOLTAGE (4156) - Min Battery Temp Comp Voltage ✓
+- BATTERY_TEMP_COMP_VALUE (4157) - Battery Temp Comp Value ✓
+- EQUALIZE_RETRY_DAYS (4159) - EQ Retry Days ✓
 
 ### Selects (select.py)
 - FORCE_FLAG_BITS (4160) - Force Charge Mode ✓
 - MPPT_MODE (4164) - MPPT Mode ✓
+
+### Sensors (sensor.py)
+- MODBUS_PORT_REGISTER (4137) - Modbus Port ✓
 
 ### Text (text.py)
 - UNIT_NAME_0-3 (4210-4213) - Host Name ✓
@@ -57,17 +69,11 @@ This document tracks entities that need to be implemented based on the registers
 ### Sensors (sensor.py)
 
 #### Status Information
-- STATUSROLL (4113) - 12-bit status value
 - RESTART_TIME_MS (4114) - Time after which Classic can wake up
-- KW_HOURS (4118) - Energy to battery (reset daily)
-- HIGHEST_VINPUT_LOG (4123) - Highest input voltage seen
 - MATCH_POINT_SHADOW (4124) - Current wind power curve step
 - NITE_MINUTES_NO_PWR (4135) - Counts up when no power, resets on power
-- MINUTE_LOG_INTERVAL_SEC (4136) - Data logging interval
-- MODBUS_PORT_REGISTER (4137) - Modbus TCP port
 - PWM_READONLY (4141) - Duty cycle command of PWM
 - REASON_FOR_RESET (4142) - Reason Classic reset
-- SLIDING_CURRENT_LIMIT (4152) - Sliding current limit
 - MIN_ABSORB_TIME (4153) - Minimum absorb time
 - MAX_BATTERY_TEMP_COMP_VOLTAGE (4155) - Highest charge voltage with temp sensor
 - MIN_BATTERY_TEMP_COMP_VOLTAGE (4156) - Lowest charge voltage with temp sensor
@@ -162,10 +168,6 @@ This document tracks entities that need to be implemented based on the registers
 
 #### Configuration Settings
 - MIN_ABSORB_TIME (4153) - Minimum absorb time
-- MAX_BATTERY_TEMP_COMP_VOLTAGE (4155) - Highest charge voltage with temp sensor
-- MIN_BATTERY_TEMP_COMP_VOLTAGE (4156) - Lowest charge voltage with temp sensor
-- BATTERY_TEMP_COMP_VALUE (4157) - Temperature compensation value per 2V cell
-- EQUALIZE_RETRY_DAYS (4159) - Auto EQ retry days until giving up
 - AUX1_VOLTS_LO_ABS (4166) - Aux 1 low absolute threshold voltage
 - AUX1_DELAY_T_MS (4167) - Aux 1 delay before asserting
 - AUX1_HOLD_T_MS (4168) - Aux 1 hold before de-asserting
@@ -178,7 +180,6 @@ This document tracks entities that need to be implemented based on the registers
 - AUX2_VOLTS_HI_REL (4177) - Aux 2 waste-not relative upper voltage
 - AUX1_VOLTS_LO_PV_ABS (4178) - Aux 1 lower PV absolute threshold voltage
 - AUX1_VOLTS_HI_PV_ABS (4179) - Aux 1 higher PV absolute threshold voltage
-- VARIMAX (4180) - Variable maximum current & voltage differential
 - AUX2_VOLTS_HI_PV_ABS (4181) - Aux 2 higher PV absolute threshold voltage
 - ARC_FAULT_SENSITIVITY (4183) - Arc fault protection sensitivity
 - SWEEP_INTERVAL_SECS_EEPROM (4197) - Legacy P&O sweep interval
@@ -213,6 +214,7 @@ This document tracks entities that need to be implemented based on the registers
 - ENDING_AMPS_TIMER_SEC (4297) - Timer for ending amps (60 s reference)
 - WIND_POWER_TABLE_V_0-7_EEPA (4301-4308) - Wind power curve voltage steps
 - WIND_POWER_TABLE_I_0-7_EEPA (4309-4316) - Wind power curve current steps
+- AUX_1_AND_2_FUNCTION (4165) - Combined Aux 1 & 2 function + ON/OFF
 
 - FOLLOW_ME_PASS_REF_EEPROM (4335) - Follow-Me enabled if > 0
 
@@ -220,7 +222,6 @@ This document tracks entities that need to be implemented based on the registers
 
 #### Mode Settings
 - MPPT_MODE (4164) - Solar, Wind, etc.
-- AUX_1_AND_2_FUNCTION (4165) - Combined Aux 1 & 2 function + ON/OFF
 
 ## Implementation Priority
 

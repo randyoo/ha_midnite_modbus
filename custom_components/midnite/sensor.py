@@ -66,6 +66,11 @@ async def async_setup_entry(
         SubnetMaskSensor(coordinator, entry),
         DNSSensor1(coordinator, entry),
         DNSSensor2(coordinator, entry),
+        StatusRollSensor(coordinator, entry),
+        DailyEnergySensor(coordinator, entry),
+        HighestInputVoltageSensor(coordinator, entry),
+        LoggingIntervalSensor(coordinator, entry),
+        SlidingCurrentLimitSensor(coordinator, entry),
     ]
     
     async_add_entities(sensors)
@@ -96,6 +101,154 @@ class MidniteSolarSensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], Senso
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
+        return None
+
+
+class StatusRollSensor(MidniteSolarSensor):
+    """Representation of status roll sensor."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Status Roll"
+        self._attr_unique_id = f"{entry.entry_id}_status_roll"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+        # Status roll is a 12-bit status value, not a standard measurement
+        self._attr_device_class = None
+        self._attr_native_unit_of_measurement = None
+        self._attr_state_class = SensorStateClass.MEASUREMENT
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    @property
+    def native_value(self) -> Optional[int]:
+        """Return the state of the sensor."""
+        if self.coordinator.data and "data" in self.coordinator.data:
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["STATUSROLL"])
+                if value is not None:
+                    # STATUSROLL formula: ([4113]>>12)+([4113]&0x0FFF) - 12-bit status value
+                    return (value >> 12) + (value & 0x0FFF)
+        return None
+
+
+class DailyEnergySensor(MidniteSolarSensor):
+    """Representation of daily energy sensor."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Daily Energy"
+        self._attr_unique_id = f"{entry.entry_id}_daily_energy"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+        self._attr_device_class = SensorDeviceClass.ENERGY
+        self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
+        self._attr_state_class = SensorStateClass.TOTAL_INCREASING
+        self._attr_suggested_display_precision = 1
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    @property
+    def native_value(self) -> Optional[float]:
+        """Return the state of the sensor."""
+        if self.coordinator.data and "data" in self.coordinator.data:
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["KW_HOURS"])
+                if value is not None:
+                    return value / 10.0
+        return None
+
+
+class HighestInputVoltageSensor(MidniteSolarSensor):
+    """Representation of highest input voltage sensor."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Highest Input Voltage"
+        self._attr_unique_id = f"{entry.entry_id}_highest_input_voltage"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+        self._attr_device_class = SensorDeviceClass.VOLTAGE
+        self._attr_native_unit_of_measurement = "V"
+        self._attr_state_class = SensorStateClass.MEASUREMENT
+        self._attr_suggested_display_precision = 1
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    @property
+    def native_value(self) -> Optional[float]:
+        """Return the state of the sensor."""
+        if self.coordinator.data and "data" in self.coordinator.data:
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["HIGHEST_VINPUT_LOG"])
+                if value is not None:
+                    return value / 10.0
+        return None
+
+
+class LoggingIntervalSensor(MidniteSolarSensor):
+    """Representation of logging interval sensor."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Logging Interval"
+        self._attr_unique_id = f"{entry.entry_id}_logging_interval"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+        self._attr_device_class = SensorDeviceClass.DURATION
+        self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
+        self._attr_state_class = SensorStateClass.MEASUREMENT
+        self._attr_suggested_display_precision = 0
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    @property
+    def native_value(self) -> Optional[int]:
+        """Return the state of the sensor."""
+        if self.coordinator.data and "data" in self.coordinator.data:
+            settings_data = self.coordinator.data["data"].get("settings")
+            if settings_data:
+                value = settings_data.get(REGISTER_MAP["MINUTE_LOG_INTERVAL_SEC"])
+                if value is not None:
+                    return value
+        return None
+
+    @property
+    def extra_state_attributes(self) -> Optional[dict]:
+        """Return additional state attributes."""
+        attrs = {}
+        if self.coordinator.data and "data" in self.coordinator.data:
+            settings_data = self.coordinator.data["data"].get("settings")
+            if settings_data:
+                value = settings_data.get(REGISTER_MAP["MINUTE_LOG_INTERVAL_SEC"])
+                if value is not None:
+                    attrs["minutes"] = value / 60.0
+        return attrs
+
+
+class SlidingCurrentLimitSensor(MidniteSolarSensor):
+    """Representation of sliding current limit sensor."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Sliding Current Limit"
+        self._attr_unique_id = f"{entry.entry_id}_sliding_current_limit"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+        self._attr_device_class = SensorDeviceClass.CURRENT
+        self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
+        self._attr_state_class = SensorStateClass.MEASUREMENT
+        self._attr_suggested_display_precision = 1
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    @property
+    def native_value(self) -> Optional[float]:
+        """Return the state of the sensor."""
+        if self.coordinator.data and "data" in self.coordinator.data:
+            settings_data = self.coordinator.data["data"].get("settings")
+            if settings_data:
+                value = settings_data.get(REGISTER_MAP["SLIDING_CURRENT_LIMIT"])
+                if value is not None:
+                    return value / 10.0
         return None
 
 

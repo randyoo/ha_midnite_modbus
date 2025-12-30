@@ -1,0 +1,156 @@
+{
+  "config": {
+    "flow_title": "Midnite Solar",
+    "step": {
+      "user": {
+        "title": "Configure Midnite Solar device",
+        "description": "Enter the IP address and port of your Midnite Solar Classic device.",
+        "description_discovered": "A Midnite Solar device was discovered at {{ ip }}. Would you like to add it?",
+        "data": {
+          "host": "IP Address",
+          "port": "Port"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to the device. Please check the IP address and port.",
+      "cannot_read": "Cannot read from the device. Please verify the device is online and accessible.",
+      "unknown": "Unknown error occurred",
+      "cannot_set_unique_id": "Failed to set unique ID for the device"
+    },
+    "abort": {
+      "already_configured": "This device is already configured",
+      "cannot_connect": "Cannot connect to the device",
+      "cannot_read": "Cannot read from the device",
+      "discovery_failed": "Device discovery failed",
+      "cannot_set_unique_id": "Failed to set unique ID for the device"
+    }
+  },
+  "options": {
+    "title": "Midnite Solar settings",
+    "step": {
+      "init": {
+        "title": "Settings",
+        "data": {
+          "scan_interval": "Update interval (seconds)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "battery_voltage": {
+        "name": "Battery Voltage",
+        "state": "{state} V"
+      },
+      "pv_voltage": {
+        "name": "PV Voltage",
+        "state": "{state} V"
+      },
+      "battery_current": {
+        "name": "Battery Current",
+        "state": "{state} A"
+      },
+      "power_watts": {
+        "name": "Power Output",
+        "state": "{state} W"
+      },
+      "charge_stage": {
+        "name": "Charge Stage"
+      },
+      "battery_temperature": {
+        "name": "Battery Temperature",
+        "state": "{state} °C"
+      },
+      "fet_temperature": {
+        "name": "FET Temperature",
+        "state": "{state} °C"
+      },
+      "pcb_temperature": {
+        "name": "PCB Temperature",
+        "state": "{state} °C"
+      },
+      "daily_amp_hours": {
+        "name": "Daily Amp-Hours",
+        "state": "{state} kWh"
+      },
+      "lifetime_energy": {
+        "name": "Lifetime Energy",
+        "state": "{state} kWh"
+      },
+      "lifetime_amp_hours": {
+        "name": "Lifetime Amp-Hours",
+        "state": "{state} kWh"
+      },
+      "pv_input_current": {
+        "name": "PV Input Current",
+        "state": "{state} A"
+      },
+      "voc_measured": {
+        "name": "Last Measured VOC",
+        "state": "{state} V"
+      },
+      "float_time_today": {
+        "name": "Float Time Today",
+        "state": "{hours} hours {minutes} minutes"
+      },
+      "absorb_time_remaining": {
+        "name": "Absorb Time Remaining",
+        "state": "{hours} hours {minutes} minutes"
+      },
+      "equalize_time_remaining": {
+        "name": "Equalize Time Remaining",
+        "state": "{hours} hours {minutes} minutes"
+      }
+    },
+    "button": {
+      "force_float": {
+        "name": "Force Float"
+      },
+      "force_bulk": {
+        "name": "Force Bulk"
+      },
+      "force_equalize": {
+        "name": "Force Equalize"
+      },
+      "force_eeprom_update": {
+        "name": "Force EEPROM Update"
+      },
+      "reset_faults": {
+        "name": "Reset Faults"
+      },
+      "reset_flags": {
+        "name": "Reset Flags"
+      }
+    },
+    "number": {
+      "absorb_voltage": {
+        "name": "Absorb Voltage Setpoint",
+        "state": "{state} V"
+      },
+      "float_voltage": {
+        "name": "Float Voltage Setpoint",
+        "state": "{state} V"
+      },
+      "equalize_voltage": {
+        "name": "Equalize Voltage Setpoint",
+        "state": "{state} V"
+      },
+      "current_limit": {
+        "name": "Battery Current Limit",
+        "state": "{state} A"
+      },
+      "absorb_time": {
+        "name": "Absorb Time (seconds)",
+        "state": "{hours}h {minutes}m"
+      },
+      "equalize_time": {
+        "name": "Equalize Time (seconds)",
+        "state": "{hours}h {minutes}m"
+      },
+      "equalize_interval": {
+        "name": "Equalize Interval (days)"
+      }
+    }
+  }
+}

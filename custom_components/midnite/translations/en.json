@@ -101,6 +101,33 @@
       "equalize_time_remaining": {
         "name": "Equalize Time Remaining",
         "state": "{hours} hours {minutes} minutes"
+      },
+      "internal_state": {
+        "name": "Internal State"
+      },
+      "rest_reason": {
+        "name": "Rest Reason"
+      },
+      "mac_address": {
+        "name": "MAC Address"
+      },
+      "modbus_port": {
+        "name": "Modbus Port"
+      },
+      "ip_address": {
+        "name": "IP Address"
+      },
+      "gateway_address": {
+        "name": "Gateway Address"
+      },
+      "subnet_mask": {
+        "name": "Subnet Mask"
+      },
+      "dns1": {
+        "name": "DNS Server 1"
+      },
+      "dns2": {
+        "name": "DNS Server 2"
       }
     },
     "button": {
@@ -150,7 +177,18 @@
       },
       "equalize_interval": {
         "name": "EQ Interval"
+      },
+      "modbus_address": {
+        "name": "Modbus Address"
       }
+    }
+  },
+  "select": {
+    "charge_mode_selector": {
+      "name": "Force Charge Mode"
+    },
+    "mppt_mode_selector": {
+      "name": "MPPT Mode"
     }
   }
 }

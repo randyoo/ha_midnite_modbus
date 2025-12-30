@@ -9,6 +9,7 @@ from .base import MidniteBaseEntityDescription
 
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.const import UnitOfElectricCurrent, UnitOfTemperature, UnitOfTime
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -142,6 +143,7 @@ class ModbusAddressNumber(MidniteSolarNumber):
         self._attr_native_min_value = 1
         self._attr_native_max_value = 255
         self._attr_native_step = 1
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_entity_registry_enabled_default = False  # Disable by default
 
     async def async_set_native_value(self, value: float) -> None:
@@ -272,25 +274,6 @@ class EqualizeIntervalDaysNumber(MidniteSolarNumber):
         # Typical equalize intervals
         self._attr_native_min_value = 0
         self._attr_native_max_value = 365  # 1 year
-        self._attr_native_step = 1
-
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
-
-class ModbusAddressNumber(MidniteSolarNumber):
-    """Number to set Modbus address."""
-
-    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
-        """Initialize the number."""
-        super().__init__(coordinator, entry)
-        self._attr_name = "Modbus Address"
-        self._attr_unique_id = f"{entry.entry_id}_modbus_address"
-        self.register_address = REGISTER_MAP["CLASSIC_MODBUS_ADDR_EEPROM"]
-        # Modbus address range: 1-255 (0 is invalid)
-        self._attr_native_min_value = 1
-        self._attr_native_max_value = 255
         self._attr_native_step = 1
 
     async def async_set_native_value(self, value: float) -> None:

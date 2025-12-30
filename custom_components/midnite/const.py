@@ -97,7 +97,7 @@ CHARGE_STAGES = {
     6: "FloatMppt",
     7: "Equalize",
     10: "HyperVoc",
-    18: "EqMppt",
+    18: "EQ MPPT",
 }
 
 # Internal state mappings (from register 4120 LSB)

@@ -25,7 +25,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CHARGE_STAGES, DEVICE_TYPES, DOMAIN, INTERNAL_STATES, MPPT_MODES, REGISTER_MAP, REST_REASONS
+from .const import CHARGE_STAGES, DEVICE_TYPES, DOMAIN, INTERNAL_STATES, REGISTER_MAP, REST_REASONS
 from .coordinator import MidniteSolarUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -60,7 +60,6 @@ async def async_setup_entry(
         AbsorbTimeRemainingSensor(coordinator, entry),
         EqualizeTimeRemainingSensor(coordinator, entry),
         MACAddressSensor(coordinator, entry),
-        MPPTModeSensor(coordinator, entry),
         ModbusPortSensor(coordinator, entry),
         IPAddressSensor(coordinator, entry),
         GatewayAddressSensor(coordinator, entry),
@@ -298,11 +297,25 @@ class RestReasonSensor(MidniteSolarSensor):
     def native_value(self) -> Optional[str]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
+            status_data = self.coordinator.data["data"].get("status")
             diagnostics_data = self.coordinator.data["data"].get("diagnostics")
-            if diagnostics_data:
-                value = diagnostics_data.get(REGISTER_MAP["REASON_FOR_RESTING"])
-                if value is not None:
-                    return REST_REASONS.get(value, f"Unknown ({value})")
+            
+            if status_data and diagnostics_data:
+                # Get internal state from COMBO_CHARGE_STAGE register
+                raw_value = status_data.get(REGISTER_MAP["COMBO_CHARGE_STAGE"])
+                if raw_value is not None:
+                    # Extract LSB (low byte) for internal state
+                    internal_state_value = raw_value & 0xFF
+                    internal_state = INTERNAL_STATES.get(internal_state_value, f"Unknown ({internal_state_value})")
+                    
+                    # Only show rest reason if device is actually resting
+                    if internal_state == "Resting":
+                        value = diagnostics_data.get(REGISTER_MAP["REASON_FOR_RESTING"])
+                        if value is not None:
+                            return REST_REASONS.get(value, f"Unknown ({value})")
+                    else:
+                        # Device is not resting
+                        return "Not resting"
         return None
 
 
@@ -527,6 +540,7 @@ class LifetimeEnergySensor(MidniteSolarSensor):
         self._attr_device_class = SensorDeviceClass.ENERGY
         self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
+        self._attr_suggested_display_precision = 1
 
     @property
     def native_value(self) -> Optional[float]:
@@ -554,6 +568,7 @@ class LifetimeAmpHoursSensor(MidniteSolarSensor):
         self._attr_device_class = SensorDeviceClass.ENERGY
         self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
+        self._attr_suggested_display_precision = 1
 
     @property
     def native_value(self) -> Optional[float]:
@@ -791,27 +806,7 @@ class MACAddressSensor(MidniteSolarSensor):
         return None
 
 
-class MPPTModeSensor(MidniteSolarSensor):
-    """Representation of MPPT mode sensor."""
 
-    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
-        """Initialize the sensor."""
-        super().__init__(coordinator, entry)
-        self._attr_name = "MPPT Mode"
-        self._attr_unique_id = f"{entry.entry_id}_mppt_mode"
-        self._attr_entity_category = EntityCategory.DIAGNOSTIC
-        self._attr_entity_registry_enabled_default = False  # Disable by default
-
-    @property
-    def native_value(self) -> Optional[str]:
-        """Return the state of the sensor."""
-        if self.coordinator.data and "data" in self.coordinator.data:
-            settings = self.coordinator.data["data"].get("settings")
-            if settings:
-                value = settings.get(REGISTER_MAP["MPPT_MODE"])
-                if value is not None:
-                    return MPPT_MODES.get(value, f"Unknown (0x{value:04X})")
-        return None
 
 
 class ModbusPortSensor(MidniteSolarSensor):

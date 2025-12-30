@@ -18,12 +18,13 @@ self._attr_native_step = 60  # 1 minute increments (but displayed as seconds)
 - Displayed "3600" instead of "60 minutes"
 - Confusing for users to work with large numbers
 - Step size of 60 made it awkward to use
+- Maximum value too restrictive (only 2 hours)
 
 ### After (New Implementation)
 ```python
 # AbsorbTimeNumber
 self._attr_native_unit_of_measurement = UnitOfTime.MINUTES
-self._attr_native_max_value = 120  # 2 hours in minutes
+self._attr_native_max_value = 300  # 5 hours in minutes
 self._attr_native_step = 1  # 1 minute increments (user-friendly)
 ```
 

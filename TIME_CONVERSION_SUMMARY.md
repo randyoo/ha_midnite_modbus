@@ -7,15 +7,17 @@ Modified the `AbsorbTimeNumber` and `EqualizeTimeNumber` entities to display tim
 
 ### 1. AbsorbTimeNumber Class
 - **Unit of Measurement**: Changed from `UnitOfTime.SECONDS` to `UnitOfTime.MINUTES`
-- **Value Range**: Updated from 0-7200 (seconds) to 0-120 (minutes)
+- **Value Range**: Updated from 0-7200 (seconds) to 0-300 (minutes)
 - **Step Size**: Changed from 60 to 1 (now allows 1-minute increments in UI)
+- **Precision**: Set to whole numbers only (no decimals)
 - **Reading Logic**: Added custom `native_value` property that converts register value (seconds) to minutes
 - **Writing Logic**: Overrode `_async_set_value` method to convert user input (minutes) to seconds before writing to register
 
 ### 2. EqualizeTimeNumber Class
 - **Unit of Measurement**: Changed from `UnitOfTime.SECONDS` to `UnitOfTime.MINUTES`
-- **Value Range**: Updated from 0-7200 (seconds) to 0-120 (minutes)
+- **Value Range**: Updated from 0-7200 (seconds) to 0-300 (minutes)
 - **Step Size**: Changed from 60 to 1 (now allows 1-minute increments in UI)
+- **Precision**: Set to whole numbers only (no decimals)
 - **Reading Logic**: Added custom `native_value` property that converts register value (seconds) to minutes
 - **Writing Logic**: Overrode `_async_set_value` method to convert user input (minutes) to seconds before writing to register
 

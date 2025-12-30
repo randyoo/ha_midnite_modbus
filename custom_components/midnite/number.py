@@ -243,9 +243,10 @@ class AbsorbTimeNumber(MidniteSolarNumber):
         # Typical absorb times (0 = disabled)
         # Values are stored in minutes for display, but register stores seconds
         self._attr_native_min_value = 0
-        self._attr_native_max_value = 120  # 2 hours in minutes
+        self._attr_native_max_value = 300  # 5 hours in minutes
         self._attr_native_step = 1  # 1 minute increments
         self.is_time_value = True  # Don't divide by 10
+        self._attr_has_entity_name = True
 
     @property
     def native_value(self) -> float | None:
@@ -298,9 +299,10 @@ class EqualizeTimeNumber(MidniteSolarNumber):
         # Typical equalize times (0 = disabled)
         # Values are stored in minutes for display, but register stores seconds
         self._attr_native_min_value = 0
-        self._attr_native_max_value = 120  # 2 hours in minutes
+        self._attr_native_max_value = 300  # 5 hours in minutes
         self._attr_native_step = 1  # 1 minute increments
         self.is_time_value = True  # Don't divide by 10
+        self._attr_has_entity_name = True
 
     @property
     def native_value(self) -> float | None:

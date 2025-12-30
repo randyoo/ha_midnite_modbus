@@ -137,7 +137,7 @@
         "state": "{state} V"
       },
       "current_limit": {
-        "name": "Battery Current Limit",
+        "name": "Max Battery Amps",
         "state": "{state} A"
       },
       "absorb_time": {

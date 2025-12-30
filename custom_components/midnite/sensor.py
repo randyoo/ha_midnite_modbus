@@ -516,6 +516,7 @@ class DailyAmpHoursSensor(MidniteSolarSensor):
         self._attr_device_class = None
         self._attr_native_unit_of_measurement = "Ah"
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
+        self._attr_suggested_display_precision = 0
 
     @property
     def native_value(self) -> Optional[float]:
@@ -947,7 +948,7 @@ class DNSSensor1(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "Primary DNS Server"
+        self._attr_name = "DNS Server 1"
         self._attr_unique_id = f"{entry.entry_id}_dns1"
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_entity_registry_enabled_default = False  # Disable by default
@@ -982,7 +983,7 @@ class DNSSensor2(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._attr_name = "Secondary DNS Server"
+        self._attr_name = "DNS Server 2"
         self._attr_unique_id = f"{entry.entry_id}_dns2"
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_entity_registry_enabled_default = False  # Disable by default

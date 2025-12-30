@@ -153,6 +153,7 @@ class ModbusAddressNumber(MidniteSolarNumber):
         self._attr_native_min_value = 1
         self._attr_native_max_value = 255
         self._attr_native_step = 1
+        self._attr_mode = NumberMode.BOX  # Use text box instead of slider
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_entity_registry_enabled_default = False  # Disable by default
         self.is_raw_value = True  # Don't divide by 10 for Modbus address

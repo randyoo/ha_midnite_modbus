@@ -237,14 +237,47 @@ class AbsorbTimeNumber(MidniteSolarNumber):
         super().__init__(coordinator, entry)
         self._attr_name = "Absorb Time"
         self._attr_unique_id = f"{entry.entry_id}_absorb_time"
-        self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
+        self._attr_native_unit_of_measurement = UnitOfTime.MINUTES
         self._attr_mode = NumberMode.BOX
         self.register_address = REGISTER_MAP["ABSORB_TIME_EEPROM"]
         # Typical absorb times (0 = disabled)
+        # Values are stored in minutes for display, but register stores seconds
         self._attr_native_min_value = 0
-        self._attr_native_max_value = 7200  # 2 hours
-        self._attr_native_step = 60  # 1 minute increments
+        self._attr_native_max_value = 120  # 2 hours in minutes
+        self._attr_native_step = 1  # 1 minute increments
         self.is_time_value = True  # Don't divide by 10
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value in minutes."""
+        # Get the raw register value from coordinator data (stored in seconds)
+        value = self.coordinator.get_register_value(self.register_address)
+        if value is not None:
+            # Convert from seconds to minutes for display
+            return float(value) / 60.0
+        return None
+
+    async def _async_set_value(self, value: float) -> None:
+        """Set the value on the device (convert minutes to seconds)."""
+        # Convert from minutes to seconds for register
+        register_value = int(value * 60)
+        
+        _LOGGER.debug(f"Writing absorb time {value} minutes to register {self.register_address} (raw value: {register_value} seconds)")
+        
+        try:
+            result = await self.hass.async_add_executor_job(
+                self.coordinator.api.write_register, self.register_address, register_value
+            )
+            if not result or result.isError():
+                _LOGGER.error(f"Failed to write value {value} minutes to register {self.register_address}")
+                return False
+        except Exception as e:
+            _LOGGER.error(f"Error writing to register {self.register_address}: {e}")
+            return False
+        
+        # Request a refresh after writing
+        await self.coordinator.async_request_refresh()
+        return True
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""
@@ -259,14 +292,47 @@ class EqualizeTimeNumber(MidniteSolarNumber):
         super().__init__(coordinator, entry)
         self._attr_name = "EQ Time"
         self._attr_unique_id = f"{entry.entry_id}_equalize_time"
-        self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
+        self._attr_native_unit_of_measurement = UnitOfTime.MINUTES
         self._attr_mode = NumberMode.BOX
         self.register_address = REGISTER_MAP["EQUALIZE_TIME_EEPROM"]
         # Typical equalize times (0 = disabled)
+        # Values are stored in minutes for display, but register stores seconds
         self._attr_native_min_value = 0
-        self._attr_native_max_value = 7200  # 2 hours
-        self._attr_native_step = 60  # 1 minute increments
+        self._attr_native_max_value = 120  # 2 hours in minutes
+        self._attr_native_step = 1  # 1 minute increments
         self.is_time_value = True  # Don't divide by 10
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value in minutes."""
+        # Get the raw register value from coordinator data (stored in seconds)
+        value = self.coordinator.get_register_value(self.register_address)
+        if value is not None:
+            # Convert from seconds to minutes for display
+            return float(value) / 60.0
+        return None
+
+    async def _async_set_value(self, value: float) -> None:
+        """Set the value on the device (convert minutes to seconds)."""
+        # Convert from minutes to seconds for register
+        register_value = int(value * 60)
+        
+        _LOGGER.debug(f"Writing equalize time {value} minutes to register {self.register_address} (raw value: {register_value} seconds)")
+        
+        try:
+            result = await self.hass.async_add_executor_job(
+                self.coordinator.api.write_register, self.register_address, register_value
+            )
+            if not result or result.isError():
+                _LOGGER.error(f"Failed to write value {value} minutes to register {self.register_address}")
+                return False
+        except Exception as e:
+            _LOGGER.error(f"Error writing to register {self.register_address}: {e}")
+            return False
+        
+        # Request a refresh after writing
+        await self.coordinator.async_request_refresh()
+        return True
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""

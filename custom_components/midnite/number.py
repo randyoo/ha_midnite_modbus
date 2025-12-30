@@ -157,6 +157,7 @@ class ModbusAddressNumber(MidniteSolarNumber):
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_entity_registry_enabled_default = False  # Disable by default
         self.is_raw_value = True  # Don't divide by 10 for Modbus address
+        self._attr_native_unit_of_measurement = None  # No unit for Modbus address
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""

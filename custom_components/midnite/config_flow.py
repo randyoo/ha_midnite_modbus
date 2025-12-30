@@ -258,11 +258,15 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
             if CONF_SCAN_INTERVAL in user_input:
                 entry_options[CONF_SCAN_INTERVAL] = user_input[CONF_SCAN_INTERVAL]
             
-            return self.async_update_reload_and_abort(
+            # Update data and options separately
+            self.hass.config_entries.async_update_entry(
                 config_entry,
-                data_updates=entry_data,
-                options_updates=entry_options
+                data=entry_data,
+                options=entry_options
             )
+            
+            await self.hass.config_entries.async_reload(config_entry.entry_id)
+            return self.async_abort(reason="reconfigure_success")
         
         # Pre-fill the form with current values
         data_schema = vol.Schema({

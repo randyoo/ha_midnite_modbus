@@ -58,6 +58,8 @@ REGISTER_GROUPS = {
         REGISTER_MAP["STATUSROLL"],
         REGISTER_MAP["KW_HOURS"],
         REGISTER_MAP["HIGHEST_VINPUT_LOG"],
+        REGISTER_MAP["RESTART_TIME_MS"],
+        REGISTER_MAP["MATCH_POINT_SHADOW"],
     ],
     "temperatures": [
         REGISTER_MAP["BATT_TEMPERATURE"],
@@ -75,6 +77,7 @@ REGISTER_GROUPS = {
         REGISTER_MAP["FLOAT_TIME_TODAY_SEC"],
         REGISTER_MAP["ABSORB_TIME"],
         REGISTER_MAP["EQUALIZE_TIME"],
+        REGISTER_MAP["MIN_ABSORB_TIME"],
     ],
     # Add settings registers for MPPT mode, Modbus port, etc.
     "settings": [

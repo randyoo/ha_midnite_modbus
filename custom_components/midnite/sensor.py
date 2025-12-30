@@ -71,6 +71,8 @@ async def async_setup_entry(
         HighestInputVoltageSensor(coordinator, entry),
         LoggingIntervalSensor(coordinator, entry),
         SlidingCurrentLimitSensor(coordinator, entry),
+        RestartTimeSensor(coordinator, entry),
+        MatchPointShadowSensor(coordinator, entry),
     ]
     
     async_add_entities(sensors)
@@ -101,6 +103,72 @@ class MidniteSolarSensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], Senso
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
+        return None
+
+
+class RestartTimeSensor(MidniteSolarSensor):
+    """Representation of restart time sensor."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Restart Time"
+        self._attr_unique_id = f"{entry.entry_id}_restart_time"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+        self._attr_device_class = SensorDeviceClass.DURATION
+        self._attr_native_unit_of_measurement = UnitOfTime.MILLISECONDS
+        self._attr_state_class = SensorStateClass.MEASUREMENT
+        self._attr_suggested_display_precision = 0
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    @property
+    def native_value(self) -> Optional[int]:
+        """Return the state of the sensor."""
+        if self.coordinator.data and "data" in self.coordinator.data:
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["RESTART_TIME_MS"])
+                if value is not None:
+                    return value
+        return None
+
+    @property
+    def extra_state_attributes(self) -> Optional[dict]:
+        """Return additional state attributes."""
+        attrs = {}
+        if self.coordinator.data and "data" in self.coordinator.data:
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["RESTART_TIME_MS"])
+                if value is not None:
+                    attrs["seconds"] = value / 1000.0
+        return attrs
+
+
+class MatchPointShadowSensor(MidniteSolarSensor):
+    """Representation of match point shadow sensor."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Match Point Shadow"
+        self._attr_unique_id = f"{entry.entry_id}_match_point_shadow"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+        # Match point shadow is a step index (1-16), not a standard measurement
+        self._attr_device_class = None
+        self._attr_native_unit_of_measurement = None
+        self._attr_state_class = SensorStateClass.MEASUREMENT
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    @property
+    def native_value(self) -> Optional[int]:
+        """Return the state of the sensor."""
+        if self.coordinator.data and "data" in self.coordinator.data:
+            status_data = self.coordinator.data["data"].get("status")
+            if status_data:
+                value = status_data.get(REGISTER_MAP["MATCH_POINT_SHADOW"])
+                if value is not None:
+                    return value
         return None
 
 

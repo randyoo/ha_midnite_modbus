@@ -34,6 +34,7 @@ async def async_setup_entry(
         EqualizeVoltageNumber(coordinator, entry),
         BatteryCurrentLimitNumber(coordinator, entry),
         AbsorbTimeNumber(coordinator, entry),
+        MinAbsorbTimeNumber(coordinator, entry),
         EqualizeTimeNumber(coordinator, entry),
         EqualizeIntervalDaysNumber(coordinator, entry),
         ModbusAddressNumber(coordinator, entry),
@@ -138,6 +139,62 @@ class AbsorbVoltageNumber(MidniteSolarNumber):
         self._attr_native_max_value = 65.0
         self._attr_native_step = 0.1
         self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Update the current value."""
+        await self._async_set_value(value)
+
+
+class MinAbsorbTimeNumber(MidniteSolarNumber):
+    """Number to set minimum absorb time."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Minimum Absorb Time"
+        self._attr_unique_id = f"{entry.entry_id}_min_absorb_time"
+        self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
+        self._attr_mode = NumberMode.BOX
+        self.register_address = REGISTER_MAP["MIN_ABSORB_TIME"]
+        # Typical minimum absorb times (0 = disabled)
+        # Values are stored in seconds for display, but register stores seconds
+        self._attr_native_min_value = 0
+        self._attr_native_max_value = 3600  # 1 hour in seconds
+        self._attr_native_step = 1  # 1 second increments
+        self.is_time_value = True  # Don't divide by 10
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current value in seconds."""
+        # Get the raw register value from coordinator data (stored in seconds)
+        value = self.coordinator.get_register_value(self.register_address)
+        if value is not None:
+            return float(value)
+        return None
+
+    async def _async_set_value(self, value: float) -> None:
+        """Set the value on the device (stored in seconds)."""
+        # Convert from seconds to seconds for register (no conversion needed)
+        register_value = int(value)
+        
+        _LOGGER.debug(f"Writing minimum absorb time {value} seconds to register {self.register_address} (raw value: {register_value} seconds)")
+        
+        try:
+            result = await self.hass.async_add_executor_job(
+                self.coordinator.api.write_register, self.register_address, register_value
+            )
+            if not result or result.isError():
+                _LOGGER.error(f"Failed to write value {value} seconds to register {self.register_address}")
+                return False
+        except Exception as e:
+            _LOGGER.error(f"Error writing to register {self.register_address}: {e}")
+            return False
+        
+        # Request a refresh after writing
+        await self.coordinator.async_request_refresh()
+        return True
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""

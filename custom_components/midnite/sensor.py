@@ -217,7 +217,8 @@ class ChargeStageSensor(MidniteSolarSensor):
         self._attr_name = "Charge Stage"
         self._attr_unique_id = f"{entry.entry_id}_charge_stage"
         self._attr_device_class = SensorDeviceClass.ENUM
-        self._attr_options = list(CHARGE_STAGES.values())
+        # Don't set options here - we'll handle unknown values dynamically
+        # Options will be populated from CHARGE_STAGES when needed
 
     @property
     def native_value(self) -> Optional[str]:

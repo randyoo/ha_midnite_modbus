@@ -81,6 +81,11 @@ class MidniteSolarNumber(CoordinatorEntity[MidniteSolarUpdateCoordinator], Numbe
                 return float(value)
             else:
                 return float(value) / 10.0
+        else:
+            _LOGGER.debug(f"Modbus address value is None for register {self.register_address}")
+            # Check if coordinator has data at all
+            if self.coordinator.data and "data" in self.coordinator.data:
+                _LOGGER.debug(f"Coordinator data keys: {list(self.coordinator.data['data'].keys())}")
         return None
 
     async def _async_set_value(self, value: float) -> None:
@@ -91,6 +96,9 @@ class MidniteSolarNumber(CoordinatorEntity[MidniteSolarUpdateCoordinator], Numbe
             register_value = int(value)
         else:
             register_value = int(value * 10)
+        
+        _LOGGER.debug(f"Writing Modbus address {value} to register {self.register_address} (raw value: {register_value})")
+        
         try:
             result = await self.hass.async_add_executor_job(
                 self.coordinator.api.write_register, self.register_address, register_value

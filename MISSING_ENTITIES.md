@@ -69,8 +69,8 @@ This document tracks entities that need to be implemented based on the registers
 ### Sensors (sensor.py)
 
 #### Status Information
-- RESTART_TIME_MS (4114) - Time after which Classic can wake up
-- MATCH_POINT_SHADOW (4124) - Current wind power curve step
+- RESTART_TIME_MS (4114) - Time after which Classic can wake up ✓
+- MATCH_POINT_SHADOW (4124) - Current wind power curve step ✓
 - NITE_MINUTES_NO_PWR (4135) - Counts up when no power, resets on power
 - PWM_READONLY (4141) - Duty cycle command of PWM
 - REASON_FOR_RESET (4142) - Reason Classic reset
@@ -167,7 +167,7 @@ This document tracks entities that need to be implemented based on the registers
 ### Numbers (number.py)
 
 #### Configuration Settings
-- MIN_ABSORB_TIME (4153) - Minimum absorb time
+- MIN_ABSORB_TIME (4153) - Minimum absorb time ✓
 - AUX1_VOLTS_LO_ABS (4166) - Aux 1 low absolute threshold voltage
 - AUX1_DELAY_T_MS (4167) - Aux 1 delay before asserting
 - AUX1_HOLD_T_MS (4168) - Aux 1 hold before de-asserting

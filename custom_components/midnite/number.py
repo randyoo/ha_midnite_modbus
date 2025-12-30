@@ -247,6 +247,7 @@ class AbsorbTimeNumber(MidniteSolarNumber):
         self._attr_native_step = 1  # 1 minute increments
         self.is_time_value = True  # Don't divide by 10
         self._attr_has_entity_name = True
+        self._attr_precision = 0  # Display whole numbers only
 
     @property
     def native_value(self) -> float | None:
@@ -303,6 +304,7 @@ class EqualizeTimeNumber(MidniteSolarNumber):
         self._attr_native_step = 1  # 1 minute increments
         self.is_time_value = True  # Don't divide by 10
         self._attr_has_entity_name = True
+        self._attr_precision = 0  # Display whole numbers only
 
     @property
     def native_value(self) -> float | None:

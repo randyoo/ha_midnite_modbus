@@ -121,7 +121,7 @@ class AbsorbVoltageNumber(MidniteSolarNumber):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "Absorb Voltage Setpoint"
+        self._attr_name = "Absorb Voltage"
         self._attr_unique_id = f"{entry.entry_id}_absorb_voltage"
         self._attr_native_unit_of_measurement = "V"
         self._attr_mode = NumberMode.BOX
@@ -165,7 +165,7 @@ class FloatVoltageNumber(MidniteSolarNumber):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "Float Voltage Setpoint"
+        self._attr_name = "Float Voltage"
         self._attr_unique_id = f"{entry.entry_id}_float_voltage"
         self._attr_native_unit_of_measurement = "V"
         self._attr_mode = NumberMode.BOX
@@ -187,7 +187,7 @@ class EqualizeVoltageNumber(MidniteSolarNumber):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "Equalize Voltage Setpoint"
+        self._attr_name = "EQ Voltage"
         self._attr_unique_id = f"{entry.entry_id}_equalize_voltage"
         self._attr_native_unit_of_measurement = "V"
         self._attr_mode = NumberMode.BOX
@@ -230,7 +230,7 @@ class AbsorbTimeNumber(MidniteSolarNumber):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "Absorb Time (seconds)"
+        self._attr_name = "Absorb Time"
         self._attr_unique_id = f"{entry.entry_id}_absorb_time"
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
         self._attr_mode = NumberMode.BOX
@@ -252,7 +252,7 @@ class EqualizeTimeNumber(MidniteSolarNumber):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "Equalize Time (seconds)"
+        self._attr_name = "EQ Time"
         self._attr_unique_id = f"{entry.entry_id}_equalize_time"
         self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
         self._attr_mode = NumberMode.BOX
@@ -274,7 +274,7 @@ class EqualizeIntervalDaysNumber(MidniteSolarNumber):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "Equalize Interval (days)"
+        self._attr_name = "EQ Interval"
         self._attr_unique_id = f"{entry.entry_id}_equalize_interval"
         self._attr_native_unit_of_measurement = UnitOfTime.DAYS
         self._attr_mode = NumberMode.BOX

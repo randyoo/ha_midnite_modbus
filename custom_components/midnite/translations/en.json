@@ -125,15 +125,15 @@
     },
     "number": {
       "absorb_voltage": {
-        "name": "Absorb Voltage Setpoint",
+        "name": "Absorb Voltage",
         "state": "{state} V"
       },
       "float_voltage": {
-        "name": "Float Voltage Setpoint",
+        "name": "Float Voltage",
         "state": "{state} V"
       },
       "equalize_voltage": {
-        "name": "Equalize Voltage Setpoint",
+        "name": "EQ Voltage",
         "state": "{state} V"
       },
       "current_limit": {
@@ -141,15 +141,15 @@
         "state": "{state} A"
       },
       "absorb_time": {
-        "name": "Absorb Time (seconds)",
+        "name": "Absorb Time",
         "state": "{hours}h {minutes}m"
       },
       "equalize_time": {
-        "name": "Equalize Time (seconds)",
+        "name": "EQ Time",
         "state": "{hours}h {minutes}m"
       },
       "equalize_interval": {
-        "name": "Equalize Interval (days)"
+        "name": "EQ Interval"
       }
     }
   }

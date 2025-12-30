@@ -54,6 +54,10 @@ REGISTER_GROUPS = {
         REGISTER_MAP["COMBO_CHARGE_STAGE"],
         REGISTER_MAP["PV_INPUT_CURRENT"],
         REGISTER_MAP["VOC_LAST_MEASURED"],
+        # Add status registers
+        REGISTER_MAP["STATUSROLL"],
+        REGISTER_MAP["KW_HOURS"],
+        REGISTER_MAP["HIGHEST_VINPUT_LOG"],
     ],
     "temperatures": [
         REGISTER_MAP["BATT_TEMPERATURE"],
@@ -76,6 +80,8 @@ REGISTER_GROUPS = {
     "settings": [
         REGISTER_MAP["MPPT_MODE"],
         REGISTER_MAP["MODBUS_PORT_REGISTER"],
+        REGISTER_MAP["MINUTE_LOG_INTERVAL_SEC"],
+        REGISTER_MAP["SLIDING_CURRENT_LIMIT"],
     ],
     # Add network configuration registers
     "network": [
@@ -106,6 +112,12 @@ REGISTER_GROUPS = {
         REGISTER_MAP["EQUALIZE_TIME_EEPROM"],
         REGISTER_MAP["EQUALIZE_INTERVAL_DAYS_EEPROM"],
         REGISTER_MAP["CLASSIC_MODBUS_ADDR_EEPROM"],  # Modbus address
+        # Add temperature compensation settings
+        REGISTER_MAP["MAX_BATTERY_TEMP_COMP_VOLTAGE"],
+        REGISTER_MAP["MIN_BATTERY_TEMP_COMP_VOLTAGE"],
+        REGISTER_MAP["BATTERY_TEMP_COMP_VALUE"],
+        # Add equalize retry days
+        REGISTER_MAP["EQUALIZE_RETRY_DAYS"],
     ],
 }
 

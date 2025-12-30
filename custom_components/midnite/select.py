@@ -11,6 +11,7 @@ from homeassistant.components.select import SelectEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.helpers.entity import EntityCategory
 
 from .const import DEVICE_TYPES, DOMAIN, FORCE_FLAGS, MPPT_MODES, REGISTER_MAP
 from .coordinator import MidniteSolarUpdateCoordinator
@@ -129,6 +130,7 @@ class MPPTModeSelector(MidniteSolarSelect):
         self._attr_unique_id = f"{entry.entry_id}_mppt_mode_selector"
         # Convert MPPT_MODES dict to list of options
         self._attr_options = list(MPPT_MODES.values())
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC  # Move to Diagnostics category
         self._attr_entity_registry_enabled_default = False  # Disable by default
 
     @property

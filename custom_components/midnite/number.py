@@ -213,7 +213,7 @@ class BatteryCurrentLimitNumber(MidniteSolarNumber):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator, entry)
-        self._attr_name = "Max Battery Amps"
+        self._attr_name = "Current Limit"
         self._attr_unique_id = f"{entry.entry_id}_current_limit"
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
         self._attr_mode = NumberMode.BOX

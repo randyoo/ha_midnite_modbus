@@ -42,6 +42,24 @@ async def async_setup_entry(
         MinBatteryTempCompVoltageNumber(coordinator, entry),
         BatteryTempCompValueNumber(coordinator, entry),
         EqualizeRetryDaysNumber(coordinator, entry),
+        # Wind power curve voltage settings
+        WindPowerCurveV0Number(coordinator, entry),
+        WindPowerCurveV1Number(coordinator, entry),
+        WindPowerCurveV2Number(coordinator, entry),
+        WindPowerCurveV3Number(coordinator, entry),
+        WindPowerCurveV4Number(coordinator, entry),
+        WindPowerCurveV5Number(coordinator, entry),
+        WindPowerCurveV6Number(coordinator, entry),
+        WindPowerCurveV7Number(coordinator, entry),
+        # Wind power curve current settings
+        WindPowerCurveI0Number(coordinator, entry),
+        WindPowerCurveI1Number(coordinator, entry),
+        WindPowerCurveI2Number(coordinator, entry),
+        WindPowerCurveI3Number(coordinator, entry),
+        WindPowerCurveI4Number(coordinator, entry),
+        WindPowerCurveI5Number(coordinator, entry),
+        WindPowerCurveI6Number(coordinator, entry),
+        WindPowerCurveI7Number(coordinator, entry),
     ]
     
     async_add_entities(numbers)
@@ -138,6 +156,382 @@ class AbsorbVoltageNumber(MidniteSolarNumber):
         self._attr_native_min_value = 10.0
         self._attr_native_max_value = 65.0
         self._attr_native_step = 0.1
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Update the current value."""
+        await self._async_set_value(value)
+
+
+class WindPowerCurveV0Number(MidniteSolarNumber):
+    """Number to set wind power curve voltage step 0 (cut-in)."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Wind Power Curve V0 (Cut-in)"
+        self._attr_unique_id = f"{entry.entry_id}_wind_power_curve_v0"
+        self._attr_native_unit_of_measurement = "V"
+        self._attr_mode = NumberMode.BOX
+        self.register_address = REGISTER_MAP["WIND_POWER_TABLE_V_0_EEPA"]
+        # Voltage range for wind power curve (typical: 1-200V)
+        self._attr_native_min_value = 1.0
+        self._attr_native_max_value = 200.0
+        self._attr_native_step = 1.0
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Update the current value."""
+        await self._async_set_value(value)
+
+
+class WindPowerCurveV1Number(MidniteSolarNumber):
+    """Number to set wind power curve voltage step 1."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Wind Power Curve V1"
+        self._attr_unique_id = f"{entry.entry_id}_wind_power_curve_v1"
+        self._attr_native_unit_of_measurement = "V"
+        self._attr_mode = NumberMode.BOX
+        self.register_address = REGISTER_MAP["WIND_POWER_TABLE_V_1_EEPA"]
+        # Voltage range for wind power curve (typical: 1-200V)
+        self._attr_native_min_value = 1.0
+        self._attr_native_max_value = 200.0
+        self._attr_native_step = 1.0
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Update the current value."""
+        await self._async_set_value(value)
+
+
+class WindPowerCurveV2Number(MidniteSolarNumber):
+    """Number to set wind power curve voltage step 2."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Wind Power Curve V2"
+        self._attr_unique_id = f"{entry.entry_id}_wind_power_curve_v2"
+        self._attr_native_unit_of_measurement = "V"
+        self._attr_mode = NumberMode.BOX
+        self.register_address = REGISTER_MAP["WIND_POWER_TABLE_V_2_EEPA"]
+        # Voltage range for wind power curve (typical: 1-200V)
+        self._attr_native_min_value = 1.0
+        self._attr_native_max_value = 200.0
+        self._attr_native_step = 1.0
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Update the current value."""
+        await self._async_set_value(value)
+
+
+class WindPowerCurveV3Number(MidniteSolarNumber):
+    """Number to set wind power curve voltage step 3."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Wind Power Curve V3"
+        self._attr_unique_id = f"{entry.entry_id}_wind_power_curve_v3"
+        self._attr_native_unit_of_measurement = "V"
+        self._attr_mode = NumberMode.BOX
+        self.register_address = REGISTER_MAP["WIND_POWER_TABLE_V_3_EEPA"]
+        # Voltage range for wind power curve (typical: 1-200V)
+        self._attr_native_min_value = 1.0
+        self._attr_native_max_value = 200.0
+        self._attr_native_step = 1.0
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Update the current value."""
+        await self._async_set_value(value)
+
+
+class WindPowerCurveV4Number(MidniteSolarNumber):
+    """Number to set wind power curve voltage step 4."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Wind Power Curve V4"
+        self._attr_unique_id = f"{entry.entry_id}_wind_power_curve_v4"
+        self._attr_native_unit_of_measurement = "V"
+        self._attr_mode = NumberMode.BOX
+        self.register_address = REGISTER_MAP["WIND_POWER_TABLE_V_4_EEPA"]
+        # Voltage range for wind power curve (typical: 1-200V)
+        self._attr_native_min_value = 1.0
+        self._attr_native_max_value = 200.0
+        self._attr_native_step = 1.0
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Update the current value."""
+        await self._async_set_value(value)
+
+
+class WindPowerCurveV5Number(MidniteSolarNumber):
+    """Number to set wind power curve voltage step 5."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Wind Power Curve V5"
+        self._attr_unique_id = f"{entry.entry_id}_wind_power_curve_v5"
+        self._attr_native_unit_of_measurement = "V"
+        self._attr_mode = NumberMode.BOX
+        self.register_address = REGISTER_MAP["WIND_POWER_TABLE_V_5_EEPA"]
+        # Voltage range for wind power curve (typical: 1-200V)
+        self._attr_native_min_value = 1.0
+        self._attr_native_max_value = 200.0
+        self._attr_native_step = 1.0
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Update the current value."""
+        await self._async_set_value(value)
+
+
+class WindPowerCurveV6Number(MidniteSolarNumber):
+    """Number to set wind power curve voltage step 6."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Wind Power Curve V6"
+        self._attr_unique_id = f"{entry.entry_id}_wind_power_curve_v6"
+        self._attr_native_unit_of_measurement = "V"
+        self._attr_mode = NumberMode.BOX
+        self.register_address = REGISTER_MAP["WIND_POWER_TABLE_V_6_EEPA"]
+        # Voltage range for wind power curve (typical: 1-200V)
+        self._attr_native_min_value = 1.0
+        self._attr_native_max_value = 200.0
+        self._attr_native_step = 1.0
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Update the current value."""
+        await self._async_set_value(value)
+
+
+class WindPowerCurveV7Number(MidniteSolarNumber):
+    """Number to set wind power curve voltage step 7."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Wind Power Curve V7"
+        self._attr_unique_id = f"{entry.entry_id}_wind_power_curve_v7"
+        self._attr_native_unit_of_measurement = "V"
+        self._attr_mode = NumberMode.BOX
+        self.register_address = REGISTER_MAP["WIND_POWER_TABLE_V_7_EEPA"]
+        # Voltage range for wind power curve (typical: 1-200V)
+        self._attr_native_min_value = 1.0
+        self._attr_native_max_value = 200.0
+        self._attr_native_step = 1.0
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Update the current value."""
+        await self._async_set_value(value)
+
+
+class WindPowerCurveI0Number(MidniteSolarNumber):
+    """Number to set wind power curve current step 0 (cut-in)."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Wind Power Curve I0 (Cut-in)"
+        self._attr_unique_id = f"{entry.entry_id}_wind_power_curve_i0"
+        self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
+        self._attr_mode = NumberMode.BOX
+        self.register_address = REGISTER_MAP["WIND_POWER_TABLE_I_0_EEPA"]
+        # Current range for wind power curve (typical: 1-100A)
+        self._attr_native_min_value = 1.0
+        self._attr_native_max_value = 100.0
+        self._attr_native_step = 1.0
+        self.is_raw_value = True  # Don't divide by 10 for current values in wind table
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Update the current value."""
+        await self._async_set_value(value)
+
+
+class WindPowerCurveI1Number(MidniteSolarNumber):
+    """Number to set wind power curve current step 1."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Wind Power Curve I1"
+        self._attr_unique_id = f"{entry.entry_id}_wind_power_curve_i1"
+        self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
+        self._attr_mode = NumberMode.BOX
+        self.register_address = REGISTER_MAP["WIND_POWER_TABLE_I_1_EEPA"]
+        # Current range for wind power curve (typical: 1-100A)
+        self._attr_native_min_value = 1.0
+        self._attr_native_max_value = 100.0
+        self._attr_native_step = 1.0
+        self.is_raw_value = True  # Don't divide by 10 for current values in wind table
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Update the current value."""
+        await self._async_set_value(value)
+
+
+class WindPowerCurveI2Number(MidniteSolarNumber):
+    """Number to set wind power curve current step 2."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Wind Power Curve I2"
+        self._attr_unique_id = f"{entry.entry_id}_wind_power_curve_i2"
+        self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
+        self._attr_mode = NumberMode.BOX
+        self.register_address = REGISTER_MAP["WIND_POWER_TABLE_I_2_EEPA"]
+        # Current range for wind power curve (typical: 1-100A)
+        self._attr_native_min_value = 1.0
+        self._attr_native_max_value = 100.0
+        self._attr_native_step = 1.0
+        self.is_raw_value = True  # Don't divide by 10 for current values in wind table
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Update the current value."""
+        await self._async_set_value(value)
+
+
+class WindPowerCurveI3Number(MidniteSolarNumber):
+    """Number to set wind power curve current step 3."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Wind Power Curve I3"
+        self._attr_unique_id = f"{entry.entry_id}_wind_power_curve_i3"
+        self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
+        self._attr_mode = NumberMode.BOX
+        self.register_address = REGISTER_MAP["WIND_POWER_TABLE_I_3_EEPA"]
+        # Current range for wind power curve (typical: 1-100A)
+        self._attr_native_min_value = 1.0
+        self._attr_native_max_value = 100.0
+        self._attr_native_step = 1.0
+        self.is_raw_value = True  # Don't divide by 10 for current values in wind table
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Update the current value."""
+        await self._async_set_value(value)
+
+
+class WindPowerCurveI4Number(MidniteSolarNumber):
+    """Number to set wind power curve current step 4."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Wind Power Curve I4"
+        self._attr_unique_id = f"{entry.entry_id}_wind_power_curve_i4"
+        self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
+        self._attr_mode = NumberMode.BOX
+        self.register_address = REGISTER_MAP["WIND_POWER_TABLE_I_4_EEPA"]
+        # Current range for wind power curve (typical: 1-100A)
+        self._attr_native_min_value = 1.0
+        self._attr_native_max_value = 100.0
+        self._attr_native_step = 1.0
+        self.is_raw_value = True  # Don't divide by 10 for current values in wind table
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Update the current value."""
+        await self._async_set_value(value)
+
+
+class WindPowerCurveI5Number(MidniteSolarNumber):
+    """Number to set wind power curve current step 5."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Wind Power Curve I5"
+        self._attr_unique_id = f"{entry.entry_id}_wind_power_curve_i5"
+        self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
+        self._attr_mode = NumberMode.BOX
+        self.register_address = REGISTER_MAP["WIND_POWER_TABLE_I_5_EEPA"]
+        # Current range for wind power curve (typical: 1-100A)
+        self._attr_native_min_value = 1.0
+        self._attr_native_max_value = 100.0
+        self._attr_native_step = 1.0
+        self.is_raw_value = True  # Don't divide by 10 for current values in wind table
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Update the current value."""
+        await self._async_set_value(value)
+
+
+class WindPowerCurveI6Number(MidniteSolarNumber):
+    """Number to set wind power curve current step 6."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Wind Power Curve I6"
+        self._attr_unique_id = f"{entry.entry_id}_wind_power_curve_i6"
+        self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
+        self._attr_mode = NumberMode.BOX
+        self.register_address = REGISTER_MAP["WIND_POWER_TABLE_I_6_EEPA"]
+        # Current range for wind power curve (typical: 1-100A)
+        self._attr_native_min_value = 1.0
+        self._attr_native_max_value = 100.0
+        self._attr_native_step = 1.0
+        self.is_raw_value = True  # Don't divide by 10 for current values in wind table
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Update the current value."""
+        await self._async_set_value(value)
+
+
+class WindPowerCurveI7Number(MidniteSolarNumber):
+    """Number to set wind power curve current step 7."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Wind Power Curve I7"
+        self._attr_unique_id = f"{entry.entry_id}_wind_power_curve_i7"
+        self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
+        self._attr_mode = NumberMode.BOX
+        self.register_address = REGISTER_MAP["WIND_POWER_TABLE_I_7_EEPA"]
+        # Current range for wind power curve (typical: 1-100A)
+        self._attr_native_min_value = 1.0
+        self._attr_native_max_value = 100.0
+        self._attr_native_step = 1.0
+        self.is_raw_value = True  # Don't divide by 10 for current values in wind table
+        self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
 
     async def async_set_native_value(self, value: float) -> None:

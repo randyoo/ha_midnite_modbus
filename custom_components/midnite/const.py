@@ -52,6 +52,37 @@ REGISTER_MAP = {
     "BATTERY_TEMP_COMP_VALUE": 4157,
     # Equalize settings
     "EQUALIZE_RETRY_DAYS": 4159,
+    # Auxiliary function settings
+    "AUX1_VOLTS_LO_ABS": 4166,
+    "AUX1_DELAY_T_MS": 4167,
+    "AUX1_HOLD_T_MS": 4168,
+    "AUX2_PWM_VWIDTH": 4169,
+    "AUX1_VOLTS_HI_ABS": 4172,
+    "AUX2_VOLTS_HI_ABS": 4173,
+    "AUX1_VOLTS_LO_REL": 4174,
+    "AUX1_VOLTS_HI_REL": 4175,
+    "AUX2_VOLTS_LO_REL": 4176,
+    "AUX2_VOLTS_HI_REL": 4177,
+    "AUX1_VOLTS_LO_PV_ABS": 4178,
+    "AUX1_VOLTS_HI_PV_ABS": 4179,
+    "AUX2_VOLTS_HI_PV_ABS": 4181,
+    # Wind power curve settings
+    "WIND_POWER_TABLE_V_0_EEPA": 4301,
+    "WIND_POWER_TABLE_V_1_EEPA": 4302,
+    "WIND_POWER_TABLE_V_2_EEPA": 4303,
+    "WIND_POWER_TABLE_V_3_EEPA": 4304,
+    "WIND_POWER_TABLE_V_4_EEPA": 4305,
+    "WIND_POWER_TABLE_V_5_EEPA": 4306,
+    "WIND_POWER_TABLE_V_6_EEPA": 4307,
+    "WIND_POWER_TABLE_V_7_EEPA": 4308,
+    "WIND_POWER_TABLE_I_0_EEPA": 4309,
+    "WIND_POWER_TABLE_I_1_EEPA": 4310,
+    "WIND_POWER_TABLE_I_2_EEPA": 4311,
+    "WIND_POWER_TABLE_I_3_EEPA": 4312,
+    "WIND_POWER_TABLE_I_4_EEPA": 4313,
+    "WIND_POWER_TABLE_I_5_EEPA": 4314,
+    "WIND_POWER_TABLE_I_6_EEPA": 4315,
+    "WIND_POWER_TABLE_I_7_EEPA": 4316,
     
     # Network configuration
     "IP_SETTINGS_FLAGS": 20481,
@@ -196,6 +227,29 @@ IP_SETTINGS_FLAGS = {
     "Web_Access": 1,
 }
 
+# Auxiliary function mappings for AUX_1_AND_2_FUNCTION register
+AUX1_FUNCTIONS = [
+    "Off",
+    "Auto",
+    "On",
+    "HiAbs",
+    "LoAbs",
+    "WasteNot",
+    "PVHiAbs",
+    "PVLoAbs",
+]
+
+AUX2_FUNCTIONS = [
+    "Off",
+    "Auto",
+    "On",
+    "HiAbs",
+    "LoAbs",
+    "WasteNot",
+    "PWM",
+    "PVHiAbs",
+]
+
 # Define the register groups we need to read from the device
 # Each group represents a functional category of registers
 REGISTER_GROUPS = {
@@ -293,5 +347,41 @@ REGISTER_GROUPS = {
         REGISTER_MAP["BATTERY_TEMP_COMP_VALUE"],
         # Add equalize retry days
         REGISTER_MAP["EQUALIZE_RETRY_DAYS"],
+    ],
+    # Add auxiliary function settings registers
+    "aux_settings": [
+        REGISTER_MAP["AUX_1_AND_2_FUNCTION"],
+        REGISTER_MAP["AUX1_VOLTS_LO_ABS"],
+        REGISTER_MAP["AUX1_DELAY_T_MS"],
+        REGISTER_MAP["AUX1_HOLD_T_MS"],
+        REGISTER_MAP["AUX2_PWM_VWIDTH"],
+        REGISTER_MAP["AUX1_VOLTS_HI_ABS"],
+        REGISTER_MAP["AUX2_VOLTS_HI_ABS"],
+        REGISTER_MAP["AUX1_VOLTS_LO_REL"],
+        REGISTER_MAP["AUX1_VOLTS_HI_REL"],
+        REGISTER_MAP["AUX2_VOLTS_LO_REL"],
+        REGISTER_MAP["AUX2_VOLTS_HI_REL"],
+        REGISTER_MAP["AUX1_VOLTS_LO_PV_ABS"],
+        REGISTER_MAP["AUX1_VOLTS_HI_PV_ABS"],
+        REGISTER_MAP["AUX2_VOLTS_HI_PV_ABS"],
+    ],
+    # Add wind power curve settings registers
+    "wind_power_curve": [
+        REGISTER_MAP["WIND_POWER_TABLE_V_0_EEPA"],
+        REGISTER_MAP["WIND_POWER_TABLE_V_1_EEPA"],
+        REGISTER_MAP["WIND_POWER_TABLE_V_2_EEPA"],
+        REGISTER_MAP["WIND_POWER_TABLE_V_3_EEPA"],
+        REGISTER_MAP["WIND_POWER_TABLE_V_4_EEPA"],
+        REGISTER_MAP["WIND_POWER_TABLE_V_5_EEPA"],
+        REGISTER_MAP["WIND_POWER_TABLE_V_6_EEPA"],
+        REGISTER_MAP["WIND_POWER_TABLE_V_7_EEPA"],
+        REGISTER_MAP["WIND_POWER_TABLE_I_0_EEPA"],
+        REGISTER_MAP["WIND_POWER_TABLE_I_1_EEPA"],
+        REGISTER_MAP["WIND_POWER_TABLE_I_2_EEPA"],
+        REGISTER_MAP["WIND_POWER_TABLE_I_3_EEPA"],
+        REGISTER_MAP["WIND_POWER_TABLE_I_4_EEPA"],
+        REGISTER_MAP["WIND_POWER_TABLE_I_5_EEPA"],
+        REGISTER_MAP["WIND_POWER_TABLE_I_6_EEPA"],
+        REGISTER_MAP["WIND_POWER_TABLE_I_7_EEPA"],
     ],
 }

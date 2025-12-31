@@ -81,7 +81,7 @@ This document tracks entities that need to be implemented based on the registers
 - GENERAL_PURPOSE_WORD (4158) - Stored & retrieved with other EEPROM
 - EQUALIZE_RETRY_DAYS (4159) - Auto EQ retry days until giving up
 
-- AUX_1_AND_2_FUNCTION (4165) - Combined Aux 1 & 2 function + ON/OFF
+- AUX_1_AND_2_FUNCTION (4165) - Combined Aux 1 & 2 function + ON/OFF ✓
 - VARIMAX (4180) - Variable maximum current & voltage differential
 - ENABLE_FLAGS3 (4182) - Enable forwarding of Modbus traffic
 - ENABLE_FLAGS2 (4186) - Various feature flags
@@ -134,8 +134,8 @@ This document tracks entities that need to be implemented based on the registers
 - PK_AMPS_OVER_LIMIT_HI_EEPA (4298) - Factory calibration
 - PK_AMPS_OVER_LIMIT_LO_EEPA (4299) - Factory calibration
 - FACTORY_VBATT_OFFSET_EEPA (4300) - Factory V battery offset calibration
-- WIND_POWER_TABLE_V_0-7_EEPA (4301-4308) - Wind power curve voltage steps
-- WIND_POWER_TABLE_I_0-7_EEPA (4309-4316) - Wind power curve current steps
+- WIND_POWER_TABLE_V_0-7_EEPA (4301-4308) - Wind power curve voltage steps ✓
+- WIND_POWER_TABLE_I_0-7_EEPA (4309-4316) - Wind power curve current steps ✓
 - PK_AMPS_OVER_TRIP_EEPROM (4318) - Factory calibration
 - MNGP_REVISION (4319) - Preliminary – shows unit connected
 - MNLP_REVISION (4320) - Preliminary – shows unit connected

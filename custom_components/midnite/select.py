@@ -13,7 +13,15 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.helpers.entity import EntityCategory
 
-from .const import DEVICE_TYPES, DOMAIN, FORCE_FLAGS, MPPT_MODES, REGISTER_MAP
+from .const import (
+    AUX1_FUNCTIONS,
+    AUX2_FUNCTIONS,
+    DEVICE_TYPES,
+    DOMAIN,
+    FORCE_FLAGS,
+    MPPT_MODES,
+    REGISTER_MAP,
+)
 from .coordinator import MidniteSolarUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -30,6 +38,8 @@ async def async_setup_entry(
     selectors = [
         ChargeModeSelector(coordinator, entry),
         MPPTModeSelector(coordinator, entry),
+        Aux1FunctionSelector(coordinator, entry),
+        Aux2FunctionSelector(coordinator, entry),
     ]
     
     async_add_entities(selectors)
@@ -175,3 +185,157 @@ class MPPTModeSelector(MidniteSolarSelect):
                 return
         
         _LOGGER.warning(f"Unknown MPPT mode option: {option}")
+
+
+class Aux1FunctionSelector(MidniteSolarSelect):
+    """Selector for AUX 1 function control."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the selector."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "AUX 1 Function"
+        self._attr_unique_id = f"{entry.entry_id}_aux1_function_selector"
+        # Convert AUX1_FUNCTIONS list to options
+        self._attr_options = AUX1_FUNCTIONS
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    @property
+    def current_option(self) -> Optional[str]:
+        """Return the currently selected option."""
+        if self.coordinator.data and "data" in self.coordinator.data:
+            aux_settings = self.coordinator.data["data"].get("aux_settings")
+            if aux_settings:
+                value = aux_settings.get(REGISTER_MAP["AUX_1_AND_2_FUNCTION"])
+                if value is not None:
+                    # Extract AUX 1 function (bits 0-2)
+                    aux1_function_value = value & 0x07
+                    return AUX1_FUNCTIONS[aux1_function_value] if aux1_function_value < len(AUX1_FUNCTIONS) else f"Unknown ({aux1_function_value})"
+        return "Off"
+
+    async def async_select_option(self, option: str) -> None:
+        """Change the selected option."""
+        # Find the index of the option in AUX1_FUNCTIONS
+        try:
+            function_index = AUX1_FUNCTIONS.index(option)
+        except ValueError:
+            _LOGGER.warning(f"Unknown AUX 1 function option: {option}")
+            return
+
+        if self.coordinator.data and "data" in self.coordinator.data:
+            aux_settings = self.coordinator.data["data"].get("aux_settings")
+            if aux_settings:
+                # Read current value to preserve AUX 2 function bits
+                current_value = aux_settings.get(REGISTER_MAP["AUX_1_AND_2_FUNCTION"])
+                if current_value is not None:
+                    # Preserve AUX 2 function (bits 3-5) and ON/OFF bit (bit 8)
+                    aux2_function_bits = (current_value >> 3) & 0x07
+                    on_off_bit = (current_value >> 8) & 0x01
+                    
+                    # Build new value with AUX 1 function, preserved AUX 2 function, and ON/OFF bit
+                    new_value = (function_index & 0x07) | ((aux2_function_bits & 0x07) << 3) | ((on_off_bit & 0x01) << 8)
+                    
+                    _LOGGER.info(f"Setting AUX 1 function to {option} (value: {new_value})")
+                    try:
+                        result = await self.hass.async_add_executor_job(
+                            self.coordinator.api.write_register, REGISTER_MAP["AUX_1_AND_2_FUNCTION"], new_value
+                        )
+                        if not result or result.isError():
+                            _LOGGER.error(f"Failed to write AUX 1 function {option} to register")
+                    except Exception as e:
+                        _LOGGER.error(f"Error writing AUX 1 function {option} to register: {e}")
+                    
+                    # After writing the mode, we need to force an EEPROM update
+                    try:
+                        force_value = 1 << 2  # ForceEEpromUpdate flag (bit 2)
+                        result = await self.hass.async_add_executor_job(
+                            self.coordinator.api.write_register, REGISTER_MAP["FORCE_FLAG_BITS"], force_value
+                        )
+                        if not result or result.isError():
+                            _LOGGER.error("Failed to trigger EEPROM update")
+                    except Exception as e:
+                        _LOGGER.error(f"Error triggering EEPROM update: {e}")
+                    
+                    # Request a refresh after changing mode
+                    await self.coordinator.async_request_refresh()
+                else:
+                    _LOGGER.warning("Current AUX settings not available, cannot preserve AUX 2 function")
+        else:
+            _LOGGER.warning("Coordinator data not available")
+
+
+class Aux2FunctionSelector(MidniteSolarSelect):
+    """Selector for AUX 2 function control."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the selector."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "AUX 2 Function"
+        self._attr_unique_id = f"{entry.entry_id}_aux2_function_selector"
+        # Convert AUX2_FUNCTIONS list to options
+        self._attr_options = AUX2_FUNCTIONS
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    @property
+    def current_option(self) -> Optional[str]:
+        """Return the currently selected option."""
+        if self.coordinator.data and "data" in self.coordinator.data:
+            aux_settings = self.coordinator.data["data"].get("aux_settings")
+            if aux_settings:
+                value = aux_settings.get(REGISTER_MAP["AUX_1_AND_2_FUNCTION"])
+                if value is not None:
+                    # Extract AUX 2 function (bits 3-5)
+                    aux2_function_value = (value >> 3) & 0x07
+                    return AUX2_FUNCTIONS[aux2_function_value] if aux2_function_value < len(AUX2_FUNCTIONS) else f"Unknown ({aux2_function_value})"
+        return "Off"
+
+    async def async_select_option(self, option: str) -> None:
+        """Change the selected option."""
+        # Find the index of the option in AUX2_FUNCTIONS
+        try:
+            function_index = AUX2_FUNCTIONS.index(option)
+        except ValueError:
+            _LOGGER.warning(f"Unknown AUX 2 function option: {option}")
+            return
+
+        if self.coordinator.data and "data" in self.coordinator.data:
+            aux_settings = self.coordinator.data["data"].get("aux_settings")
+            if aux_settings:
+                # Read current value to preserve AUX 1 function bits
+                current_value = aux_settings.get(REGISTER_MAP["AUX_1_AND_2_FUNCTION"])
+                if current_value is not None:
+                    # Preserve AUX 1 function (bits 0-2) and ON/OFF bit (bit 8)
+                    aux1_function_bits = current_value & 0x07
+                    on_off_bit = (current_value >> 8) & 0x01
+                    
+                    # Build new value with AUX 2 function, preserved AUX 1 function, and ON/OFF bit
+                    new_value = (aux1_function_bits & 0x07) | ((function_index & 0x07) << 3) | ((on_off_bit & 0x01) << 8)
+                    
+                    _LOGGER.info(f"Setting AUX 2 function to {option} (value: {new_value})")
+                    try:
+                        result = await self.hass.async_add_executor_job(
+                            self.coordinator.api.write_register, REGISTER_MAP["AUX_1_AND_2_FUNCTION"], new_value
+                        )
+                        if not result or result.isError():
+                            _LOGGER.error(f"Failed to write AUX 2 function {option} to register")
+                    except Exception as e:
+                        _LOGGER.error(f"Error writing AUX 2 function {option} to register: {e}")
+                    
+                    # After writing the mode, we need to force an EEPROM update
+                    try:
+                        force_value = 1 << 2  # ForceEEpromUpdate flag (bit 2)
+                        result = await self.hass.async_add_executor_job(
+                            self.coordinator.api.write_register, REGISTER_MAP["FORCE_FLAG_BITS"], force_value
+                        )
+                        if not result or result.isError():
+                            _LOGGER.error("Failed to trigger EEPROM update")
+                    except Exception as e:
+                        _LOGGER.error(f"Error triggering EEPROM update: {e}")
+                    
+                    # Request a refresh after changing mode
+                    await self.coordinator.async_request_refresh()
+                else:
+                    _LOGGER.warning("Current AUX settings not available, cannot preserve AUX 1 function")
+        else:
+            _LOGGER.warning("Coordinator data not available")

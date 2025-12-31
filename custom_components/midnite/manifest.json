@@ -3,11 +3,11 @@
   "name": "Midnite Solar",
   "codeowners": ["@randyoo"],
   "config_flow": true,
-  "documentation": "https://www.home-assistant.io/integrations/midnite_solar",
+  "documentation": "https://github.com/randyoo/ha_midnite_modbus/",
   "iot_class": "local_polling",
   "loggers": ["pymodbus"],
   "requirements": ["pymodbus>=3.6.0,<4.0.0"],
-  "version": "1.0.0",
+  "version": "0.0.1",
   "dhcp": [
     {
       "hostname": "*",

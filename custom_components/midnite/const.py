@@ -195,3 +195,103 @@ IP_SETTINGS_FLAGS = {
     "DHCP": 0,
     "Web_Access": 1,
 }
+
+# Define the register groups we need to read from the device
+# Each group represents a functional category of registers
+REGISTER_GROUPS = {
+    "device_info": [
+        REGISTER_MAP["UNIT_ID"],
+        # Software build date (registers 4102-4103)
+        REGISTER_MAP["UNIT_SW_DATE_RO"],
+        REGISTER_MAP["UNIT_SW_DATE_MONTH_DAY"],
+        # Use DEVICE_ID (registers 4111-4112) as the serial number identifier
+        # This is more reliable than SERIAL_NUMBER registers (20492/20493)
+        REGISTER_MAP["DEVICE_ID_LSW"],
+        REGISTER_MAP["DEVICE_ID_MSW"],
+        # Unit name (8 characters from 4 registers, each holding 2 bytes)
+        REGISTER_MAP["UNIT_NAME_0"],
+        REGISTER_MAP["UNIT_NAME_1"],
+        REGISTER_MAP["UNIT_NAME_2"],
+        REGISTER_MAP["UNIT_NAME_3"],
+        # MAC address (registers 4106-4108)
+        REGISTER_MAP["MAC_ADDRESS_PART_1"],
+        REGISTER_MAP["MAC_ADDRESS_PART_2"],
+        REGISTER_MAP["MAC_ADDRESS_PART_3"],
+    ],
+    "status": [
+        REGISTER_MAP["DISP_AVG_VBATT"],
+        REGISTER_MAP["DISP_AVG_VPV"],
+        REGISTER_MAP["IBATT_DISPLAY_S"],
+        REGISTER_MAP["WATTS"],
+        REGISTER_MAP["COMBO_CHARGE_STAGE"],
+        REGISTER_MAP["PV_INPUT_CURRENT"],
+        REGISTER_MAP["VOC_LAST_MEASURED"],
+        # Add status registers
+        REGISTER_MAP["STATUSROLL"],
+        REGISTER_MAP["KW_HOURS"],
+        REGISTER_MAP["HIGHEST_VINPUT_LOG"],
+        REGISTER_MAP["RESTART_TIME_MS"],
+        REGISTER_MAP["MATCH_POINT_SHADOW"],
+    ],
+    "temperatures": [
+        REGISTER_MAP["BATT_TEMPERATURE"],
+        REGISTER_MAP["FET_TEMPERATURE"],
+        REGISTER_MAP["PCB_TEMPERATURE"],
+    ],
+    "energy": [
+        REGISTER_MAP["AMP_HOURS_DAILY"],
+        REGISTER_MAP["LIFETIME_KW_HOURS_1"],
+        REGISTER_MAP["LIFETIME_KW_HOURS_1"] + 1,  # High word
+        REGISTER_MAP["LIFETIME_AMP_HOURS_1"],
+        REGISTER_MAP["LIFETIME_AMP_HOURS_1"] + 1,  # High word
+    ],
+    "time_settings": [
+        REGISTER_MAP["FLOAT_TIME_TODAY_SEC"],
+        REGISTER_MAP["ABSORB_TIME"],
+        REGISTER_MAP["EQUALIZE_TIME"],
+        REGISTER_MAP["MIN_ABSORB_TIME"],
+    ],
+    # Add settings registers for MPPT mode, Modbus port, etc.
+    "settings": [
+        REGISTER_MAP["MPPT_MODE"],
+        REGISTER_MAP["MODBUS_PORT_REGISTER"],
+        REGISTER_MAP["MINUTE_LOG_INTERVAL_SEC"],
+        REGISTER_MAP["SLIDING_CURRENT_LIMIT"],
+    ],
+    # Add network configuration registers
+    "network": [
+        REGISTER_MAP["IP_ADDRESS_LSB_1"],
+        REGISTER_MAP["IP_ADDRESS_LSB_2"],
+        REGISTER_MAP["GATEWAY_ADDRESS_LSB_1"],
+        REGISTER_MAP["GATEWAY_ADDRESS_LSB_2"],
+        REGISTER_MAP["SUBNET_MASK_LSB_1"],
+        REGISTER_MAP["SUBNET_MASK_LSB_2"],
+        REGISTER_MAP["DNS_1_LSB_1"],
+        REGISTER_MAP["DNS_1_LSB_2"],
+        REGISTER_MAP["DNS_2_LSB_1"],
+        REGISTER_MAP["DNS_2_LSB_2"],
+    ],
+    "diagnostics": [
+        REGISTER_MAP["REASON_FOR_RESTING"],
+    ],
+    # Add setpoint registers for number entities
+    "setpoints": [
+        REGISTER_MAP["ABSORB_SETPOINT_VOLTAGE"],
+        REGISTER_MAP["FLOAT_VOLTAGE_SETPOINT"],
+        REGISTER_MAP["EQUALIZE_VOLTAGE_SETPOINT"],
+        REGISTER_MAP["BATTERY_OUTPUT_CURRENT_LIMIT"],
+    ],
+    # Add EEPROM time settings for number entities
+    "eeprom_settings": [
+        REGISTER_MAP["ABSORB_TIME_EEPROM"],
+        REGISTER_MAP["EQUALIZE_TIME_EEPROM"],
+        REGISTER_MAP["EQUALIZE_INTERVAL_DAYS_EEPROM"],
+        REGISTER_MAP["CLASSIC_MODBUS_ADDR_EEPROM"],  # Modbus address
+        # Add temperature compensation settings
+        REGISTER_MAP["MAX_BATTERY_TEMP_COMP_VOLTAGE"],
+        REGISTER_MAP["MIN_BATTERY_TEMP_COMP_VOLTAGE"],
+        REGISTER_MAP["BATTERY_TEMP_COMP_VALUE"],
+        # Add equalize retry days
+        REGISTER_MAP["EQUALIZE_RETRY_DAYS"],
+    ],
+}

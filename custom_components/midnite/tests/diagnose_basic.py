@@ -9,8 +9,13 @@ import os
 import json
 from pathlib import Path
 
-# Add custom_components to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "custom_components"))
+# Find the custom_components directory relative to this script
+script_dir = Path(__file__).parent  # tests directory
+component_dir = script_dir.parent  # midnite directory
+custom_components_dir = component_dir.parent  # custom_components directory
+
+# Add custom_components to path for imports
+sys.path.insert(0, str(custom_components_dir))
 
 print("="*60)
 print("BASIC CONFIG FLOW DIAGNOSTIC (No HA Dependencies)")
@@ -20,7 +25,7 @@ print("="*60)
 print("\n[1/5] Checking Python syntax...")
 try:
     import py_compile
-    config_flow_path = Path(__file__).parent.parent / "custom_components" / "midnite" / "config_flow.py"
+    config_flow_path = component_dir / "config_flow.py"
     py_compile.compile(str(config_flow_path), doraise=True)
     print("✓ Python syntax is valid")
 except SyntaxError as e:
@@ -45,7 +50,7 @@ except ImportError as e:
 # Test 3: Check manifest.json
 print("\n[3/5] Checking manifest.json...")
 try:
-    manifest_path = Path(__file__).parent.parent / "custom_components" / "midnite" / "manifest.json"
+    manifest_path = component_dir / "manifest.json"
     with open(manifest_path, 'r') as f:
         manifest = json.load(f)
     
@@ -68,7 +73,7 @@ except Exception as e:
 print("\n[4/5] Checking hub.py syntax...")
 try:
     import py_compile
-    hub_path = Path(__file__).parent.parent / "custom_components" / "midnite" / "hub.py"
+    hub_path = component_dir / "hub.py"
     py_compile.compile(str(hub_path), doraise=True)
     print("✓ hub.py syntax is valid")
 except SyntaxError as e:
@@ -82,7 +87,7 @@ except Exception as e:
 print("\n[5/5] Checking __init__.py syntax...")
 try:
     import py_compile
-    init_path = Path(__file__).parent.parent / "custom_components" / "midnite" / "__init__.py"
+    init_path = component_dir / "__init__.py"
     py_compile.compile(str(init_path), doraise=True)
     print("✓ __init__.py syntax is valid")
 except SyntaxError as e:

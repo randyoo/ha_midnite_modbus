@@ -4,13 +4,37 @@ This directory contains diagnostic tools to help identify issues with the Midnit
 
 ## Running the Diagnostics
 
-### Option 1: Run the Comprehensive Diagnostic Script
+### Option 1: Zero-Dependency Diagnostic (Recommended for CLI)
+
+```bash
+python3 custom_components/midnite/tests/diagnose_no_deps.py
+```
+
+**This is the best option if you're running from command line (CLI)** because it doesn't require any external packages. It checks:
+- File existence and structure
+- Python syntax (catches indentation errors)
+- Manifest.json configuration
+- Basic Python imports
+
+### Option 2: Basic Diagnostic Script
+
+```bash
+python3 custom_components/midnite/tests/diagnose_basic.py
+```
+
+This script performs basic checks that only require PyModbus:
+1. Python syntax validation
+2. PyModbus version check
+3. Manifest configuration validation
+4. Hub and __init__.py syntax validation
+
+### Option 3: Comprehensive Diagnostic Script
 
 ```bash
 python3 custom_components/midnite/tests/diagnose_config_flow.py
 ```
 
-This script performs 10 comprehensive checks:
+This script performs 10 comprehensive checks (requires Home Assistant environment):
 1. Python syntax validation
 2. Import validation
 3. Config flow class validation
@@ -22,7 +46,7 @@ This script performs 10 comprehensive checks:
 9. Connection test logic validation
 10. Voluptuous schema validation
 
-### Option 2: Run Individual Test Files
+### Option 4: Run Individual Test Files
 
 ```bash
 # Run general config flow validation tests
@@ -34,12 +58,19 @@ python3 custom_components/midnite/tests/test_dhcp_discovery_specific.py
 
 ## What These Tests Check
 
-The diagnostic tools verify:
-- ✓ Python syntax is valid (no indentation errors)
-- ✓ All required imports work correctly
+### Zero-Dependency Tests (Option 1)
+- ✓ File existence and structure
+- ✓ Python syntax validation (catches indentation errors)
+- ✓ Manifest.json configuration including DHCP settings
+- ✓ Basic Python imports (os, sys, json, logging)
+
+### Basic Diagnostic Tests (Option 2)
+- ✓ All of the above plus:
+- ✓ PyModbus installation and version compatibility
+
+### Comprehensive Diagnostic Tests (Options 3 & 4)
+- ✓ All of the above plus:
 - ✓ Config flow class is properly defined with all required methods
-- ✓ Manifest.json has correct DHCP configuration
-- ✓ PyModbus version is compatible (3.x)
 - ✓ Modbus API signature is correct
 - ✓ Hub connection logic works
 - ✓ DHCP discovery logic is sound

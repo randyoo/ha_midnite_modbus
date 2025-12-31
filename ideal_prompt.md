@@ -6,7 +6,7 @@ Add missing entities to the Midnite Solar Home Assistant integration by implemen
 ## Process Overview
 1. Select unimplemented entities from MISSING_ENTITIES.md
 2. Implement each entity in the appropriate file (sensor.py, number.py, select.py)
-3. Add register mappings to const.py and coordinator.py
+3. Add register mappings and groups to const.py
 4. Test locally (if possible)
 5. Commit changes with descriptive message
 6. Push to remote repository
@@ -14,27 +14,27 @@ Add missing entities to the Midnite Solar Home Assistant integration by implemen
 
 ## Implementation Guide
 
-### Step 1: Register Mapping (const.py)
-Add the register to REGISTER_MAP:
+### Step 1: Register Mapping and Group Assignment (const.py)
+Add the register to both REGISTER_MAP and the appropriate group in REGISTER_GROUPS:
+
+**Register Map:**
 ```python
 REGISTER_MAP["NEW_REGISTER_NAME"] = 4200  # Replace with actual register number
 ```
 
-### Step 2: Coordinator Setup (coordinator.py)
-Add the register to the appropriate group in REGISTER_GROUPS:
-- Use "status" for real-time status values
-- Use "settings" for configuration values
+**Group Assignment:**
+Choose the appropriate group based on register type:
+- Use "status" for real-time status values (voltage, current, power, etc.)
+- Use "settings" for configuration values (MPPT mode, Modbus port, etc.)
 - Use "temperatures" for temperature readings
-- Use "energy" for energy-related data
+- Use "energy" for energy-related data (amp-hours, kWh)
 - Use "time_settings" for time/duration values
-- Use "network" for network configuration
+- Use "network" for network configuration (IP, DNS, gateway)
+- Use "diagnostics" for diagnostic information
+- Use "setpoints" for voltage/current setpoints
+- Use "eeprom_settings" for EEPROM-stored configuration
 
-```python
-"status": [
-    ...,
-    REGISTER_MAP["NEW_REGISTER_NAME"],
-]
-```
+The register will automatically be read by the coordinator when added to a group.
 
 ### Step 3: Entity Implementation (sensor.py/number.py/select.py)
 
@@ -49,9 +49,9 @@ class NewSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_new_sensor"
         
         # Choose appropriate category:
-        # - None for main entities (voltage, current, power)
-        # - EntityCategory.DIAGNOSTIC for diagnostic info
-        # - EntityCategory.CONFIG for configurable settings
+        # - None for main entities (voltage, current, power) - appears in main list
+        # - EntityCategory.DIAGNOSTIC for diagnostic info - appears in Diagnostic section
+        # - EntityCategory.CONFIG for configurable settings - appears in Configuration section
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
         
         # Set device class and units:
@@ -66,7 +66,8 @@ class NewSensor(MidniteSolarSensor):
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
-            data_group = self.coordinator.data["data"].get("status")  # Match coordinator group
+            # Access the data group that matches where you added the register
+            data_group = self.coordinator.data["data"].get("status")  # Match your REGISTER_GROUPS assignment
             if data_group:
                 value = data_group.get(REGISTER_MAP["NEW_REGISTER_NAME"])
                 if value is not None:
@@ -107,14 +108,9 @@ class NewNumber(MidniteSolarNumber):
         await self._async_set_value(value)
 ```
 
-### Step 4: Add to Setup Function
-Add the new entity class to the appropriate list in `async_setup_entry`:
-```python
-sensors = [
-    ...,
-    NewSensor(coordinator, entry),
-]
-```
+### Step 3: Entity Implementation (sensor.py/number.py/select.py)
+
+See examples below for implementing different entity types.
 
 ## Key Considerations
 
@@ -144,13 +140,14 @@ if low_value is not None and high_value is not None:
 
 ### Adding "Restart Time" Sensor (Register 4114)
 
-1. **const.py**: Add `"RESTART_TIME_MS": 4114` to REGISTER_MAP
-2. **coordinator.py**: Add `REGISTER_MAP["RESTART_TIME_MS"]` to "status" group
-3. **sensor.py**: Create RestartTimeSensor class with:
+1. **const.py**: 
+   - Add `"RESTART_TIME_MS": 4114` to REGISTER_MAP
+   - Add `REGISTER_MAP["RESTART_TIME_MS"]` to the "status" group in REGISTER_GROUPS
+2. **sensor.py**: Create RestartTimeSensor class with:
    - Category: DIAGNOSTIC
    - Device class: DURATION
    - Unit: MILLISECONDS
    - No scaling (value is already in milliseconds)
-4. Add to sensors list in async_setup_entry
-5. Commit: "Add Restart Time sensor (register 4114)"
-6. Update MISSING_ENTITIES.md: Mark as ✓
+3. Add to sensors list in async_setup_entry
+4. Commit: "Add Restart Time sensor (register 4114)"
+5. Update MISSING_ENTITIES.md: Mark as ✓

@@ -7,7 +7,7 @@ This directory contains diagnostic tools to help identify issues with the Midnit
 ### Option 1: Run the Comprehensive Diagnostic Script
 
 ```bash
-python3 tests/diagnose_config_flow.py
+python3 custom_components/midnite/tests/diagnose_config_flow.py
 ```
 
 This script performs 10 comprehensive checks:
@@ -26,10 +26,10 @@ This script performs 10 comprehensive checks:
 
 ```bash
 # Run general config flow validation tests
-python3 tests/test_config_flow_validation.py
+python3 custom_components/midnite/tests/test_config_flow_validation.py
 
 # Run DHCP discovery specific tests
-python3 tests/test_dhcp_discovery_specific.py
+python3 custom_components/midnite/tests/test_dhcp_discovery_specific.py
 ```
 
 ## What These Tests Check

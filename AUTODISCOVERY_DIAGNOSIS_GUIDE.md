@@ -19,7 +19,7 @@ We have created comprehensive diagnostic tools that **do not modify** `config_fl
 
 ### 1. Quick Diagnostic Script
 ```bash
-python3 tests/diagnose_config_flow.py
+python3 custom_components/midnite/tests/diagnose_config_flow.py
 ```
 
 Performs 10 validation checks covering:
@@ -35,10 +35,10 @@ Performs 10 validation checks covering:
 ### 2. Detailed Test Suites
 ```bash
 # General config flow validation
-python3 tests/test_config_flow_validation.py
+python3 custom_components/midnite/tests/test_config_flow_validation.py
 
 # DHCP discovery specific tests
-python3 tests/test_dhcp_discovery_specific.py
+python3 custom_components/midnite/tests/test_dhcp_discovery_specific.py
 ```
 
 ## Recommended Diagnostic Process
@@ -55,7 +55,7 @@ python3 -m py_compile custom_components/midnite/config_flow.py
 
 ### Step 2: Run Comprehensive Diagnostic
 ```bash
-python3 tests/diagnose_config_flow.py
+python3 custom_components/midnite/tests/diagnose_config_flow.py
 ```
 
 **Interpret Results:**
@@ -206,7 +206,7 @@ Check:
 ## Files Created for Diagnosis
 
 ```
-tests/
+custom_components/midnite/tests/
 ├── diagnose_config_flow.py          # Comprehensive diagnostic script
 ├── test_config_flow_validation.py   # General config flow tests
 ├── test_dhcp_discovery_specific.py  # DHCP-specific tests
@@ -220,7 +220,7 @@ AUTODISCOVERY_DIAGNOSIS_GUIDE.md    # This guide
 
 ```bash
 cd /Users/randy/midnite
-python3 tests/diagnose_config_flow.py
+python3 custom_components/midnite/tests/diagnose_config_flow.py
 ```
 
 This will provide immediate feedback on whether the code structure is sound or if there are specific issues to address.

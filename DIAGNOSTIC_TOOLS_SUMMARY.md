@@ -6,12 +6,12 @@ We've created a comprehensive set of diagnostic tools to help identify and resol
 
 ## What Was Created
 
-### 1. Comprehensive Diagnostic Script (`tests/diagnose_config_flow.py`)
+### 1. Comprehensive Diagnostic Script (`custom_components/midnite/custom_components/midnite/tests/diagnose_config_flow.py`)
 
 A single executable script that performs 10 comprehensive validation checks:
 
 ```bash
-python3 tests/diagnose_config_flow.py
+python3 custom_components/midnite/tests/diagnose_config_flow.py
 ```
 
 **Checks performed:**
@@ -26,12 +26,12 @@ python3 tests/diagnose_config_flow.py
 9. ✓ Connection test logic
 10. ✓ Voluptuous schema creation
 
-### 2. Unit Test Suite (`tests/test_config_flow_validation.py`)
+### 2. Unit Test Suite (`custom_components/midnite/custom_components/midnite/tests/test_config_flow_validation.py`)
 
 Focuses on general config flow validation with mock objects to avoid network calls.
 
 ```bash
-python3 tests/test_config_flow_validation.py
+python3 custom_components/midnite/tests/test_config_flow_validation.py
 ```
 
 **Tests include:**
@@ -42,12 +42,12 @@ python3 tests/test_config_flow_validation.py
 - Async connection flow testing
 - PyModbus version compatibility
 
-### 3. DHCP-Specific Tests (`tests/test_dhcp_discovery_specific.py`)
+### 3. DHCP-Specific Tests (`custom_components/midnite/custom_components/midnite/tests/test_dhcp_discovery_specific.py`)
 
 Focuses specifically on the autodiscovery path and common failure points.
 
 ```bash
-python3 tests/test_dhcp_discovery_specific.py
+python3 custom_components/midnite/tests/test_dhcp_discovery_specific.py
 ```
 
 **Tests include:**
@@ -59,7 +59,7 @@ python3 tests/test_dhcp_discovery_specific.py
 - Error and exception handling
 - Duplicate entry checking
 
-### 4. Documentation (`tests/README.md`)
+### 4. Documentation (`custom_components/midnite/custom_components/midnite/tests/README.md`)
 
 Explains how to run the tests and interpret results.
 
@@ -77,7 +77,7 @@ Explains how to run the tests and interpret results.
 
 ```bash
 cd /Users/randy/midnite
-python3 tests/diagnose_config_flow.py
+python3 custom_components/midnite/custom_components/midnite/tests/diagnose_config_flow.py
 ```
 
 This will run all checks and provide a summary of any issues found.
@@ -88,10 +88,10 @@ Run individual test files for more detailed analysis:
 
 ```bash
 # General config flow validation
-python3 tests/test_config_flow_validation.py
+python3 custom_components/midnite/custom_components/midnite/tests/test_config_flow_validation.py
 
 # DHCP discovery specific tests  
-python3 tests/test_dhcp_discovery_specific.py
+python3 custom_components/midnite/custom_components/midnite/tests/test_dhcp_discovery_specific.py
 ```
 
 ## Interpreting Results

@@ -549,15 +549,14 @@ class TemperatureSensorBase(MidniteSolarSensor):
         super().__init__(coordinator, entry)
         self._last_temp: Optional[float] = None
         self._last_time: Optional[float] = None
-        # Track recent valid readings for statistical analysis
+        # Track recent valid readings for basic sanity checking
         self._recent_readings: list[float] = []
         self._max_recent_readings = 20  # Keep last 20 valid readings
-        self._spike_count = 0  # Track consecutive spikes
-        self._last_spike_time: Optional[float] = None  # Track when last spike occurred
 
     def _validate_temperature(self, value: int, sensor_name: str) -> Optional[float]:
         """
-        Validate temperature reading with range, rate-of-change, and statistical checks.
+        Validate temperature reading with range and rate-of-change checks.
+        Uses a more robust approach that doesn't rely on statistical outliers.
         
         Args:
             value: Raw register value (scaled by 10)
@@ -577,65 +576,23 @@ class TemperatureSensorBase(MidniteSolarSensor):
         # Validate temperature range (-50°C to 150°C is reasonable)
         if temp_value < -50 or temp_value > 150:
             _LOGGER.warning(f"Invalid {sensor_name} reading: {temp_value}°C. Ignoring.")
-            self._spike_count += 1
-            self._last_spike_time = current_time
             return None
         
-        # Check for sudden temperature changes (>0.5°C per second)
+        # Check for sudden temperature changes
+        # Use a more reasonable threshold: 2°C per second (120°C per minute)
         if self._last_temp is not None and self._last_time is not None:
             time_diff = current_time - self._last_time
             if time_diff > 0:  # Avoid division by zero
                 temp_change_rate = abs(temp_value - self._last_temp) / time_diff
-                if temp_change_rate > 0.5:  # More than 0.5°C per second
+                # Allow up to 2°C per second (reasonable for real-world temperature changes)
+                if temp_change_rate > 2.0:
                     _LOGGER.warning(
                         f"Sudden {sensor_name} change detected: {self._last_temp}°C -> {temp_value}°C "
                         f"({temp_change_rate:.2f}°C/s over {time_diff:.1f}s). Possible sensor error. Ignoring reading."
                     )
-                    self._spike_count += 1
-                    self._last_spike_time = current_time
                     return None
         
-        # Statistical outlier detection using recent readings
-        # Only apply statistical filtering if we have enough data points
-        if len(self._recent_readings) >= 5:
-            mean_temp = sum(self._recent_readings) / len(self._recent_readings)
-            variance = sum((x - mean_temp) ** 2 for x in self._recent_readings) / len(self._recent_readings)
-            std_dev = variance ** 0.5 if variance > 0 else 0
-            
-            # Use a more lenient threshold (z-score > 6 instead of 4)
-            # This allows legitimate temperature changes while still catching true outliers
-            if std_dev > 0:
-                z_score = abs(temp_value - mean_temp) / std_dev
-                if z_score > 6:
-                    _LOGGER.warning(
-                        f"{sensor_name} outlier detected: {temp_value}°C (mean={mean_temp:.2f}°C, "
-                        f"stddev={std_dev:.2f}°C, z-score={z_score:.2f}). Possible sensor error. Ignoring reading."
-                    )
-                    self._spike_count += 1
-                    self._last_spike_time = current_time
-                    return None
-        
-        # If we have consecutive spikes, reset counter after 30 seconds of no valid readings
-        # This prevents permanent lockout while still being cautious with rapid changes
-        if self._last_spike_time is not None and (current_time - self._last_spike_time) > 30:
-            _LOGGER.info(f"Resetting {sensor_name} spike counter after timeout.")
-            self._spike_count = 0
-            self._last_spike_time = None
-        
-        # If we have too many consecutive spikes, allow the reading through with a warning
-        # This prevents permanent lockout from legitimate temperature changes
-        if self._spike_count >= 5:
-            _LOGGER.warning(
-                f"Multiple {sensor_name} anomalies detected. Allowing reading: {temp_value}°C "
-                f"(spike count: {self._spike_count})."
-            )
-            # Don't increment spike counter, allow this reading through
-        else:
-            # Reset spike counter if we get a valid reading (but not too many in a row)
-            self._spike_count = 0
-            self._last_spike_time = None
-        
-        # Update recent readings (keep only the last N valid readings)
+        # Track recent readings for basic sanity checking
         self._recent_readings.append(temp_value)
         if len(self._recent_readings) > self._max_recent_readings:
             self._recent_readings.pop(0)

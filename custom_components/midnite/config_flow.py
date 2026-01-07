@@ -87,9 +87,10 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
             # If triggered by discovery, user_input may only contain confirmation
             # If triggered manually, user_input contains full form data
             
-            # For DHCP discovery, pre-fill the host from discovery info
+            # For DHCP discovery, pre-fill the host and port from discovery info
             if discovered and CONF_HOST not in user_input:
                 user_input[CONF_HOST] = self.discovery_info.ip
+                user_input[CONF_PORT] = DEFAULT_PORT
             elif not discovered and CONF_HOST not in user_input:
                 # Manual entry requires host
                 errors["base"] = "missing_host"
@@ -157,15 +158,25 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
 
         # Show appropriate form based on discovery status
         if discovered and self.discovery_info:
-            # For DHCP discovery, show a confirmation dialog
+            # For DHCP discovery, show a confirmation dialog with device details
             _LOGGER.info("========================================")
             _LOGGER.info("SHOWING DISCOVERY CONFIRMATION FORM")
             _LOGGER.info(f"Device IP: {self.discovery_info.ip}")
             _LOGGER.info("User should see a 'Discovered' card in UI")
             _LOGGER.info("========================================")
+            
+            # Create data schema with pre-filled values for DHCP discovery
+            data_schema = vol.Schema({
+                vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): int,
+            })
+            
             result = self.async_show_form(
                 step_id="user",
-                description_placeholders={"ip": self.discovery_info.ip},
+                data_schema=data_schema,
+                description_placeholders={
+                    "ip": self.discovery_info.ip,
+                    "mac": self.discovery_info.macaddress,
+                },
                 errors=errors,
             )
             return result

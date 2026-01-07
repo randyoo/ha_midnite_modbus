@@ -5,10 +5,11 @@
       "user": {
         "title": "Configure Midnite Solar device",
         "description": "Enter the IP address and port of your Midnite Solar Classic device.",
-        "description_discovered": "A Midnite Solar device was discovered at {{ ip }}. Would you like to add it?",
+        "description_discovered": "A Midnite Solar device was discovered at {{ ip }} (MAC: {{ mac }}) with default settings. You can adjust the scan interval below before adding it.",
         "data": {
           "host": "IP Address",
-          "port": "Port"
+          "port": "Port",
+          "scan_interval": "Update Interval (seconds)"
         }
       }
     },

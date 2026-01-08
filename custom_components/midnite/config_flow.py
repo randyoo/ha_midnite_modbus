@@ -51,11 +51,23 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
         await self.async_set_unique_id(formatted_mac, raise_on_progress=False)
         
         # Abort if device is already configured (this will also update IP if it changed)
+        existing_entry = await self.async_get_entry({(DOMAIN, formatted_mac)})
+        if existing_entry:
+            _LOGGER.warning(
+                f"Device with MAC {discovery_info.macaddress} at {discovery_info.ip} "
+                f"is already configured as '{existing_entry.title}'. Skipping discovery."
+            )
+            return self.async_abort(reason="already_configured")
+        
+        # Update IP if device was previously configured with a different IP
         self._abort_if_unique_id_configured(updates={CONF_HOST: discovery_info.ip})
         
         # Store discovery info for user confirmation
         self.discovery_info = discovery_info
-        self.context["title_placeholders"] = {"ip": discovery_info.ip}
+        
+        # Set title placeholders - Home Assistant uses these for the badge display
+        # The large font shows the model, small font shows manufacturer/integration name
+        self.context["title_placeholders"] = {"name": "Midnite Solar"}
         
         # Try to read device model from the device for better identification in UI
         try:
@@ -75,9 +87,10 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
                     if unit_id is not None:
                         from .const import DEVICE_TYPES
                         device_type = unit_id & 0xFF  # Get LSB (unit type)
-                        model_name = DEVICE_TYPES.get(device_type, f"Midnite Solar Device ({device_type})")
+                        model_name = DEVICE_TYPES.get(device_type, f"Midnite Device ({device_type})")
                         _LOGGER.info(f"Discovered device model: {model_name}")
-                        self.context["title_placeholders"]["model"] = model_name
+                        # Set the model as the name for badge display
+                        self.context["title_placeholders"]["name"] = model_name
                     else:
                         _LOGGER.warning("Could not read UNIT_ID register for device model identification")
                 else:

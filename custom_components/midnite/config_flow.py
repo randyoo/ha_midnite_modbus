@@ -51,16 +51,53 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
         await self.async_set_unique_id(formatted_mac, raise_on_progress=False)
         
         # Abort if device is already configured (this will also update IP if it changed)
-        self._abort_if_unique_id_configured(updates={CONF_HOST: discovery_info.ip})
+        # Use raise_on_progress=True to immediately abort and show "already configured" message
+        self._abort_if_unique_id_configured(
+            updates={CONF_HOST: discovery_info.ip},
+            reason="already_configured"
+        )
         
         # Store discovery info for user confirmation
         self.discovery_info = discovery_info
         self.context["title_placeholders"] = {"ip": discovery_info.ip}
         
-        # Show user confirmation
+        # Try to read device model from the device for better identification in UI
+        try:
+            _LOGGER.info(f"Attempting to read device model from {discovery_info.ip}...")
+            client = ModbusTcpClient(discovery_info.ip, port=DEFAULT_PORT)
+            connected = await self.hass.async_add_executor_job(client.connect)
+            if connected:
+                # Read UNIT_ID register to get device type
+                result = await self.hass.async_add_executor_job(
+                    lambda: client.read_holding_registers(address=4100, count=2)
+                )
+                client.close()
+                
+                if result and not result.isError():
+                    # Register 4101 contains device type in LSB
+                    unit_id = result.registers[0] if len(result.registers) > 0 else None
+                    if unit_id is not None:
+                        from .const import DEVICE_TYPES
+                        device_type = unit_id & 0xFF  # Get LSB (unit type)
+                        model_name = DEVICE_TYPES.get(device_type, f"Midnite Solar Device ({device_type})")
+                        _LOGGER.info(f"Discovered device model: {model_name}")
+                        self.context["title_placeholders"]["model"] = model_name
+                    else:
+                        _LOGGER.warning("Could not read UNIT_ID register for device model identification")
+                else:
+                    _LOGGER.warning(f"Failed to read device registers: {result}")
+            else:
+                _LOGGER.warning(f"Could not connect to device at {discovery_info.ip} for model identification")
+        except Exception as e:
+            _LOGGER.warning(f"Error reading device model during discovery: {e}", exc_info=True)
+        
+        # Show user confirmation with pre-filled IP and port
         return self.async_show_form(
             step_id="user",
-            description_placeholders={"ip": discovery_info.ip},
+            description_placeholders={
+                "ip": discovery_info.ip,
+                "mac": discovery_info.macaddress,
+            },
         )
 
     async def async_step_user(
@@ -167,6 +204,8 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
             
             # Create data schema with pre-filled values for DHCP discovery
             data_schema = vol.Schema({
+                vol.Required(CONF_HOST, default=self.discovery_info.ip): str,
+                vol.Required(CONF_PORT, default=DEFAULT_PORT): int,
                 vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): int,
             })
             

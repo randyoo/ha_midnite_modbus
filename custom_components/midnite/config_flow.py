@@ -51,13 +51,14 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
         await self.async_set_unique_id(formatted_mac, raise_on_progress=False)
         
         # Abort if device is already configured (this will also update IP if it changed)
-        existing_entry = await self.async_get_entry({(DOMAIN, formatted_mac)})
-        if existing_entry:
-            _LOGGER.warning(
-                f"Device with MAC {discovery_info.macaddress} at {discovery_info.ip} "
-                f"is already configured as '{existing_entry.title}'. Skipping discovery."
-            )
-            return self.async_abort(reason="already_configured")
+        existing_entries = self._async_current_entries()
+        for entry in existing_entries:
+            if entry.unique_id == formatted_mac:
+                _LOGGER.warning(
+                    f"Device with MAC {discovery_info.macaddress} at {discovery_info.ip} "
+                    f"is already configured as '{entry.title}'. Skipping discovery."
+                )
+                return self.async_abort(reason="already_configured")
         
         # Update IP if device was previously configured with a different IP
         self._abort_if_unique_id_configured(updates={CONF_HOST: discovery_info.ip})

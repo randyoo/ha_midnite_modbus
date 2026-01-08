@@ -66,8 +66,7 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
         # Store discovery info for user confirmation
         self.discovery_info = discovery_info
         
-        # Set title placeholders - Home Assistant uses these for the badge display
-        # The large font shows the model, small font shows manufacturer/integration name
+        # Set initial title placeholder - will be updated with model if successful
         self.context["title_placeholders"] = {"name": "Midnite Solar"}
         
         # Try to read device model from the device for better identification in UI
@@ -100,6 +99,9 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
                 _LOGGER.warning(f"Could not connect to device at {discovery_info.ip} for model identification")
         except Exception as e:
             _LOGGER.warning(f"Error reading device model during discovery: {e}", exc_info=True)
+        
+        # Log the final title placeholder for debugging
+        _LOGGER.info(f"Discovery badge will show: {self.context['title_placeholders']['name']}")
         
         # Show user confirmation with pre-filled IP and port
         return self.async_show_form(

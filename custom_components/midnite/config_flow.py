@@ -71,10 +71,11 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
         
         # Try to read device model from the device for better identification in UI
         try:
-            _LOGGER.info(f"Attempting to read device model from {discovery_info.ip}...")
+            _LOGGER.warning(f"Attempting to read device model from {discovery_info.ip}...")
             client = ModbusTcpClient(discovery_info.ip, port=DEFAULT_PORT)
             connected = await self.hass.async_add_executor_job(client.connect)
             if connected:
+                _LOGGER.warning(f"Successfully connected to {discovery_info.ip}, reading model info...")
                 # Read UNIT_ID register to get device type
                 result = await self.hass.async_add_executor_job(
                     lambda: client.read_holding_registers(address=4100, count=2)
@@ -88,20 +89,20 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
                         from .const import DEVICE_TYPES
                         device_type = unit_id & 0xFF  # Get LSB (unit type)
                         model_name = DEVICE_TYPES.get(device_type, f"Midnite Device ({device_type})")
-                        _LOGGER.info(f"Discovered device model: {model_name}")
+                        _LOGGER.warning(f"Discovered device model: {model_name}")
                         # Set the model as the name for badge display
                         self.context["title_placeholders"]["name"] = model_name
                     else:
-                        _LOGGER.warning("Could not read UNIT_ID register for device model identification")
+                        _LOGGER.warning("Could not read UNIT_ID register - result.registers is empty")
                 else:
-                    _LOGGER.warning(f"Failed to read device registers: {result}")
+                    _LOGGER.warning(f"Failed to read device registers: {result}. IsError={result.isError() if result else 'N/A'}")
             else:
                 _LOGGER.warning(f"Could not connect to device at {discovery_info.ip} for model identification")
         except Exception as e:
             _LOGGER.warning(f"Error reading device model during discovery: {e}", exc_info=True)
         
         # Log the final title placeholder for debugging
-        _LOGGER.info(f"Discovery badge will show: {self.context['title_placeholders']['name']}")
+        _LOGGER.warning(f"Discovery badge will display: '{self.context['title_placeholders']['name']}'")
         
         # Show user confirmation with pre-filled IP and port
         return self.async_show_form(

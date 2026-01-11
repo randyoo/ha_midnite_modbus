@@ -213,7 +213,8 @@ class DailyEnergySensor(MidniteSolarSensor):
         self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
         self._attr_suggested_display_precision = 1
-        self._attr_entity_registry_enabled_default = False  # Disable by default
+        # Daily energy is useful for monitoring, enable by default
+        self._attr_entity_registry_enabled_default = True
 
     @property
     def native_value(self) -> Optional[float]:
@@ -723,6 +724,8 @@ class DailyAmpHoursSensor(MidniteSolarSensor):
         self._attr_native_unit_of_measurement = "Ah"
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
         self._attr_suggested_display_precision = 0
+        # Daily amp-hours is less commonly used, disable by default
+        self._attr_entity_registry_enabled_default = False
 
     @property
     def native_value(self) -> Optional[float]:
@@ -750,6 +753,8 @@ class LifetimeEnergySensor(MidniteSolarSensor):
         self._attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
         self._attr_suggested_display_precision = 1
+        # Lifetime energy is important for monitoring, enable by default
+        self._attr_entity_registry_enabled_default = True
 
     @property
     def native_value(self) -> Optional[float]:
@@ -779,6 +784,8 @@ class LifetimeAmpHoursSensor(MidniteSolarSensor):
         self._attr_native_unit_of_measurement = "Ah"
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
         self._attr_suggested_display_precision = 1
+        # Lifetime amp-hours is less commonly used, disable by default
+        self._attr_entity_registry_enabled_default = False
 
     @property
     def native_value(self) -> Optional[float]:

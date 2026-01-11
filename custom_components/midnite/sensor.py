@@ -547,6 +547,11 @@ class RestReasonSensor(MidniteSolarSensor):
                     if internal_state == "Resting":
                         value = diagnostics_data.get(REGISTER_MAP["REASON_FOR_RESTING"])
                         if value is not None:
+                            # Workaround for potential firmware glitch: some devices return 104
+                            # instead of the expected value (1-35). Mapping 104 to 4 (Battery Voltage High)
+                            # to provide a reasonable rest reason.
+                            if value == 104:
+                                value = 4
                             return REST_REASONS.get(value, f"Unknown ({value})")
                     else:
                         # Device is not resting

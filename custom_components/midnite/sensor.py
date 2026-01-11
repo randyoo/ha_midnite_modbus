@@ -463,10 +463,7 @@ class InternalStateSensor(MidniteSolarSensor):
         super().__init__(coordinator, entry)
         self._attr_name = "Internal State"
         self._attr_unique_id = f"{entry.entry_id}_internal_state"
-        self._attr_device_class = SensorDeviceClass.ENUM
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
-        # Include all possible state values including rest reasons
-        self._attr_options = list(INTERNAL_STATES.values())
 
     @property
     def native_value(self) -> Optional[str]:

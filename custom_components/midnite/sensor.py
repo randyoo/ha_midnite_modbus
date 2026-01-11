@@ -465,6 +465,7 @@ class InternalStateSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_internal_state"
         self._attr_device_class = SensorDeviceClass.ENUM
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
+        # Include all possible state values including rest reasons
         self._attr_options = list(INTERNAL_STATES.values())
 
     @property
@@ -472,12 +473,23 @@ class InternalStateSensor(MidniteSolarSensor):
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
+            diagnostics_data = self.coordinator.data["data"].get("diagnostics")
+            
             if status_data:
                 raw_value = status_data.get(REGISTER_MAP["COMBO_CHARGE_STAGE"])
                 if raw_value is not None:
                     # Extract LSB (low byte) for internal state
                     internal_state_value = raw_value & 0xFF
-                    return INTERNAL_STATES.get(internal_state_value, f"Unknown ({internal_state_value})")
+                    internal_state = INTERNAL_STATES.get(internal_state_value, f"Unknown ({internal_state_value})")
+                    
+                    # If device is resting and we have diagnostics data, append rest reason
+                    if internal_state == "Resting" and diagnostics_data:
+                        rest_reason_value = diagnostics_data.get(REGISTER_MAP["REASON_FOR_RESTING"])
+                        if rest_reason_value is not None:
+                            rest_reason = REST_REASONS.get(rest_reason_value, f"Unknown ({rest_reason_value})")
+                            return f"{internal_state}: {rest_reason}"
+                    
+                    return internal_state
         return None
 
 
@@ -514,6 +526,7 @@ class RestReasonSensor(MidniteSolarSensor):
         self._attr_name = "Rest Reason"
         self._attr_unique_id = f"{entry.entry_id}_rest_reason"
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
+        self._attr_entity_registry_enabled_default = False  # Hide by default - info is in Internal State sensor
 
     @property
     def native_value(self) -> Optional[str]:

@@ -483,13 +483,17 @@ class InternalStateSensor(MidniteSolarSensor):
                     if internal_state == "Resting" and diagnostics_data:
                         rest_reason_value = diagnostics_data.get(REGISTER_MAP["REASON_FOR_RESTING"])
                         if rest_reason_value is not None:
-                            # Workaround for potential firmware glitch: some devices return 104
-                            # instead of the expected value (1-35). Mapping 104 to 4 (Battery Voltage High)
-                            # to provide a reasonable rest reason.
-                            if rest_reason_value == 104:
-                                rest_reason_value = 4
-                            rest_reason = REST_REASONS.get(rest_reason_value, f"Unknown ({rest_reason_value})")
-                            return f"{internal_state}: {rest_reason}"
+                            # Extract only the low byte (8 bits) since this register contains an 8-bit value
+                            extracted_value = rest_reason_value & 0xFF
+                            _LOGGER.debug(f"REASON_FOR_RESTING raw: {rest_reason_value}, extracted LSB: {extracted_value}")
+                            
+                            # Validate value is in documented range (1-35)
+                            if 1 <= extracted_value <= 35:
+                                rest_reason = REST_REASONS.get(extracted_value, "Reason Unknown")
+                                return f"{internal_state}: {rest_reason}"
+                            else:
+                                _LOGGER.warning(f"Invalid rest reason code: {extracted_value}. Expected 1-35. Using 'Reason Unknown'")
+                                return f"{internal_state}: Reason Unknown"
                     
                     return internal_state
         return None
@@ -549,7 +553,16 @@ class RestReasonSensor(MidniteSolarSensor):
                     if internal_state == "Resting":
                         value = diagnostics_data.get(REGISTER_MAP["REASON_FOR_RESTING"])
                         if value is not None:
-                            return str(value)  # Show raw number, no enum lookup
+                            # Extract only the low byte (8 bits) since this register contains an 8-bit value
+                            extracted_value = value & 0xFF
+                            _LOGGER.debug(f"RestReasonSensor REASON_FOR_RESTING raw: {value}, extracted LSB: {extracted_value}")
+                            
+                            # Validate value is in documented range (1-35)
+                            if 1 <= extracted_value <= 35:
+                                return str(extracted_value)
+                            else:
+                                _LOGGER.warning(f"Invalid rest reason code: {extracted_value}. Expected 1-35. Showing raw value")
+                                return str(value)  # Show raw number for debugging
                     else:
                         # Device is not resting
                         return "Not resting"

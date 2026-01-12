@@ -802,6 +802,7 @@ class BatteryCurrentLimitNumber(MidniteSolarNumber):
         self._attr_native_min_value = 1.0
         self._attr_native_max_value = 100.0
         self._attr_native_step = 1.0
+        self._attr_entity_category = EntityCategory.CONFIG
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""
@@ -827,6 +828,7 @@ class AbsorbTimeNumber(MidniteSolarNumber):
         self.is_time_value = True  # Don't divide by 10
         self._attr_has_entity_name = True
         self._attr_precision = 0  # Display whole numbers only
+        self._attr_entity_category = EntityCategory.CONFIG
 
     @property
     def native_value(self) -> float | None:
@@ -886,6 +888,7 @@ class EqualizeTimeNumber(MidniteSolarNumber):
         self.is_time_value = True  # Don't divide by 10
         self._attr_has_entity_name = True
         self._attr_precision = 0  # Display whole numbers only
+        self._attr_entity_category = EntityCategory.CONFIG
 
     @property
     def native_value(self) -> float | None:
@@ -941,6 +944,7 @@ class EqualizeIntervalDaysNumber(MidniteSolarNumber):
         self._attr_native_min_value = 0
         self._attr_native_max_value = 365  # 1 year
         self._attr_native_step = 1
+        self._attr_entity_category = EntityCategory.CONFIG
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""

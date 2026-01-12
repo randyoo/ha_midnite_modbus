@@ -465,6 +465,8 @@ class InternalStateSensor(MidniteSolarSensor):
         self._attr_name = "Internal State"
         self._attr_unique_id = f"{entry.entry_id}_internal_state"
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
+        # Track last seen invalid rest reason to avoid repeated logging
+        self._last_invalid_rest_reason: Optional[int] = None
 
     @property
     def native_value(self) -> Optional[str]:
@@ -493,7 +495,10 @@ class InternalStateSensor(MidniteSolarSensor):
                                 rest_reason = REST_REASONS.get(extracted_value, "Reason Unknown")
                                 return f"{internal_state}: {rest_reason}"
                             else:
-                                _LOGGER.warning(f"Invalid rest reason code: {extracted_value}. Expected 1-35. Using 'Reason Unknown'")
+                                # Only log warning if this is a new invalid value or first occurrence
+                                if self._last_invalid_rest_reason != extracted_value:
+                                    _LOGGER.warning(f"Invalid rest reason code: {extracted_value}. Expected 1-35. Using 'Reason Unknown'")
+                                    self._last_invalid_rest_reason = extracted_value
                                 return f"{internal_state}: Reason Unknown"
                     
                     return internal_state
@@ -534,6 +539,8 @@ class RestReasonSensor(MidniteSolarSensor):
         self._attr_unique_id = f"{entry.entry_id}_rest_reason"
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_entity_registry_enabled_default = False  # Hide by default - info is in Internal State sensor
+        # Track last seen invalid rest reason to avoid repeated logging
+        self._last_invalid_rest_reason: Optional[int] = None
 
     @property
     def native_value(self) -> Optional[str]:
@@ -562,7 +569,10 @@ class RestReasonSensor(MidniteSolarSensor):
                             if 1 <= extracted_value <= 35:
                                 return str(extracted_value)
                             else:
-                                _LOGGER.warning(f"Invalid rest reason code: {extracted_value}. Expected 1-35. Showing raw value")
+                                # Only log warning if this is a new invalid value or first occurrence
+                                if self._last_invalid_rest_reason != extracted_value:
+                                    _LOGGER.warning(f"Invalid rest reason code: {extracted_value}. Expected 1-35. Showing raw value")
+                                    self._last_invalid_rest_reason = extracted_value
                                 return str(value)  # Show raw number for debugging
                     else:
                         # Device is not resting

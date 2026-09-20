@@ -39,7 +39,7 @@ class TestRegisterBlocks:
         assert blocks_for("energy") == [(4125, 4129)]
         assert blocks_for("temperatures") == [(4132, 4134)]
         assert blocks_for("serial") == [(28673, 28674)]
-        assert blocks_for("network") == [(20482, 20491)]
+        assert blocks_for("network") == [(20481, 20491)]
         assert blocks_for("aux_settings") == [(4165, 4181)]
 
     def test_a_long_gap_starts_a_new_block(self):
@@ -70,7 +70,7 @@ class TestRegisterBlocks:
         """
         per_register = sum(len(set(r)) for r in REGISTER_GROUPS.values())
         blocks = sum(len(blocks_for(group)) for group in REGISTER_GROUPS)
-        assert per_register == 114
+        assert per_register == 115
         assert blocks == 23
         assert blocks * 4 < per_register
 

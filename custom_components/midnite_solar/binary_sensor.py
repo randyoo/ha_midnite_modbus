@@ -22,7 +22,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .base import MidniteBaseEntityDescription
-from .const import DOMAIN, INFO_FLAGS, REGISTER_MAP
+from .const import DOMAIN, INFO_FLAGS, NETWORK_FLAGS, REGISTER_MAP
 from .coordinator import MidniteSolarUpdateCoordinator
 from .register_values import combine32, info_flag_set
 
@@ -71,6 +71,9 @@ async def async_setup_entry(
 
     async_add_entities(
         InfoFlagBinarySensor(coordinator, entry, flag) for flag in FLAG_ENTITIES
+    )
+    async_add_entities(
+        NetworkFlagBinarySensor(coordinator, entry, flag) for flag in NETWORK_FLAG_ENTITIES
     )
 
 
@@ -131,3 +134,55 @@ class InfoFlagBinarySensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], Bin
         """Return the raw flag words, so a flag can be decoded without HA."""
         flags = self.info_flags
         return {"info_flags": flags if flags is not None else None}
+
+
+# Table 20481-1 has two flags, and one of them explains the other network
+# registers: with DHCP set, the address registers are read-only as far as the
+# Classic is concerned.
+NETWORK_FLAG_ENTITIES = {
+    "DHCP": ("DHCP Enabled", True),
+    "WebAccess": ("MyMidnite Web Access", False),
+}
+
+
+class NetworkFlagBinarySensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], BinarySensorEntity):
+    """One flag from Table 20481-1, register 20481."""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any, flag: str):
+        """Initialize the binary sensor for one network flag."""
+        super().__init__(coordinator)
+        self._entry = entry
+        self._flag = flag
+        name, enabled = NETWORK_FLAG_ENTITIES[flag]
+        self._attr_name = name
+        self._attr_unique_id = f"{entry.entry_id}_network_flag_{flag.lower()}"
+        self._attr_entity_registry_enabled_default = enabled
+    @property
+    def device_info(self):
+        """Return the device info the base class builds for every platform."""
+        return MidniteBaseEntityDescription.get_device_info(
+            self.coordinator, self._entry, DOMAIN
+        )
+
+    @property
+    def is_on(self) -> Optional[bool]:
+        """Return True if the flag is set."""
+        if not self.coordinator.data or "data" not in self.coordinator.data:
+            return None
+        group = self.coordinator.data["data"].get("network")
+        if not group:
+            return None
+        value = group.get(REGISTER_MAP["IP_SETTINGS_FLAGS"])
+        if value is None:
+            return None
+        return info_flag_set(value, NETWORK_FLAGS[self._flag])
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        """The raw register, so the flags can be checked without Home Assistant."""
+        if not self.coordinator.data or "data" not in self.coordinator.data:
+            return {}
+        group = self.coordinator.data["data"].get("network") or {}
+        return {"ip_settings": group.get(REGISTER_MAP["IP_SETTINGS_FLAGS"])}

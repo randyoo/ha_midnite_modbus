@@ -475,7 +475,7 @@ EE_BACKED_REGISTERS = frozenset(
 MPPT_MODES = {
     0x0001: "PV_Uset",
     0x0003: "DYNAMIC",
-    0x0005: "WIND_TRACK",
+    0x0005: "WIND TRACK",  # the map writes it with a space, not an underscore
     0x0007: "RESERVED",
     0x0009: "Legacy P&O",
     0x000B: "SOLAR",
@@ -483,10 +483,18 @@ MPPT_MODES = {
     0x000F: "RESERVED",
 }
 
-# IP settings flags (from register 20481)
-IP_SETTINGS_FLAGS = {
-    "DHCP": 0,
-    "Web_Access": 1,
+# Table 20481-1 Network Settings Flags: "DHCP | 0x0001 | Set this bit to enable
+# DHCP." and "Web Access | 0x0002 | Set this bit to enable online access to your
+# Classic through http://www.mymidnite.com".
+#
+# The map also warns what the first flag means for everything beside it:
+# "Read Only if the DHCP flag is set. To assign a static IP to the Classic, first
+# clear the DHCP flag in the IP Settings Register (20481)." That is the first thing
+# to look at when a network address seems not to change, which is why the DHCP flag
+# is the one binary sensor of these two that is on by default.
+NETWORK_FLAGS = {
+    "DHCP": 0x0001,
+    "WebAccess": 0x0002,
 }
 
 # Auxiliary function mappings for AUX_1_AND_2_FUNCTION register
@@ -569,6 +577,9 @@ REGISTER_GROUPS = {
     ],
     # Add network configuration registers
     "network": [
+        # Table 20481-1, and it sits at the front of the block that is already
+        # read, so asking for it costs nothing.
+        REGISTER_MAP["IP_SETTINGS_FLAGS"],
         REGISTER_MAP["IP_ADDRESS_LOW_WORD"],
         REGISTER_MAP["IP_ADDRESS_HIGH_WORD"],
         REGISTER_MAP["GATEWAY_ADDRESS_LOW_WORD"],

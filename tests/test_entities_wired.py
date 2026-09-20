@@ -28,13 +28,13 @@ PLATFORMS = ("sensor", "binary_sensor", "number", "select", "text", "button")
 
 ENTITIES_PER_PLATFORM = {
     "sensor": 45,
-    "binary_sensor": 25,
+    "binary_sensor": 27,  # 25 Info Flags + 2 Network Settings Flags
     "number": 60,
     "select": 7,
     "text": 1,
     "button": 5,
 }
-ENABLED_BY_DEFAULT = 64
+ENABLED_BY_DEFAULT = 65
 
 
 async def _build():
@@ -102,10 +102,10 @@ class TestCounts:
             made[platform] += 1
         assert made == ENTITIES_PER_PLATFORM
 
-    def test_the_integration_offers_143_entities(self, entities):
+    def test_the_integration_offers_145_entities(self, entities):
         assert len(entities) == sum(ENTITIES_PER_PLATFORM.values())
 
-    def test_64_of_them_are_on_without_being_asked_for(self, entities):
+    def test_65_of_them_are_on_without_being_asked_for(self, entities):
         enabled = [entity for _platform, entity in entities if entity.entity_registry_enabled_default]
         assert len(enabled) == ENABLED_BY_DEFAULT
 

@@ -191,8 +191,9 @@ class TestMPPTMode:
         assert sorted(MPPT_MODES) == self.SPEC_VALUES
 
     def test_mode_names_match_the_table(self):
-        assert [MPPT_MODES[value].replace("_", " ") for value in sorted(MPPT_MODES)] == [
-            "PV Uset",
+        """Verbatim, including "PV_Uset" with its underscore and "WIND TRACK" with its space."""
+        assert [MPPT_MODES[value] for value in sorted(MPPT_MODES)] == [
+            "PV_Uset",
             "DYNAMIC",
             "WIND TRACK",
             "RESERVED",

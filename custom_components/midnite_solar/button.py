@@ -13,8 +13,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DEVICE_TYPES, DOMAIN, FORCE_FLAGS, REGISTER_MAP
+from .const import DOMAIN, FORCE_FLAGS, REGISTER_MAP
 from .coordinator import MidniteSolarUpdateCoordinator
+from .register_values import force_flag_write
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -26,24 +27,29 @@ async def async_setup_entry(
 ) -> None:
     """Set up Midnite Solar buttons."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    
+
     buttons = [
         ForceEEpromUpdateButton(coordinator, entry),
+        ForceEEpromInitReadButton(coordinator, entry),
+        ResetInfoFlagsButton(coordinator, entry),
+        ForceSweepButton(coordinator, entry),
         ResetFaultsButton(coordinator, entry),
-        ResetFlagsButton(coordinator, entry),
     ]
-    
+
     async_add_entities(buttons)
 
 
 class MidniteSolarButton(CoordinatorEntity[MidniteSolarUpdateCoordinator], ButtonEntity):
     """Base class for all Midnite Solar buttons."""
 
-    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any, flag: str):
         """Initialize the button."""
         super().__init__(coordinator)
         self._entry = entry
-        
+        self._flag = flag
+
         # Create device info - will be updated dynamically when data becomes available
         self._attr_device_info = {
             "identifiers": {(DOMAIN, entry.entry_id)},
@@ -58,74 +64,78 @@ class MidniteSolarButton(CoordinatorEntity[MidniteSolarUpdateCoordinator], Butto
             self.coordinator, self._entry, DOMAIN
         )
 
+    async def async_press(self) -> None:
+        """Raise one Force Flag Bit.
+
+        The flag is value `1 << bit` from Table 4160-1. Flags at or above
+        0x10000 live in the high register (4161), so the register to write is
+        chosen from the flag value instead of being assumed to be 4160.
+        """
+        flag_value = 1 << FORCE_FLAGS[self._flag]
+        register, word = force_flag_write(flag_value)
+        _LOGGER.info("Writing force flag %s: 0x%x to register %d", self._flag, flag_value, register)
+        try:
+            result = await self.hass.async_add_executor_job(
+                self.coordinator.api.write_register, register, word
+            )
+        except Exception as err:
+            _LOGGER.error("Error writing force flag %s: %s", self._flag, err)
+            return
+        if result is None or result.isError():
+            _LOGGER.error("Failed to write force flag %s", self._flag)
+
 
 class ForceEEpromUpdateButton(MidniteSolarButton):
     """Button to force an EEPROM update."""
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the button."""
-        super().__init__(coordinator, entry)
+        super().__init__(coordinator, entry, "ForceEEpromUpdate")
         self._attr_name = "Force EEPROM Update"
         self._attr_unique_id = f"{entry.entry_id}_force_eeprom_update"
-        self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
-    async def async_press(self) -> None:
-        """Press the button."""
-        flag_value = 1 << FORCE_FLAGS["ForceEEpromUpdate"]
-        _LOGGER.info(f"Forcing EEPROM update with value: {flag_value} (0x{flag_value:x})")
-        try:
-            result = await self.hass.async_add_executor_job(
-                self.coordinator.api.write_register, REGISTER_MAP["FORCE_FLAG_BITS"], flag_value
-            )
-            if not result or result.isError():
-                _LOGGER.error("Failed to write to force register")
-        except Exception as e:
-            _LOGGER.error(f"Error writing to force register: {e}")
+
+class ForceEEpromInitReadButton(MidniteSolarButton):
+    """Button to discard unsaved settings by re-reading the EEPROM."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the button."""
+        super().__init__(coordinator, entry, "ForceEEpromInitRead")
+        self._attr_name = "Discard Unsaved Settings"
+        self._attr_unique_id = f"{entry.entry_id}_force_eeprom_init_read"
+        # Table 4160-1: "Force read of EEprom (UnDo if a NV register changed
+        # and has not been EEprom Updated yet)".
+        self._attr_entity_registry_enabled_default = False
+
+
+class ResetInfoFlagsButton(MidniteSolarButton):
+    """Button to zero the read-only Info Flags."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the button."""
+        super().__init__(coordinator, entry, "ForceResetInfoFlags")
+        # Kept on the old unique_id so existing entities survive the rename: the
+        # flag it writes was 0x100000, a reserved bit, and never did anything.
+        self._attr_name = "Reset Info Flags"
+        self._attr_unique_id = f"{entry.entry_id}_reset_flags"
+
+
+class ForceSweepButton(MidniteSolarButton):
+    """Button to force an MPPT sweep or re-track."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the button."""
+        super().__init__(coordinator, entry, "ForceSweep")
+        self._attr_name = "Force Sweep"
+        self._attr_unique_id = f"{entry.entry_id}_force_sweep"
+        self._attr_entity_registry_enabled_default = False
 
 
 class ResetFaultsButton(MidniteSolarButton):
-    """Button to reset faults."""
+    """Button to reset all faults."""
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the button."""
-        super().__init__(coordinator, entry)
+        super().__init__(coordinator, entry, "ForceResetFaults")
         self._attr_name = "Reset Faults"
         self._attr_unique_id = f"{entry.entry_id}_reset_faults"
-        self._attr_entity_category = EntityCategory.DIAGNOSTIC
-
-    async def async_press(self) -> None:
-        """Press the button."""
-        flag_value = 1 << FORCE_FLAGS["ForceResetFaults"]
-        _LOGGER.info(f"Resetting faults with value: {flag_value} (0x{flag_value:x})")
-        try:
-            result = await self.hass.async_add_executor_job(
-                self.coordinator.api.write_register, REGISTER_MAP["FORCE_FLAG_BITS"], flag_value
-            )
-            if not result or result.isError():
-                _LOGGER.error("Failed to write to force register")
-        except Exception as e:
-            _LOGGER.error(f"Error writing to force register: {e}")
-
-
-class ResetFlagsButton(MidniteSolarButton):
-    """Button to reset flags."""
-
-    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
-        """Initialize the button."""
-        super().__init__(coordinator, entry)
-        self._attr_name = "Reset Flags"
-        self._attr_unique_id = f"{entry.entry_id}_reset_flags"
-        self._attr_entity_category = EntityCategory.DIAGNOSTIC
-
-    async def async_press(self) -> None:
-        """Press the button."""
-        flag_value = 1 << FORCE_FLAGS["ResetFlags"]
-        _LOGGER.info(f"Resetting flags with value: {flag_value} (0x{flag_value:x})")
-        try:
-            result = await self.hass.async_add_executor_job(
-                self.coordinator.api.write_register, REGISTER_MAP["FORCE_FLAG_BITS"], flag_value
-            )
-            if not result or result.isError():
-                _LOGGER.error("Failed to write to force register")
-        except Exception as e:
-            _LOGGER.error(f"Error writing to force register: {e}")

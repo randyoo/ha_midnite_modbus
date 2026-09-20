@@ -113,6 +113,9 @@ REGISTER_MAP = {
     
     # Force flags (write-only)
     "FORCE_FLAG_BITS": 4160,
+    # Force Flag Bits are 32-bit and write-only: "([4161] << 16) + [4160]".
+    # Flags at or above 0x10000 live in this high register.
+    "FORCE_FLAG_BITS_HIGH": 4161,
     
     # NOTE: Registers 20492/20493 (SERIAL_NUMBER_MSB/LSB) have been removed
     # These registers caused Modbus protocol errors and are not reliably accessible
@@ -195,18 +198,23 @@ REST_REASONS = {
 }
 
 # Force flag bit mappings (from register 4160)
+# Force Flag Bits, as bit positions. Table 4160-1 gives these as 32-bit
+# values spread over registers 4160 (low word) and 4161 (high word); use
+# register_values.force_flag_write() to pick the register, or the 16-bit
+# register will silently truncate anything above 0xFFFF.
+# Note ForceEEpromUpdateWriteF is what makes writes to (EE) registers
+# permanent; until it is sent, changed settings apply only until a restart.
 FORCE_FLAGS = {
-    "ForceEEpromUpdate": 2,      # Bit position
-    "ForceEEpromInitRead": 3,
-    "ForceResetInfoFlags": 4,
-    "ForceFloat": 5,
-    "ForceBulk": 6,
-    "ForceEqualize": 7,
-    "ForceNite": 8,
-    "ResetAeqCounts": 13,
-    "ForceSweep": 16,
-    "ResetFlags": 20,             # Bit position
-    "ForceResetFaults": 29,
+    "ForceEEpromUpdate": 2,       # 0x00000004, low word
+    "ForceEEpromInitRead": 3,     # 0x00000008, low word
+    "ForceResetInfoFlags": 4,     # 0x00000010, low word
+    "ForceFloat": 5,              # 0x00000020, low word
+    "ForceBulk": 6,               # 0x00000040, low word
+    "ForceEqualize": 7,           # 0x00000080, low word
+    "ForceNite": 8,               # 0x00000100, low word
+    "ForceSweep": 11,             # 0x00000800, low word
+    "ResetAeqCounts": 16,         # 0x00010000, high word
+    "ForceResetFaults": 23,       # 0x00800000, high word
 }
 
 # MPPT mode mappings (from register 4164)

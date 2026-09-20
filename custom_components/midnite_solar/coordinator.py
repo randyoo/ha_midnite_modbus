@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import timedelta
 from typing import Any, Dict, List, Optional
@@ -25,6 +26,13 @@ from .hub import MidniteHub
 
 _LOGGER = logging.getLogger(__name__)
 
+# Hard cap (seconds) for a single blocking Modbus operation. The Modbus client
+# already uses bounded socket timeouts; this is a final safety net so that a
+# wedged operation can never hang the coordinator (and, with it, Home Assistant).
+OP_TIMEOUT = 20.0
+# Hard cap (seconds) for the connection reset performed after a wedged op.
+RESET_TIMEOUT = 5.0
+
 
 class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
     """Gather data for the Midnite Solar device."""
@@ -41,9 +49,9 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
         """Initialize Update Coordinator."""
 
         super().__init__(
-            hass, 
-            _LOGGER, 
-            name=DOMAIN, 
+            hass,
+            _LOGGER,
+            name=DOMAIN,
             update_interval=timedelta(seconds=interval)
         )
         self.api = MidniteHub(host, port)
@@ -52,66 +60,30 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self) -> Dict[str, Any]:
         """Fetch all device and sensor data from api."""
-        import asyncio
-        
         data = {}
         unavailable_entities = {}
 
-        # Ensure connection is active
-        if not self.api.is_still_connected():
-            _LOGGER.debug("Connection not active, attempting to reconnect")
-            try:
-                await self.hass.async_add_executor_job(self.api.connect)
-                # Add delay after connect to allow device to respond
-                await asyncio.sleep(0.5)
-            except Exception as e:
-                _LOGGER.error(f"Failed to connect: {e}")
-                raise UpdateFailed(f"Cannot connect to device: {e}") from e
-        
-        # Test connection with a simple read before proceeding
-        # Try multiple registers to handle temporary communication issues
-        try:
-            _LOGGER.debug(f"Testing connection by reading UNIT_ID register ({REGISTER_MAP['UNIT_ID']})")
-            test_result = await self.hass.async_add_executor_job(
-                self.api.read_holding_registers, REGISTER_MAP["UNIT_ID"], 1
-            )
-            if test_result is None or test_result.isError():
-                _LOGGER.warning(f"Connection test failed on UNIT_ID. Trying alternative register...")
-                # Try a different register that might be more stable
-                test_result = await self.hass.async_add_executor_job(
-                    self.api.read_holding_registers, REGISTER_MAP["DISP_AVG_VBATT"], 1
-                )
-                if test_result is None or test_result.isError():
-                    _LOGGER.error(f"Connection tests failed. Device not responding.")
-                    raise UpdateFailed("Device not responding to connection tests")
-            
-            unit_id = test_result.registers[0] if test_result.registers else None
-            _LOGGER.debug(f"Connection test successful. UNIT_ID: {unit_id}")
-        except Exception as e:
-            _LOGGER.error(f"Connection test failed with exception: {e}", exc_info=True)
-            # Try to reconnect once more with detailed logging
-            try:
-                _LOGGER.debug("Attempting reconnect...")
-                await self.hass.async_add_executor_job(self.api.disconnect)
-                await asyncio.sleep(0.3)  # Brief pause before reconnect
-                await self.hass.async_add_executor_job(self.api.connect)
-                await asyncio.sleep(0.5)  # Allow device to respond after reconnect
-                
-                _LOGGER.debug("Testing connection again after reconnect...")
-                test_result = await self.hass.async_add_executor_job(
-                    self.api.read_holding_registers, REGISTER_MAP["UNIT_ID"], 1
-                )
-                if test_result is None or test_result.isError():
-                    _LOGGER.error(f"Connection test still failing after reconnect. Result: {test_result}")
-                    raise UpdateFailed("Device not responding after reconnect attempt")
-                else:
-                    unit_id = test_result.registers[0] if test_result.registers else None
-                    _LOGGER.debug(f"Reconnect successful. UNIT_ID: {unit_id}")
-            except Exception as e2:
-                _LOGGER.error(f"Reconnect failed: {e2}", exc_info=True)
-                raise UpdateFailed(f"Cannot communicate with device: {e2}") from e2
+        # Connectivity check. The read below transparently (re)connects if the
+        # socket is closed, so we never touch the Modbus client on the event
+        # loop here. A blocking call on the event loop would freeze Home
+        # Assistant whenever a worker thread is holding the connection lock.
+        test_result = await self._safe_read(REGISTER_MAP["UNIT_ID"], 1, retries=1)
+        if test_result is None or test_result.isError():
+            _LOGGER.warning("Connection test failed on UNIT_ID. Trying alternative register...")
+            # Try a different register that might be more stable
+            test_result = await self._safe_read(REGISTER_MAP["DISP_AVG_VBATT"], 1, retries=1)
 
-        # Read all register groups
+        if test_result is None or test_result.isError():
+            _LOGGER.error("Connection tests failed. Device not responding.")
+            raise UpdateFailed("Device not responding to connection tests")
+
+        unit_id = test_result.registers[0] if test_result.registers else None
+        _LOGGER.debug(f"Connection test successful. UNIT_ID: {unit_id}")
+
+        # Read all register groups. A group that fails only marks its own
+        # registers unavailable; it does not fail the whole update. A wedged
+        # read (UpdateFailed) fails the update so the coordinator reschedules
+        # instead of stalling on every remaining group.
         for group_name, registers in REGISTER_GROUPS.items():
             try:
                 result = await self._read_register_group(registers)
@@ -122,6 +94,10 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
                     # Mark all registers in this group as unavailable
                     for reg in registers:
                         unavailable_entities[str(reg)] = False
+            except UpdateFailed:
+                # A read wedged, which means the device went down mid-update.
+                # Fail fast and let the coordinator retry on the next interval.
+                raise
             except Exception as e:
                 _LOGGER.error(f"Error reading register group {group_name}: {e}")
                 for reg in registers:
@@ -132,8 +108,38 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
             "availability": unavailable_entities,
         }
 
+    async def _safe_read(self, address: int, count: int, retries: int):
+        """Read registers in the executor with a hard timeout.
+
+        Returns the Modbus response (which may itself be an error response), or
+        None if the read completed without usable data. Raises UpdateFailed if
+        the operation wedged (timed out), after resetting the client so a stuck
+        socket cannot wedge the next update either.
+        """
+        try:
+            return await asyncio.wait_for(
+                self.hass.async_add_executor_job(
+                    self.api.read_holding_registers, address, count, retries
+                ),
+                timeout=OP_TIMEOUT,
+            )
+        except asyncio.TimeoutError:
+            _LOGGER.error(f"Read of address {address} timed out after {OP_TIMEOUT}s; resetting connection")
+            await self._safe_reset()
+            raise UpdateFailed(f"Timed out communicating with device (address {address})") from None
+
+    async def _safe_reset(self) -> None:
+        """Reset the Modbus client in the executor, bounded by a timeout."""
+        try:
+            await asyncio.wait_for(
+                self.hass.async_add_executor_job(self.api.reset),
+                timeout=RESET_TIMEOUT,
+            )
+        except Exception as e:
+            _LOGGER.error(f"Failed to reset Modbus connection: {e}")
+
     async def _read_register_group(self, registers: List[int]) -> Optional[Dict[int, Any]]:
-        """Read a group of registers with enhanced debug logging."""
+        """Read a group of registers."""
         if not registers:
             return None
 
@@ -143,23 +149,11 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
         failed_registers = []
 
         for reg in sorted_regs:
-            try:
-                _LOGGER.debug(f"Reading register {reg} (group: {REGISTER_MAP.get(reg, 'unknown')})")
-                result = await self.hass.async_add_executor_job(
-                    self.api.read_holding_registers, reg, 1
-                )
-                if result is not None and not result.isError():
-                    value = result.registers[0]
-                    result_data[reg] = value
-                    _LOGGER.debug(f"Successfully read register {reg}: {value}")
-                else:
-                    _LOGGER.warning(f"Failed to read register {reg} (group: {REGISTER_MAP.get(reg, 'unknown')})")
-                    failed_registers.append(reg)
-            except Exception as e:
-                error_msg = str(e)
-                reg_name = REGISTER_MAP.get(reg, 'unknown')
-                
-                _LOGGER.warning(f"Exception reading register {reg}: {e}", exc_info=True)
+            value_result = await self._safe_read(reg, 1, retries=5)
+            if value_result is not None and not value_result.isError():
+                result_data[reg] = value_result.registers[0]
+            else:
+                _LOGGER.warning(f"Failed to read register {reg} (group: {REGISTER_MAP.get(reg, 'unknown')})")
                 failed_registers.append(reg)
 
         if failed_registers:

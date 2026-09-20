@@ -64,7 +64,18 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, _PLATFORMS):
         coordinator = hass.data[DOMAIN].pop(entry.entry_id)
         _LOGGER.info("Disconnecting from Modbus device...")
-        await hass.async_add_executor_job(coordinator.api.disconnect)
+        # Stop the coordinator first so its scheduled update can't keep polling
+        # (and leave a second coordinator alive) after a reload.
+        try:
+            await coordinator.async_shutdown()
+        except Exception as e:
+            _LOGGER.error(f"Error shutting down coordinator: {e}")
+        # Disconnect in the executor; guard it so a wedged socket can't block
+        # the unload (which would make reload/delete hang).
+        try:
+            await hass.async_add_executor_job(coordinator.api.disconnect)
+        except Exception as e:
+            _LOGGER.error(f"Error disconnecting from Modbus device: {e}")
 
     return unload_ok
 

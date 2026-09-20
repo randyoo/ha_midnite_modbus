@@ -45,6 +45,15 @@ REGISTER_MAP = {
     "MPPT_MODE": 4164,
     "AUX_1_AND_2_FUNCTION": 4165,
     "VARIMAX": 4180,
+    "PWM_READ_ONLY": 4141,
+    "VPV_TARGET_RD": 4191,
+    "VBATT_REG_SET_P_TMP_COMP": 4244,
+    "VBATT_NOMINAL": 4245,
+    "ENDING_AMPS": 4246,
+    "REBULK_VOLTS": 4249,
+    "IBATT_UNFILTERED": 4272,
+    "VBATT_UNFILTERED": 4276,
+    "VPV_UNFILTERED": 4277,
     "CLASSIC_MODBUS_ADDR_EEPROM": 4326,
     # Temperature compensation settings
     "MAX_BATTERY_TEMP_COMP_VOLTAGE": 4155,
@@ -332,6 +341,38 @@ NO_READBACK_REGISTERS = frozenset(
 # registers that can be saved to EEprom are saved at this time." A plain write
 # therefore takes effect immediately but is lost on the next restart, which is
 # why set points such as the absorb voltage appeared not to be saved.
+# Read-only views of what the Classic is actually doing, transcribed from the
+# register map. None of these had an entity, and three of them are the numbers a
+# user needs to make sense of a charge cycle: the compensated target the Classic
+# regulates to (4244), the nominal bank voltage it settled on (4245), and why it
+# reset (4142).
+#
+# (REGISTER_MAP key, group, name, units, kind, diagnostic, enabled by default)
+#
+# kind is "tenths" for the map's "([4nnn] /10) x" formulas, "nominal" for register
+# 4245 ("[4245] 12 * 1 thru 10"), and "raw" for a plain code or counter.
+#
+# The map's rows for 4276 and 4277 read "([4376] /10)" and "([4377] /10)", which is
+# a typo in the document: it has no registers 4376 or 4377. The value shown is the
+# row's own register over ten, which is what the row's description says ("Battery
+# Voltage Unfiltered"). registers2.json took the typo literally and invented
+# 4376/4377 entries with formulas of their own.
+CLASSIC_STATUS_SENSORS = (
+    ("VBATT_REG_SET_P_TMP_COMP", "classic_status", "Battery Regulation Target", "V", "tenths", False, True),
+    ("VBATT_NOMINAL", "classic_status", "Nominal Battery Voltage", "V", "nominal", False, True),
+    ("ENDING_AMPS", "classic_status", "Ending Amperage", "A", "tenths", False, True),
+    ("REBULK_VOLTS", "classic_status", "Rebulk Voltage", "V", "tenths", False, True),
+    ("VPV_TARGET_RD", "classic_status", "PV Target Voltage", "V", "tenths", True, False),
+    ("IBATT_UNFILTERED", "classic_status", "Battery Current Unfiltered", "A", "tenths", True, False),
+    ("VBATT_UNFILTERED", "classic_status", "Battery Voltage Unfiltered", "V", "tenths", True, False),
+    ("VPV_UNFILTERED", "classic_status", "PV Voltage Unfiltered", "V", "tenths", True, False),
+    # Table 4142-1 is referenced by the register map but never printed in this
+    # revision, so the reason is the code the Classic sends, undecorated.
+    ("REASON_FOR_RESET", "time_settings", "Reason For Reset", None, "raw", True, False),
+    ("PWM_READ_ONLY", "time_settings", "PWM Duty Cycle Command", None, "raw", True, False),
+    ("NITE_MINUTES_NO_PWR", "settings", "Minutes Without Power", "min", "raw", True, False),
+)
+
 # The Aux 1 / Aux 2 thresholds. The register map gives one register per threshold
 # and the integration reads all of them every interval, but never had an entity for
 # any of them, so they were invisible.
@@ -382,34 +423,6 @@ EE_BACKED_REGISTERS = frozenset(
     }
     | {REGISTER_MAP[f"WIND_POWER_TABLE_V_{step}_EEPA"] for step in range(8)}
     | {REGISTER_MAP[f"WIND_POWER_TABLE_I_{step}_EEPA"] for step in range(8)}
-)
-
-# The Aux 1 / Aux 2 thresholds. The register map gives one register per threshold
-# and the integration reads all of them every interval, but never had an entity for
-# any of them, so they were invisible.
-#
-# (REGISTER_MAP key, name, units, tenths, minimum, maximum, step)
-#
-# The minimums and maximums are only filled in where the register map states a
-# range - register 4169 says "0,1,2,3,4 or 5 volts". Everywhere else the map gives
-# no range, so none is invented.
-AUX_THRESHOLD_SETTINGS = (
-    ("AUX1_VOLTS_LO_ABS", "Aux 1 Low Absolute Voltage", "V", True, None, None, 0.1),
-    ("AUX1_VOLTS_HI_ABS", "Aux 1 High Absolute Voltage", "V", True, None, None, 0.1),
-    ("AUX1_DELAY_T_MS", "Aux 1 Delay Before Asserting", "ms", False, None, None, 1.0),
-    ("AUX1_HOLD_T_MS", "Aux 1 Hold Before De-asserting", "ms", False, None, None, 1.0),
-    ("AUX2_PWM_VWIDTH", "Aux 2 PWM Voltage Width", "V", True, 0.0, 5.0, 1.0),
-    ("AUX2_VOLTS_HI_ABS", "Aux 2 High Absolute Voltage", "V", True, None, None, 0.1),
-    # The four waste-not thresholds are offsets from the charge stage target. The
-    # register map writes "([4174] /10) Volts" and gives no sign convention, so the
-    # value is shown as the register holds it and nothing is guessed.
-    ("AUX1_VOLTS_LO_REL", "Aux 1 Waste-Not Lower Voltage", "V", True, None, None, 0.1),
-    ("AUX1_VOLTS_HI_REL", "Aux 1 Waste-Not Upper Voltage", "V", True, None, None, 0.1),
-    ("AUX2_VOLTS_LO_REL", "Aux 2 Waste-Not Lower Voltage", "V", True, None, None, 0.1),
-    ("AUX2_VOLTS_HI_REL", "Aux 2 Waste-Not Upper Voltage", "V", True, None, None, 0.1),
-    ("AUX1_VOLTS_LO_PV_ABS", "Aux 1 Low PV Absolute Voltage", "V", True, None, None, 0.1),
-    ("AUX1_VOLTS_HI_PV_ABS", "Aux 1 High PV Absolute Voltage", "V", True, None, None, 0.1),
-    ("AUX2_VOLTS_HI_PV_ABS", "Aux 2 High PV Absolute Voltage", "V", True, None, None, 0.1),
 )
 
 # MPPT mode mappings (from register 4164)
@@ -495,10 +508,15 @@ REGISTER_GROUPS = {
         REGISTER_MAP["ABSORB_TIME"],
         REGISTER_MAP["EQUALIZE_TIME"],
         REGISTER_MAP["MIN_ABSORB_TIME"],
+        # 4141 and 4142 are inside the 4138-4143 block this group already reads.
+        REGISTER_MAP["PWM_READ_ONLY"],
+        REGISTER_MAP["REASON_FOR_RESET"],
     ],
     # Add settings registers for MPPT mode, Modbus port, etc.
     "settings": [
         REGISTER_MAP["MPPT_MODE"],
+        # 4135 sits beside 4136/4137, so the block read already brings it.
+        REGISTER_MAP["NITE_MINUTES_NO_PWR"],
         REGISTER_MAP["MODBUS_PORT_REGISTER"],
         REGISTER_MAP["MINUTE_LOG_INTERVAL_SEC"],
         REGISTER_MAP["SLIDING_CURRENT_LIMIT"],
@@ -557,6 +575,18 @@ REGISTER_GROUPS = {
         REGISTER_MAP["AUX2_VOLTS_HI_PV_ABS"],
     ],
     # Add wind power curve settings registers
+    # The Classic's own regulation values, read in three blocks:
+    # 4191, 4244-4249 and 4272-4277.
+    "classic_status": [
+        REGISTER_MAP["VPV_TARGET_RD"],
+        REGISTER_MAP["VBATT_REG_SET_P_TMP_COMP"],
+        REGISTER_MAP["VBATT_NOMINAL"],
+        REGISTER_MAP["ENDING_AMPS"],
+        REGISTER_MAP["REBULK_VOLTS"],
+        REGISTER_MAP["IBATT_UNFILTERED"],
+        REGISTER_MAP["VBATT_UNFILTERED"],
+        REGISTER_MAP["VPV_UNFILTERED"],
+    ],
     "wind_power_curve": [
         REGISTER_MAP["WIND_POWER_TABLE_V_0_EEPA"],
         REGISTER_MAP["WIND_POWER_TABLE_V_1_EEPA"],

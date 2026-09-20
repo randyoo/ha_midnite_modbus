@@ -63,11 +63,16 @@ class TestRegisterBlocks:
             assert len(covered) == len(set(covered)), group
 
     def test_the_request_count_drops_by_an_order_of_magnitude(self):
-        """The whole reason for this: ~97 requests an interval on one socket."""
+        """The whole reason for this: one request per register was ~97 an interval.
+
+        The two numbers are pinned so adding a register cannot quietly undo the
+        blocking: a new register should land in a block that is already read.
+        """
         per_register = sum(len(set(r)) for r in REGISTER_GROUPS.values())
         blocks = sum(len(blocks_for(group)) for group in REGISTER_GROUPS)
-        assert per_register == 97
-        assert blocks == 19
+        assert per_register == 108
+        assert blocks == 22
+        assert blocks * 4 < per_register
 
     def test_the_modbus_address_register_is_read_on_its_own(self):
         """4326 is the Classic's own Modbus address, 160 registers past 4163."""

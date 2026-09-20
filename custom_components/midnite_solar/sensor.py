@@ -24,7 +24,15 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CHARGE_STAGES, DEVICE_TYPES, DOMAIN, INTERNAL_STATES, REGISTER_MAP, REST_REASONS
+from .const import (
+    CHARGE_STAGES,
+    CLASSIC_STATUS_SENSORS,
+    DEVICE_TYPES,
+    DOMAIN,
+    INTERNAL_STATES,
+    REGISTER_MAP,
+    REST_REASONS,
+)
 from .coordinator import MidniteSolarUpdateCoordinator
 from .register_values import TemperatureFilter, combine32, format_ipv4, scaled_value
 
@@ -73,6 +81,11 @@ async def async_setup_entry(
         SlidingCurrentLimitSensor(coordinator, entry),
         RestartTimeSensor(coordinator, entry),
         MatchPointShadowSensor(coordinator, entry),
+        # What the Classic itself is regulating to, and why it reset.
+        *(
+            ClassicStatusSensor(coordinator, entry, setting)
+            for setting in CLASSIC_STATUS_SENSORS
+        ),
     ]
     
     async_add_entities(sensors)
@@ -1099,3 +1112,42 @@ class DNSSensor2(NetworkAddressSensor):
         super().__init__(coordinator, entry)
         self._attr_name = "DNS Server 2"
         self._attr_unique_id = f"{entry.entry_id}_dns2"
+
+
+class ClassicStatusSensor(MidniteSolarSensor):
+    """One of the Classic's own status values that no other entity reports.
+
+    The scale comes from the register map's formula for that register: tenths for
+    the "([4nnn] /10)" rows, twelve times the register for the nominal bank voltage,
+    and the plain register for a code or a counter.
+    """
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any, setting):
+        """Initialize the sensor for one status register."""
+        super().__init__(coordinator, entry)
+        key, group, name, units, kind, diagnostic, enabled = setting
+        self._attr_name = name
+        self._attr_unique_id = f"{entry.entry_id}_{key.lower()}"
+        self._attr_entity_registry_enabled_default = enabled
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC if diagnostic else EntityCategory.CONFIG
+        self._attr_native_unit_of_measurement = units
+        self._attr_state_class = SensorStateClass.MEASUREMENT if units else None
+        self._attr_suggested_display_precision = 1 if kind == "tenths" else 0
+        self.register_address = REGISTER_MAP[key]
+        self.status_group = group
+        self.kind = kind
+
+    @property
+    def native_value(self) -> Optional[float]:
+        """Return the value the register map's formula describes."""
+        group = self.coordinator.data.get("data", {}).get(self.status_group) if self.coordinator.data else None
+        if not group:
+            return None
+        raw = group.get(self.register_address)
+        if raw is None:
+            return None
+        if self.kind == "tenths":
+            return scaled_value(raw)
+        if self.kind == "nominal":
+            return float(12 * raw)
+        return float(raw)

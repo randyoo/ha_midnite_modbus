@@ -236,7 +236,7 @@ class WindPowerTableNumber(MidniteSolarNumber):
 class WindPowerCurveVNumber(WindPowerTableNumber):
     """Voltage steps of the wind power table, registers 4301-4308."""
 
-    _table_first_register = REGISTER_MAP["WIND_POWER_TABLE_V_0_EEPA"]
+    _table_first_register = REGISTER_MAP["WIND_POWER_TABLE_V_REG_0"]
     _id_suffix = "v"
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any, step: int = 0):
@@ -248,7 +248,7 @@ class WindPowerCurveVNumber(WindPowerTableNumber):
 class WindPowerCurveINumber(WindPowerTableNumber):
     """Current steps of the wind power table, registers 4309-4316."""
 
-    _table_first_register = REGISTER_MAP["WIND_POWER_TABLE_I_0_EEPA"]
+    _table_first_register = REGISTER_MAP["WIND_POWER_TABLE_I_REG_0"]
     _id_suffix = "i"
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any, step: int = 0):

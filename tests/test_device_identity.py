@@ -24,8 +24,8 @@ def device_group(**extra):
         REGISTER_MAP["UNIT_ID"]: 200 | (3 << 8),
         REGISTER_MAP["UNIT_SW_DATE_RO"]: 2013,
         REGISTER_MAP["UNIT_SW_DATE_MONTH_DAY"]: (12 << 8) | 8,
-        REGISTER_MAP["DEVICE_ID_LSW"]: 0x1111,
-        REGISTER_MAP["DEVICE_ID_MSW"]: 0x0000,
+        REGISTER_MAP["DEVICE_ID_LOW_WORD"]: 0x1111,
+        REGISTER_MAP["DEVICE_ID_HIGH_WORD"]: 0x0000,
     }
     data.update(extra)
     return data

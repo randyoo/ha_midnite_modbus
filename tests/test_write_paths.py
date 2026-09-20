@@ -233,8 +233,8 @@ class TestEepromBackedList:
         assert 4238 not in EE_BACKED_REGISTERS  # SiestaTime, no (EE) marker
 
     def test_whole_wind_tables_are_listed(self):
-        assert {REGISTER_MAP[f"WIND_POWER_TABLE_V_{step}_EEPA"] for step in range(8)} <= EE_BACKED_REGISTERS
-        assert {REGISTER_MAP[f"WIND_POWER_TABLE_I_{step}_EEPA"] for step in range(8)} <= EE_BACKED_REGISTERS
+        assert {REGISTER_MAP[f"WIND_POWER_TABLE_V_REG_{step}"] for step in range(8)} <= EE_BACKED_REGISTERS
+        assert {REGISTER_MAP[f"WIND_POWER_TABLE_I_REG_{step}"] for step in range(8)} <= EE_BACKED_REGISTERS
 
 
 class TestEveryNumberCommits:

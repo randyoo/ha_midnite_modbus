@@ -1021,8 +1021,8 @@ class NetworkAddressSensor(MidniteSolarSensor):
     The map composes every one of these the same way, for example
     "[20483]MSB . [20483]LSB . [20482]MSB . [20482]LSB": the higher register of
     the pair carries the first two octets and each register reads high byte
-    first. The const keys ending in _LSB_1/_LSB_2 are the low and the high
-    register of the pair.
+    first. In const.py each pair is `..._LOW_WORD` (the lower register, last two
+    octets) and `..._HIGH_WORD` (the higher register, first two octets).
     """
 
     _low_key: str = ""
@@ -1052,8 +1052,8 @@ class NetworkAddressSensor(MidniteSolarSensor):
 class IPAddressSensor(NetworkAddressSensor):
     """Representation of IP address sensor."""
 
-    _low_key = "IP_ADDRESS_LSB_1"
-    _high_key = "IP_ADDRESS_LSB_2"
+    _low_key = "IP_ADDRESS_LOW_WORD"
+    _high_key = "IP_ADDRESS_HIGH_WORD"
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
@@ -1065,8 +1065,8 @@ class IPAddressSensor(NetworkAddressSensor):
 class GatewayAddressSensor(NetworkAddressSensor):
     """Representation of gateway address sensor."""
 
-    _low_key = "GATEWAY_ADDRESS_LSB_1"
-    _high_key = "GATEWAY_ADDRESS_LSB_2"
+    _low_key = "GATEWAY_ADDRESS_LOW_WORD"
+    _high_key = "GATEWAY_ADDRESS_HIGH_WORD"
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
@@ -1078,8 +1078,8 @@ class GatewayAddressSensor(NetworkAddressSensor):
 class SubnetMaskSensor(NetworkAddressSensor):
     """Representation of subnet mask sensor."""
 
-    _low_key = "SUBNET_MASK_LSB_1"
-    _high_key = "SUBNET_MASK_LSB_2"
+    _low_key = "SUBNET_MASK_LOW_WORD"
+    _high_key = "SUBNET_MASK_HIGH_WORD"
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
@@ -1091,8 +1091,8 @@ class SubnetMaskSensor(NetworkAddressSensor):
 class DNSSensor1(NetworkAddressSensor):
     """Representation of primary DNS server sensor."""
 
-    _low_key = "DNS_1_LSB_1"
-    _high_key = "DNS_1_LSB_2"
+    _low_key = "DNS_1_LOW_WORD"
+    _high_key = "DNS_1_HIGH_WORD"
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
@@ -1104,8 +1104,8 @@ class DNSSensor1(NetworkAddressSensor):
 class DNSSensor2(NetworkAddressSensor):
     """Representation of secondary DNS server sensor."""
 
-    _low_key = "DNS_2_LSB_1"
-    _high_key = "DNS_2_LSB_2"
+    _low_key = "DNS_2_LOW_WORD"
+    _high_key = "DNS_2_HIGH_WORD"
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""

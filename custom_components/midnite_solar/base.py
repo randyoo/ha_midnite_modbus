@@ -58,10 +58,10 @@ class MidniteBaseEntityDescription(EntityDescription):
                 
                 from .const import REGISTER_MAP, DEVICE_TYPES
                 
-                device_id_lsw = device_info_data.get(REGISTER_MAP["DEVICE_ID_LSW"])
-                device_id_msw = device_info_data.get(REGISTER_MAP["DEVICE_ID_MSW"])
-                if device_id_lsw is not None and device_id_msw is not None:
-                    device_id = (device_id_msw << 16) | device_id_lsw
+                low_word = device_info_data.get(REGISTER_MAP["DEVICE_ID_LOW_WORD"])
+                high_word = device_info_data.get(REGISTER_MAP["DEVICE_ID_HIGH_WORD"])
+                if low_word is not None and high_word is not None:
+                    device_id = (high_word << 16) | low_word
                     # Try to get device model from UNIT_ID register
                     unit_id_value = device_info_data.get(REGISTER_MAP["UNIT_ID"])
                     if unit_id_value is not None:

@@ -76,35 +76,42 @@ REGISTER_MAP = {
     "AUX1_VOLTS_HI_PV_ABS": 4179,
     "AUX2_VOLTS_HI_PV_ABS": 4181,
     # Wind power curve settings
-    "WIND_POWER_TABLE_V_0_EEPA": 4301,
-    "WIND_POWER_TABLE_V_1_EEPA": 4302,
-    "WIND_POWER_TABLE_V_2_EEPA": 4303,
-    "WIND_POWER_TABLE_V_3_EEPA": 4304,
-    "WIND_POWER_TABLE_V_4_EEPA": 4305,
-    "WIND_POWER_TABLE_V_5_EEPA": 4306,
-    "WIND_POWER_TABLE_V_6_EEPA": 4307,
-    "WIND_POWER_TABLE_V_7_EEPA": 4308,
-    "WIND_POWER_TABLE_I_0_EEPA": 4309,
-    "WIND_POWER_TABLE_I_1_EEPA": 4310,
-    "WIND_POWER_TABLE_I_2_EEPA": 4311,
-    "WIND_POWER_TABLE_I_3_EEPA": 4312,
-    "WIND_POWER_TABLE_I_4_EEPA": 4313,
-    "WIND_POWER_TABLE_I_5_EEPA": 4314,
-    "WIND_POWER_TABLE_I_6_EEPA": 4315,
-    "WIND_POWER_TABLE_I_7_EEPA": 4316,
+    # Register numbers, not step numbers: the map's "WindPowerTableV +0 (EE)" is
+    # register 4301 and holds steps 0 and 1, "([WindPowerTableV(stp 1)] << 8) +
+    # WindPowerTableV(stp 0)". Eight registers hold the sixteen steps.
+    "WIND_POWER_TABLE_V_REG_0": 4301,
+    "WIND_POWER_TABLE_V_REG_1": 4302,
+    "WIND_POWER_TABLE_V_REG_2": 4303,
+    "WIND_POWER_TABLE_V_REG_3": 4304,
+    "WIND_POWER_TABLE_V_REG_4": 4305,
+    "WIND_POWER_TABLE_V_REG_5": 4306,
+    "WIND_POWER_TABLE_V_REG_6": 4307,
+    "WIND_POWER_TABLE_V_REG_7": 4308,
+    "WIND_POWER_TABLE_I_REG_0": 4309,
+    "WIND_POWER_TABLE_I_REG_1": 4310,
+    "WIND_POWER_TABLE_I_REG_2": 4311,
+    "WIND_POWER_TABLE_I_REG_3": 4312,
+    "WIND_POWER_TABLE_I_REG_4": 4313,
+    "WIND_POWER_TABLE_I_REG_5": 4314,
+    "WIND_POWER_TABLE_I_REG_6": 4315,
+    "WIND_POWER_TABLE_I_REG_7": 4316,
     
     # Network configuration
     "IP_SETTINGS_FLAGS": 20481,
-    "IP_ADDRESS_LSB_1": 20482,
-    "IP_ADDRESS_LSB_2": 20483,
-    "GATEWAY_ADDRESS_LSB_1": 20484,
-    "GATEWAY_ADDRESS_LSB_2": 20485,
-    "SUBNET_MASK_LSB_1": 20486,
-    "SUBNET_MASK_LSB_2": 20487,
-    "DNS_1_LSB_1": 20488,
-    "DNS_1_LSB_2": 20489,
-    "DNS_2_LSB_1": 20490,
-    "DNS_2_LSB_2": 20491,
+    # The map gives each network address as two registers and prints the format
+    # with the high word first: "20482 20483 | IP Address |
+    # [20483].[20483] MSB LSB . [20482].[20482] MSB LSB". HIGH_WORD therefore holds
+    # the first two octets of the address and LOW_WORD the last two.
+    "IP_ADDRESS_LOW_WORD": 20482,
+    "IP_ADDRESS_HIGH_WORD": 20483,
+    "GATEWAY_ADDRESS_LOW_WORD": 20484,
+    "GATEWAY_ADDRESS_HIGH_WORD": 20485,
+    "SUBNET_MASK_LOW_WORD": 20486,
+    "SUBNET_MASK_HIGH_WORD": 20487,
+    "DNS_1_LOW_WORD": 20488,
+    "DNS_1_HIGH_WORD": 20489,
+    "DNS_2_LOW_WORD": 20490,
+    "DNS_2_HIGH_WORD": 20491,
     
     # Setpoints
     "ABSORB_SETPOINT_VOLTAGE": 4149,
@@ -151,8 +158,8 @@ REGISTER_MAP = {
     "UNIT_NAME_3": 4213,
     
     # Device ID (alternative serial, registers 4111-4112)
-    "DEVICE_ID_LSW": 4111,
-    "DEVICE_ID_MSW": 4112,
+    "DEVICE_ID_LOW_WORD": 4111,
+    "DEVICE_ID_HIGH_WORD": 4112,
 }
 
 # Charge stage mappings (from register 4120 MSB)
@@ -427,8 +434,8 @@ EE_BACKED_REGISTERS = frozenset(
         # needs the same EEPROM commit the set points do.
         *(REGISTER_MAP[key] for key, *_ in AUX_THRESHOLD_SETTINGS),
     }
-    | {REGISTER_MAP[f"WIND_POWER_TABLE_V_{step}_EEPA"] for step in range(8)}
-    | {REGISTER_MAP[f"WIND_POWER_TABLE_I_{step}_EEPA"] for step in range(8)}
+    | {REGISTER_MAP[f"WIND_POWER_TABLE_V_REG_{step}"] for step in range(8)}
+    | {REGISTER_MAP[f"WIND_POWER_TABLE_I_REG_{step}"] for step in range(8)}
 )
 
 # MPPT mode mappings (from register 4164)
@@ -470,8 +477,8 @@ REGISTER_GROUPS = {
         REGISTER_MAP["UNIT_SW_DATE_MONTH_DAY"],
         # Use DEVICE_ID (registers 4111-4112) as the serial number identifier
         # This is more reliable than SERIAL_NUMBER registers (20492/20493)
-        REGISTER_MAP["DEVICE_ID_LSW"],
-        REGISTER_MAP["DEVICE_ID_MSW"],
+        REGISTER_MAP["DEVICE_ID_LOW_WORD"],
+        REGISTER_MAP["DEVICE_ID_HIGH_WORD"],
         # Unit name (8 characters from 4 registers, each holding 2 bytes)
         REGISTER_MAP["UNIT_NAME_0"],
         REGISTER_MAP["UNIT_NAME_1"],
@@ -529,16 +536,16 @@ REGISTER_GROUPS = {
     ],
     # Add network configuration registers
     "network": [
-        REGISTER_MAP["IP_ADDRESS_LSB_1"],
-        REGISTER_MAP["IP_ADDRESS_LSB_2"],
-        REGISTER_MAP["GATEWAY_ADDRESS_LSB_1"],
-        REGISTER_MAP["GATEWAY_ADDRESS_LSB_2"],
-        REGISTER_MAP["SUBNET_MASK_LSB_1"],
-        REGISTER_MAP["SUBNET_MASK_LSB_2"],
-        REGISTER_MAP["DNS_1_LSB_1"],
-        REGISTER_MAP["DNS_1_LSB_2"],
-        REGISTER_MAP["DNS_2_LSB_1"],
-        REGISTER_MAP["DNS_2_LSB_2"],
+        REGISTER_MAP["IP_ADDRESS_LOW_WORD"],
+        REGISTER_MAP["IP_ADDRESS_HIGH_WORD"],
+        REGISTER_MAP["GATEWAY_ADDRESS_LOW_WORD"],
+        REGISTER_MAP["GATEWAY_ADDRESS_HIGH_WORD"],
+        REGISTER_MAP["SUBNET_MASK_LOW_WORD"],
+        REGISTER_MAP["SUBNET_MASK_HIGH_WORD"],
+        REGISTER_MAP["DNS_1_LOW_WORD"],
+        REGISTER_MAP["DNS_1_HIGH_WORD"],
+        REGISTER_MAP["DNS_2_LOW_WORD"],
+        REGISTER_MAP["DNS_2_HIGH_WORD"],
     ],
     "diagnostics": [
         REGISTER_MAP["REASON_FOR_RESTING"],
@@ -594,21 +601,21 @@ REGISTER_GROUPS = {
         REGISTER_MAP["VPV_UNFILTERED"],
     ],
     "wind_power_curve": [
-        REGISTER_MAP["WIND_POWER_TABLE_V_0_EEPA"],
-        REGISTER_MAP["WIND_POWER_TABLE_V_1_EEPA"],
-        REGISTER_MAP["WIND_POWER_TABLE_V_2_EEPA"],
-        REGISTER_MAP["WIND_POWER_TABLE_V_3_EEPA"],
-        REGISTER_MAP["WIND_POWER_TABLE_V_4_EEPA"],
-        REGISTER_MAP["WIND_POWER_TABLE_V_5_EEPA"],
-        REGISTER_MAP["WIND_POWER_TABLE_V_6_EEPA"],
-        REGISTER_MAP["WIND_POWER_TABLE_V_7_EEPA"],
-        REGISTER_MAP["WIND_POWER_TABLE_I_0_EEPA"],
-        REGISTER_MAP["WIND_POWER_TABLE_I_1_EEPA"],
-        REGISTER_MAP["WIND_POWER_TABLE_I_2_EEPA"],
-        REGISTER_MAP["WIND_POWER_TABLE_I_3_EEPA"],
-        REGISTER_MAP["WIND_POWER_TABLE_I_4_EEPA"],
-        REGISTER_MAP["WIND_POWER_TABLE_I_5_EEPA"],
-        REGISTER_MAP["WIND_POWER_TABLE_I_6_EEPA"],
-        REGISTER_MAP["WIND_POWER_TABLE_I_7_EEPA"],
+        REGISTER_MAP["WIND_POWER_TABLE_V_REG_0"],
+        REGISTER_MAP["WIND_POWER_TABLE_V_REG_1"],
+        REGISTER_MAP["WIND_POWER_TABLE_V_REG_2"],
+        REGISTER_MAP["WIND_POWER_TABLE_V_REG_3"],
+        REGISTER_MAP["WIND_POWER_TABLE_V_REG_4"],
+        REGISTER_MAP["WIND_POWER_TABLE_V_REG_5"],
+        REGISTER_MAP["WIND_POWER_TABLE_V_REG_6"],
+        REGISTER_MAP["WIND_POWER_TABLE_V_REG_7"],
+        REGISTER_MAP["WIND_POWER_TABLE_I_REG_0"],
+        REGISTER_MAP["WIND_POWER_TABLE_I_REG_1"],
+        REGISTER_MAP["WIND_POWER_TABLE_I_REG_2"],
+        REGISTER_MAP["WIND_POWER_TABLE_I_REG_3"],
+        REGISTER_MAP["WIND_POWER_TABLE_I_REG_4"],
+        REGISTER_MAP["WIND_POWER_TABLE_I_REG_5"],
+        REGISTER_MAP["WIND_POWER_TABLE_I_REG_6"],
+        REGISTER_MAP["WIND_POWER_TABLE_I_REG_7"],
     ],
 }

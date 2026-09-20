@@ -12,6 +12,12 @@ class ConfigEntry:
         self.unique_id = entry_id
         self.version = 1
         self.runtime_data = None
+        self._update_listeners = []
+
+    def add_update_listener(self, listener):
+        """Register a listener and return the unsubscribe callable, as HA does."""
+        self._update_listeners.append(listener)
+        return lambda: self._update_listeners.remove(listener)
 
 
 class AbortFlow(Exception):

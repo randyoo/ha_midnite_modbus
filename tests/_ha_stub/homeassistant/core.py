@@ -14,12 +14,16 @@ class ConfigEntries:
         self.hass = hass
         self.updates = []
         self.reloads = []
+        self.forwarded = []
+        self.unloaded = []
 
     async def async_forward_entry_setups(self, entry, platforms):
-        """No-op forward."""
+        """Record which platforms the integration set up."""
+        self.forwarded.append((entry.entry_id, tuple(platforms)))
 
     async def async_unload_platforms(self, entry, platforms):
-        """No-op unload."""
+        """Record the unload and report success, as Home Assistant would."""
+        self.unloaded.append((entry.entry_id, tuple(platforms)))
         return True
 
     async def async_update_entry(self, entry, *, data=None, options=None, unique_id=None):

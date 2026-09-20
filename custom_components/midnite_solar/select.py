@@ -24,7 +24,12 @@ from .const import (
     REGISTER_MAP,
 )
 from .coordinator import MidniteSolarUpdateCoordinator
-from .entity_writes import async_store_settings, async_write_setting, register_value
+from .entity_writes import (
+    async_store_settings,
+    async_verify_write,
+    async_write_setting,
+    register_value,
+)
 from .register_values import read_field, write_field
 
 _LOGGER = logging.getLogger(__name__)
@@ -142,6 +147,14 @@ class MidniteSolarSettingSelect(MidniteSolarSelect):
         """Write the setting, store it in EEPROM, then refresh."""
         await async_write_setting(self.hass, self.coordinator.api, address, value, label)
         await async_store_settings(self.hass, self.coordinator.api, label)
+        await async_verify_write(
+            self.hass,
+            self.coordinator.api,
+            address,
+            value,
+            label,
+            lambda raw: f"0x{raw:04X}",
+        )
         await self.coordinator.async_request_refresh()
 
 
@@ -249,6 +262,14 @@ class AuxFunctionSelect(MidniteSolarSelect):
             self.name,
         )
         await async_store_settings(self.hass, self.coordinator.api, self.name)
+        await async_verify_write(
+            self.hass,
+            self.coordinator.api,
+            REGISTER_MAP["AUX_1_AND_2_FUNCTION"],
+            new_value,
+            self.name,
+            lambda raw: f"0x{raw:04X}",
+        )
         await self.coordinator.async_request_refresh()
 
 

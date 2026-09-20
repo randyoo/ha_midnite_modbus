@@ -22,7 +22,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, EE_BACKED_REGISTERS, FORCE_FLAGS, REGISTER_MAP
 from .coordinator import MidniteSolarUpdateCoordinator
-from .entity_writes import async_store_settings, async_write_setting
+from .entity_writes import async_store_settings, async_verify_write, async_write_setting
 from .register_values import (
     byte_of,
     force_flag_write,
@@ -147,6 +147,14 @@ class MidniteSolarNumber(CoordinatorEntity[MidniteSolarUpdateCoordinator], Numbe
         )
         if self.register_address in EE_BACKED_REGISTERS:
             await async_store_settings(self.hass, self.coordinator.api, self.name)
+        await async_verify_write(
+            self.hass,
+            self.coordinator.api,
+            self.register_address,
+            register_value,
+            self.name,
+            lambda raw: f"{self._from_register_value(raw)} {self.native_unit_of_measurement or ''}".strip(),
+        )
         await self.coordinator.async_request_refresh()
 
 

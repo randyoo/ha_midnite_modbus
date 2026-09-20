@@ -316,6 +316,16 @@ FORCE_FLAGS = {
     "ForceResetFaults": 23,       # 0x00800000, high word
 }
 
+# Reading a setting back is how we find out whether the Classic took it. These
+# two change the Modbus connection itself, so a verification read cannot be
+# expected to answer on the socket it arrived on.
+NO_READBACK_REGISTERS = frozenset(
+    {
+        REGISTER_MAP["MODBUS_PORT_REGISTER"],
+        REGISTER_MAP["CLASSIC_MODBUS_ADDR_EEPROM"],
+    }
+)
+
 # Registers the register map marks "(EE)". The map says: "When you see (EE),
 # this means that register value is saved to EEprom whenever the Force write to
 # EEprom is set and sent to the Classic. When write to EEprom is requested, ALL

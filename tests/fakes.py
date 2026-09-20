@@ -26,19 +26,38 @@ class FakeApi:
     the test suite, so this is the only "device" the tests use.
     """
 
-    def __init__(self, read_values: Optional[dict[int, int]] = None, fail_writes=False, error_writes=False):
+    def __init__(
+        self,
+        read_values: Optional[dict[int, int]] = None,
+        fail_writes=False,
+        error_writes=False,
+        stale_read: bool = False,
+        unreadable: bool = False,
+    ):
         self.read_values = read_values or {}
         self.writes: list[tuple[int, int]] = []
+        self.reads: list[int] = []
         self.fail_writes = fail_writes
         self.error_writes = error_writes
+        # A Classic that accepts a write stores it, so a read-back returns it.
+        # stale_read models the write-protected Classic that ignores the write
+        # and keeps answering with the old value; unreadable models a register
+        # that does not answer at all.
+        self.stale_read = stale_read
+        self.unreadable = unreadable
 
     def write_register(self, address: int, value: int, retries: int = 2):
         self.writes.append((address, value))
         if self.fail_writes:
             raise OSError("[Errno 104] Connection reset by peer")
+        if not self.stale_read and not self.unreadable:
+            self.read_values[address] = value
         return ModbusResult(error=self.error_writes)
 
     def read_holding_registers(self, address: int, count: int = 1, retries: int = 5):
+        self.reads.append(address)
+        if self.unreadable:
+            return ModbusResult(error=True)
         return ModbusResult(registers=[self.read_values.get(address, 0) for _ in range(count)])
 
     def disconnect(self):

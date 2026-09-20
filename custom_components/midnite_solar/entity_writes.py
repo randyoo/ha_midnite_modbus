@@ -13,7 +13,7 @@ from typing import Any, Optional
 
 from homeassistant.exceptions import HomeAssistantError
 
-from .const import FORCE_FLAGS
+from .const import FORCE_FLAGS, NO_READBACK_REGISTERS
 from .register_values import force_flag_write
 
 _LOGGER = logging.getLogger(__name__)
@@ -59,3 +59,33 @@ def register_value(data: Optional[dict], group: str, address: int) -> Optional[i
     if not values:
         return None
     return values.get(address)
+
+
+async def async_verify_write(
+    hass: Any, api: Any, address: int, value: int, label: str, display
+) -> None:
+    """Read the register back and say so if the Classic kept something else.
+
+    A Classic that is write-protected, or that clamps a value to its own limits,
+    accepts the write and carries on reporting the old number. Without this check
+    Home Assistant just shows the value the user typed and nothing looks wrong.
+    """
+    if address in NO_READBACK_REGISTERS:
+        return
+    try:
+        result = await hass.async_add_executor_job(api.read_holding_registers, address, 1)
+    except Exception as e:
+        raise HomeAssistantError(f"Wrote {label}, but it could not be read back: {e}") from e
+    if result is None or result.isError() or not result.registers:
+        raise HomeAssistantError(
+            f"Wrote {label}, but the Classic did not answer the read-back of register {address}"
+        )
+    kept = result.registers[0]
+    if kept == value:
+        return
+    raise HomeAssistantError(
+        f"{label}: wrote {display(value)}, but the Classic reports "
+        f"{display(kept)}. The write was ignored or clamped; the Classic is "
+        "write-protected (see the Ethernet Writes Locked sensor) or the value is "
+        "outside what the Classic allows."
+    )

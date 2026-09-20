@@ -76,9 +76,6 @@ class FakeApi:
     def reset(self):
         """No socket to reset."""
 
-    def is_still_connected(self):
-        return True
-
 
 class FakeCoordinator(DataUpdateCoordinator):
     """Coordinator holding canned register data, keyed by group name."""

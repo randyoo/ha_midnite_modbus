@@ -100,31 +100,32 @@ class MidniteHub:
                 return True
         return False
 
-    def is_still_connected(self):
-        """Check if a socket object is present.
-
-        Note: this can still return True for a *stale* socket whose peer has
-        already reset. Real recovery happens when an op fails with a connection
-        error (see _reconnect), not from this check.
-        """
-        with self._lock:
-            return self._client.is_socket_open()
-
     def connect(self):
         """Connect to the Modbus TCP server."""
         with self._lock:
             if self._client.is_socket_open():
                 return True
             _LOGGER.debug(f"Connecting to {self.host}:{self.port}")
+            # A new socket is a new session, so any grant from the last one is
+            # worth nothing here.
+            self._unlocked = False
             return self._client.connect()
 
     def disconnect(self):
-        """Disconnect from the Modbus TCP server."""
+        """Disconnect from the Modbus TCP server.
+
+        The unlock grant is cleared whether or not the socket still looks open:
+        the map says the grant lasts until the connection is dropped, and a
+        Classic that is idle drops it without telling us, so by the time this is
+        called the grant may already be gone. Leaving `self._unlocked` set is what
+        made writes silently stop working after a reload - the next connection
+        reused a grant that had died with the old socket.
+        """
         with self._lock:
+            self._unlocked = False
             try:
                 if self._client.is_socket_open():
                     _LOGGER.debug(f"Disconnecting from {self.host}:{self.port}")
-                    self._unlocked = False
                     return self._client.close()
             except Exception as e:
                 _LOGGER.debug(f"Error during disconnect: {e}")

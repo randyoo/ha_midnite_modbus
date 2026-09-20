@@ -276,3 +276,46 @@ class TestInfoFlagSensors:
     def test_flag_helper(self):
         assert info_flag_set(0x00010200, 0x00010000) is True
         assert info_flag_set(0x00010200, 0x00020000) is False
+
+
+class TestTheGrantEndsWithTheSocket:
+    """"Setting this will last until the TCP/IP connection is dropped"."""
+
+    def test_a_disconnect_on_a_socket_the_classic_already_dropped_clears_the_grant(self, monkeypatch):
+        """A Classic drops an idle link without telling us; the grant went with it."""
+        hub, clients = make_hub(monkeypatch)
+        hub.set_serial_number(SERIAL)
+        hub.write_register(4149, 576)
+        clients[0].open = False
+        hub.disconnect()
+        assert hub._unlocked is False
+
+    def test_a_new_socket_after_a_disconnect_has_to_unlock_again(self, monkeypatch):
+        hub, clients = make_hub(monkeypatch)
+        hub.set_serial_number(SERIAL)
+        hub.write_register(4149, 576)
+        clients[0].open = False
+        hub.disconnect()
+        hub.connect()
+        hub.write_register(4149, 576)
+        assert clients[0].writes.count((20491, 0x1234)) == 2
+
+    def test_a_grant_is_reused_while_the_socket_stays_up(self, monkeypatch):
+        hub, clients = make_hub(monkeypatch)
+        hub.set_serial_number(SERIAL)
+        hub.write_register(4149, 576)
+        hub.write_register(4150, 555)
+        hub.write_register(4151, 540)
+        assert clients[0].writes.count((20491, 0x1234)) == 1, "one grant per session"
+
+    def test_a_reconnect_always_starts_locked_again(self, monkeypatch):
+        hub, clients = make_hub(monkeypatch)
+        hub.set_serial_number(SERIAL)
+        hub.write_register(4149, 576)
+        hub.reset()
+        assert hub._client is not clients[0]
+        assert hub._unlocked is False
+
+    def test_the_socket_check_is_not_exposed_as_a_diagnostic(self):
+        """is_still_connected() said True for a stale socket and nothing used it."""
+        assert not hasattr(MidniteHub, "is_still_connected")

@@ -333,7 +333,10 @@ class BatteryTempCompValueNumber(MidniteSolarNumber):
         # Typical temperature compensation range: -1 to -5 mV/°C per 2V cell (negative values)
         self._attr_native_min_value = -10.0
         self._attr_native_max_value = 0.0
-        self._attr_native_step = 0.1
+        # "-([4157] /10) mV/degree C/cell (0.5 mV steps) 0 to 10 mV per 2V cell":
+        # the register holds tenths, but the Classic itself only moves in half
+        # millivolt steps, so the field must not offer anything finer.
+        self._attr_native_step = 0.5
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
 class EqualizeRetryDaysNumber(MidniteSolarNumber):
@@ -481,6 +484,10 @@ class EqualizeIntervalDaysNumber(MidniteSolarNumber):
         self._attr_unique_id = f"{entry.entry_id}_equalize_interval"
         self._attr_native_unit_of_measurement = UnitOfTime.DAYS
         self._attr_mode = NumberMode.BOX
+        # "4163 | R/W | Equalize Interval Days (EE) | [4163] Days" - plain days.
+        # Without this the base treats the value as tenths, so a Classic set to 30
+        # days showed 3, and asking for 30 wrote 300.
+        self.is_raw_value = True
         self.register_address = REGISTER_MAP["EQUALIZE_INTERVAL_DAYS_EEPROM"]
         # Typical equalize intervals
         self._attr_native_min_value = 0

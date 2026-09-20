@@ -216,7 +216,15 @@ class MatchPointShadowSensor(MidniteSolarSensor):
 
 
 class StatusRollSensor(MidniteSolarSensor):
-    """Representation of status roll sensor."""
+    """The 12-bit status value of register 4113, and its 4-bit roll counter.
+
+    "4113 | R | StatusRoll | ([4113]>>12)Count + ([4113]& 0x0fff) Value | Various
+    12 bit values changes once per second. Hi 4 bits = count". The "+" in that
+    formula is the map putting two fields in one line, not an instruction to add
+    them: the high 4 bits are how many times the value has rolled and the low 12
+    bits are the value. Adding them produced a third number that is neither, so a
+    value of 1 with a count of 3 read as 4.
+    """
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
@@ -224,23 +232,32 @@ class StatusRollSensor(MidniteSolarSensor):
         self._attr_name = "Status Roll"
         self._attr_unique_id = f"{entry.entry_id}_status_roll"
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
-        # Status roll is a 12-bit status value, not a standard measurement
+        # A status value that changes once per second is a code, not a quantity:
+        # no device class and no statistics.
         self._attr_device_class = None
         self._attr_native_unit_of_measurement = None
-        self._attr_state_class = SensorStateClass.MEASUREMENT
+        self._attr_state_class = None
         self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    def _raw(self):
+        """Return register 4113, or None if it has not been read."""
+        return self._register(self._group("status"), "STATUSROLL")
 
     @property
     def native_value(self) -> Optional[int]:
-        """Return the state of the sensor."""
-        if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            if status_data:
-                value = status_data.get(REGISTER_MAP["STATUSROLL"])
-                if value is not None:
-                    # STATUSROLL formula: ([4113]>>12)+([4113]&0x0FFF) - 12-bit status value
-                    return (value >> 12) + (value & 0x0FFF)
-        return None
+        """Return the 12-bit value the register carries."""
+        value = self._raw()
+        if value is None:
+            return None
+        return value & 0x0FFF
+
+    @property
+    def extra_state_attributes(self) -> Optional[dict]:
+        """Return the roll counter, which is the other half of the register."""
+        value = self._raw()
+        if value is None:
+            return None
+        return {"count": value >> 12, "raw": value}
 
 
 class DailyEnergySensor(MidniteSolarSensor):

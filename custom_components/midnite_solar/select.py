@@ -195,7 +195,10 @@ class MPPTModeSelector(MidniteSolarSettingSelect):
         if value == 0:
             return MPPT_OFF
         name = MPPT_MODES.get(value | 1)
-        if name is None:
+        # Two of Table 4164-1's rows are RESERVED: showing "RESERVED" as the
+        # current mode would look like a mode the table offers, so the value is
+        # reported as what it is - a number the table has no name for.
+        if name is None or name == "RESERVED":
             return f"Unknown (0x{value:04X})"
         return name if value % 2 else f"{name} (Off)"
 

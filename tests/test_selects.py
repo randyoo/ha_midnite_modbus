@@ -314,3 +314,60 @@ class TestAuxStateSelects:
         assert aux2.unique_id == "entry-1_aux2_state_select"
         assert aux1.name == "AUX 1 State"
         assert aux2.name == "AUX 2 State"
+
+
+class TestOptionsAreRealOptions:
+    """A selector must not show a value it will not let you choose.
+
+    Home Assistant renders current_option as the selected entry of the option
+    list, so a value outside that list is a widget with nothing matching it. Three
+    cases are deliberately display-only and are allowed:
+
+    - "Unknown (0x…)" and "Unset (n)": a code the table has no name for.
+    - "Unimplemented": Table 4165-1 gives value 3 that name, and no user can ask
+      for it.
+    - "SOLAR (Off)": Table 4164-1 says to "Subtract One (1) if showing mode as
+      OFF", so an even register value is a mode with MPPT disabled - something the
+      Classic can be in and this select cannot write.
+    """
+
+    DISPLAY_ONLY = ("Unknown (", "Unset (", "Unimplemented")
+    DISPLAY_SUFFIX = (" (Off)",)
+
+    def sweep(self, cls, register, group, values):
+        bad = []
+        for raw in values:
+            selector_obj, _ = selector(cls, self.entry, {register: raw}, group=group)
+            current = selector_obj.current_option
+            if current is None:
+                continue
+            if (
+                current not in selector_obj.options
+                and not current.startswith(self.DISPLAY_ONLY)
+                and not current.endswith(self.DISPLAY_SUFFIX)
+            ):
+                bad.append(f"{cls.__name__} register {register} value {raw:#06x}: {current!r} not in {selector_obj.options}")
+        return bad
+
+    @pytest.fixture
+    def entry(self, request):
+        self.entry = ConfigEntry(entry_id="entry-1", title="Classic 200")
+        return self.entry
+
+    def test_every_mppt_register_value_shows_a_real_option(self, entry):
+        self.entry = entry
+        assert self.sweep(MPPTModeSelector, 4164, "settings", range(0, 32)) == []
+
+    def test_every_aux1_function_code_shows_a_real_option(self, entry):
+        self.entry = entry
+        assert self.sweep(Aux1FunctionSelector, AUX_REGISTER, "aux_settings", range(0, 64)) == []
+
+    def test_every_aux2_function_code_shows_a_real_option(self, entry):
+        self.entry = entry
+        assert self.sweep(Aux2FunctionSelector, AUX_REGISTER, "aux_settings", range(0, 64)) == []
+
+    def test_every_aux_state_code_shows_a_real_option(self, entry):
+        self.entry = entry
+        # The state field is bits 6-7 of 4165; sweep the whole register.
+        assert self.sweep(Aux1StateSelect, AUX_REGISTER, "aux_settings", range(0, 256)) == []
+        assert self.sweep(Aux2StateSelect, AUX_REGISTER, "aux_settings", range(0, 65536, 997)) == []

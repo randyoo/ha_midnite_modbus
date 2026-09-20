@@ -9,7 +9,7 @@ from typing import Any
 from pymodbus.client import ModbusTcpClient
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.const import CONF_HOST, CONF_NAME, CONF_PORT
 try:
     # Try new import path first (Home Assistant 2025.12+)
@@ -50,18 +50,34 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
         # Set unique ID to prevent duplicate setups
         await self.async_set_unique_id(formatted_mac, raise_on_progress=False)
         
-        # Abort if device is already configured (this will also update IP if it changed)
-        existing_entries = self._async_current_entries()
-        for entry in existing_entries:
-            if entry.unique_id == formatted_mac:
-                _LOGGER.warning(
-                    f"Device with MAC {discovery_info.macaddress} at {discovery_info.ip} "
-                    f"is already configured as '{entry.title}'. Skipping discovery."
+        # A Classic that is already set up is never set up twice. Its address may
+        # have changed since - a DHCP lease is not permanent - so the entry is
+        # updated and reloaded rather than left pointing at an address that no
+        # longer answers. Aborting first, as this used to do, meant that after a
+        # lease renewal Home Assistant kept polling the old address and the device
+        # could only be recovered by deleting and re-adding it.
+        for entry in self._async_current_entries():
+            if entry.unique_id != formatted_mac:
+                continue
+            if entry.data.get(CONF_HOST) != discovery_info.ip:
+                _LOGGER.info(
+                    "Classic %s moved from %s to %s; updating the entry",
+                    entry.title,
+                    entry.data.get(CONF_HOST),
+                    discovery_info.ip,
                 )
-                return self.async_abort(reason="already_configured")
-        
-        # Update IP if device was previously configured with a different IP
-        self._abort_if_unique_id_configured(updates={CONF_HOST: discovery_info.ip})
+                await self.hass.config_entries.async_update_entry(
+                    entry, data={**entry.data, CONF_HOST: discovery_info.ip}
+                )
+                await self.hass.config_entries.async_reload(entry.entry_id)
+            else:
+                _LOGGER.info(
+                    "Device with MAC %s at %s is already configured as '%s'; skipping discovery",
+                    discovery_info.macaddress,
+                    discovery_info.ip,
+                    entry.title,
+                )
+            return self.async_abort(reason="already_configured")
         
         # Store discovery info for user confirmation
         self.discovery_info = discovery_info
@@ -249,27 +265,6 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
             )
             return result
 
-    async def async_step_options(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Handle options update."""
-        if user_input is not None:
-            return self.async_create_entry(
-                title="",
-                data=user_input,
-            )
-        
-        # Get current options from the config entry
-        entry = self._get_current_entries()[0]
-        current_options = entry.options
-        
-        return self.async_show_form(
-            step_id="options",
-            data_schema=vol.Schema({
-                vol.Optional(
-                    CONF_SCAN_INTERVAL, 
-                    default=current_options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-                ): int,
-            }),
-        )
 
     async def async_step_import(self, user_input: dict[str, Any]) -> ConfigFlowResult:
         """Handle import from YAML configuration."""
@@ -309,7 +304,7 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
         
         if user_input is not None:
             # Update the config entry with new data
-            self.async_set_unique_id(config_entry.unique_id)
+            await self.async_set_unique_id(config_entry.unique_id)
             self._abort_if_unique_id_mismatch()
             
             # Separate scan_interval from data to store in options
@@ -321,8 +316,11 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
             if CONF_SCAN_INTERVAL in user_input:
                 entry_options[CONF_SCAN_INTERVAL] = user_input[CONF_SCAN_INTERVAL]
             
-            # Update data and options separately
-            self.hass.config_entries.async_update_entry(
+            # Update data and options separately, and await it: this is a
+            # coroutine, and without the await the new address is never stored,
+            # so reconfiguring the Classic in the UI appeared to work and changed
+            # nothing.
+            await self.hass.config_entries.async_update_entry(
                 config_entry,
                 data=entry_data,
                 options=entry_options
@@ -342,3 +340,40 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="reconfigure",
             data_schema=data_schema,
         )
+
+class MidniteSolarOptionsFlow(OptionsFlow):
+    """Change how often the Classic is polled.
+
+    `__init__.py` reads this option and `update_listener` reloads the entry when
+    it changes, but until now there was no options flow: the step that looked like
+    one called a method Home Assistant does not have, so it could only ever raise
+    and the interval stayed at its default.
+    """
+
+    def __init__(self, config_entry):
+        """Keep the entry whose options are being edited."""
+        self.config_entry = config_entry
+
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Show or store the scan interval."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(
+                        CONF_SCAN_INTERVAL,
+                        default=self.config_entry.options.get(
+                            CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+                        ),
+                    ): int,
+                }
+            ),
+        )
+
+
+async def async_get_options_flow(config_entry):
+    """Home Assistant calls this to offer the options form."""
+    return MidniteSolarOptionsFlow(config_entry)

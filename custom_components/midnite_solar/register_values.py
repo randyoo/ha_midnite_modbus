@@ -224,3 +224,16 @@ def write_field(value: int, mask: int, shift: int, field_value: int) -> int:
     if not 0 <= field_value < (1 << width):
         raise ValueError(f"{field_value} does not fit in a {width}-bit field")
     return (value & ~mask) | ((field_value << shift) & mask)
+
+
+# The register map gives the version registers as
+#   "Major: [16385](15…12) Minor: [16385](11…8) Release: [16385](8..4)"
+# Read literally, the Release field includes bit 8, which the Minor field also
+# claims. The only reading that gives three separate four-bit fields is 7..4, and
+# that is what is used; it is noted here rather than silently chosen.
+VERSION_FIELDS = (("major", 0xF000, 12), ("minor", 0x0F00, 8), ("release", 0x00F0, 4))
+
+
+def version_from_register(raw: int) -> str:
+    """Return the "major.minor.release" the version register holds."""
+    return ".".join(str(read_field(raw, mask, shift)) for _name, mask, shift in VERSION_FIELDS)

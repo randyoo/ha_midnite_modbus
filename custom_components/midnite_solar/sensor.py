@@ -26,6 +26,8 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
     CHARGE_STAGES,
+    FIRMWARE_REVISION_SENSORS,
+    FIRMWARE_VERSION_SENSORS,
     CLASSIC_STATUS_SENSORS,
     DEVICE_TYPES,
     DOMAIN,
@@ -34,7 +36,13 @@ from .const import (
     REST_REASONS,
 )
 from .coordinator import MidniteSolarUpdateCoordinator
-from .register_values import TemperatureFilter, combine32, format_ipv4, scaled_value
+from .register_values import (
+    TemperatureFilter,
+    combine32,
+    format_ipv4,
+    scaled_value,
+    version_from_register,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -81,6 +89,15 @@ async def async_setup_entry(
         SlidingCurrentLimitSensor(coordinator, entry),
         RestartTimeSensor(coordinator, entry),
         MatchPointShadowSensor(coordinator, entry),
+        # The Classic's own firmware, which is what support asks for.
+        *(
+            FirmwareVersionSensor(coordinator, entry, key, label, describes)
+            for key, label, describes in FIRMWARE_VERSION_SENSORS
+        ),
+        *(
+            FirmwareRevisionSensor(coordinator, entry, low_key, high_key, label)
+            for low_key, high_key, label in FIRMWARE_REVISION_SENSORS
+        ),
         # What the Classic itself is regulating to, and why it reset.
         *(
             ClassicStatusSensor(coordinator, entry, setting)
@@ -1122,3 +1139,76 @@ class ClassicStatusSensor(MidniteSolarSensor):
         if self.kind == "nominal":
             return float(12 * raw)
         return float(raw)
+
+
+class FirmwareVersionSensor(MidniteSolarSensor):
+    """The application or communications firmware version, 16385 and 16386.
+
+    Three four-bit fields: "Major: [16385](15…12) Minor: [16385](11…8)
+    Release: [16385](8..4)". See VERSION_FIELDS for the one ambiguity in how the
+    map prints that.
+    """
+
+    def __init__(
+        self,
+        coordinator: MidniteSolarUpdateCoordinator,
+        entry: Any,
+        key: str,
+        label: str,
+        describes: str,
+    ):
+        """Initialize the sensor for one version register."""
+        super().__init__(coordinator, entry)
+        self._attr_name = label
+        self._attr_unique_id = f"{entry.entry_id}_{key.lower()}"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+        self.version_address = REGISTER_MAP[key]
+        self.describes = describes
+
+    @property
+    def native_value(self) -> Optional[str]:
+        """Return the version as major.minor.release."""
+        raw = self._group("firmware").get(self.version_address)
+        if raw is None:
+            return None
+        return version_from_register(raw)
+
+    @property
+    def extra_state_attributes(self) -> Optional[dict]:
+        """Say which code this version belongs to."""
+        return {"describes": self.describes}
+
+
+class FirmwareRevisionSensor(MidniteSolarSensor):
+    """The 32-bit build revision of the application or the comms stack.
+
+    "([16388] << 16) + [16387]" - the second register of the pair is the high
+    word.
+    """
+
+    def __init__(
+        self,
+        coordinator: MidniteSolarUpdateCoordinator,
+        entry: Any,
+        low_key: str,
+        high_key: str,
+        label: str,
+    ):
+        """Initialize the sensor for one revision pair."""
+        super().__init__(coordinator, entry)
+        self._attr_name = label
+        self._attr_unique_id = f"{entry.entry_id}_{low_key.lower()}"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+        self._attr_native_unit_of_measurement = None
+        self.low_address = REGISTER_MAP[low_key]
+        self.high_address = REGISTER_MAP[high_key]
+
+    @property
+    def native_value(self) -> Optional[int]:
+        """Return the build revision as one 32-bit number."""
+        group = self._group("firmware")
+        low = group.get(self.low_address)
+        high = group.get(self.high_address)
+        if low is None or high is None:
+            return None
+        return combine32(low, high)

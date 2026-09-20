@@ -46,6 +46,12 @@ REGISTER_MAP = {
     "AUX_1_AND_2_FUNCTION": 4165,
     "VARIMAX": 4180,
     "PWM_READ_ONLY": 4141,
+    "APP_VERSION": 16385,
+    "NET_VERSION": 16386,
+    "APP_REV_LOW": 16387,
+    "APP_REV_HIGH": 16388,
+    "NET_REV_LOW": 16389,
+    "NET_REV_HIGH": 16390,
     "VPV_TARGET_RD": 4191,
     "VBATT_REG_SET_P_TMP_COMP": 4244,
     "VBATT_NOMINAL": 4245,
@@ -391,6 +397,24 @@ CLASSIC_STATUS_SENSORS = (
 # a range. A user picks volts and the Classic gets the multiplier.
 NOMINAL_BATTERY_VOLTAGES = {multiplier: 12 * multiplier for multiplier in range(1, 11)}
 
+# The map's own words for these four values:
+#   "16385 | app version _ | Major: [16385](15…12) Minor: [16385](11…8)
+#    Release: [16385](8..4) | Release version of the application code"
+#   "16386 | net version, _ | ... | Release version of the communications stack"
+#   "16387 16388 | app rev _ | ([16388] << 16) + [16387] | Build Revision of the
+#    application code"
+#   "16389 16390 | net rev _ | ([16390] << 16) + [16389] | Build Revision of the
+#    communications code stack"
+FIRMWARE_VERSION_SENSORS = (
+    ("APP_VERSION", "App Version", "application code"),
+    ("NET_VERSION", "Comms Version", "communications stack"),
+)
+
+FIRMWARE_REVISION_SENSORS = (
+    ("APP_REV_LOW", "APP_REV_HIGH", "App Build Revision"),
+    ("NET_REV_LOW", "NET_REV_HIGH", "Comms Build Revision"),
+)
+
 # The Aux 1 / Aux 2 thresholds. The register map gives one register per threshold
 # and the integration reads all of them every interval, but never had an entity for
 # any of them, so they were invisible.
@@ -608,6 +632,16 @@ REGISTER_GROUPS = {
         REGISTER_MAP["IBATT_UNFILTERED"],
         REGISTER_MAP["VBATT_UNFILTERED"],
         REGISTER_MAP["VPV_UNFILTERED"],
+    ],
+    # The Classic's own firmware, at 16385 and up: two version registers and two
+    # 32-bit build revisions. One block read covers all six.
+    "firmware": [
+        REGISTER_MAP["APP_VERSION"],
+        REGISTER_MAP["NET_VERSION"],
+        REGISTER_MAP["APP_REV_LOW"],
+        REGISTER_MAP["APP_REV_HIGH"],
+        REGISTER_MAP["NET_REV_LOW"],
+        REGISTER_MAP["NET_REV_HIGH"],
     ],
     "wind_power_curve": [
         REGISTER_MAP["WIND_POWER_TABLE_V_REG_0"],

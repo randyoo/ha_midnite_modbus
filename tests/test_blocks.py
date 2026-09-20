@@ -70,8 +70,8 @@ class TestRegisterBlocks:
         """
         per_register = sum(len(set(r)) for r in REGISTER_GROUPS.values())
         blocks = sum(len(blocks_for(group)) for group in REGISTER_GROUPS)
-        assert per_register == 108
-        assert blocks == 22
+        assert per_register == 114
+        assert blocks == 23
         assert blocks * 4 < per_register
 
     def test_the_modbus_address_register_is_read_on_its_own(self):

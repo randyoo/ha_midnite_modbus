@@ -325,13 +325,19 @@ FORCE_FLAGS = {
     "ForceResetFaults": 23,       # 0x00800000, high word
 }
 
-# Reading a setting back is how we find out whether the Classic took it. These
-# two change the Modbus connection itself, so a verification read cannot be
-# expected to answer on the socket it arrived on.
+# Reading a setting back is how we find out whether the Classic took it. Two kinds
+# of register cannot take part: the ones whose write changes the Modbus connection
+# itself, and the ones the register map says are write-only.
 NO_READBACK_REGISTERS = frozenset(
     {
+        # "MODBUS_PORT_REGISTER" and 4326 move the connection; the reply cannot
+        # arrive on the socket that carried the write.
         REGISTER_MAP["MODBUS_PORT_REGISTER"],
         REGISTER_MAP["CLASSIC_MODBUS_ADDR_EEPROM"],
+        # Table 4160-1 is headed "ForceFlagsBits (Write Only)": reading them back
+        # would fail for a reason that has nothing to do with the write.
+        REGISTER_MAP["FORCE_FLAG_BITS"],
+        REGISTER_MAP["FORCE_FLAG_BITS_HIGH"],
     }
 )
 

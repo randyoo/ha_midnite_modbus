@@ -97,9 +97,15 @@ class TestRegistersThatCannotBeReadBack:
         assert api.writes[0][0] == 4326
         assert api.reads == []
 
-    def test_both_connection_registers_are_excluded(self):
+    def test_the_registers_that_cannot_answer_are_excluded(self):
+        """Two move the connection, two are write-only according to the map."""
         assert NO_READBACK_REGISTERS == frozenset(
-            {REGISTER_MAP["MODBUS_PORT_REGISTER"], REGISTER_MAP["CLASSIC_MODBUS_ADDR_EEPROM"]}
+            {
+                REGISTER_MAP["MODBUS_PORT_REGISTER"],
+                REGISTER_MAP["CLASSIC_MODBUS_ADDR_EEPROM"],
+                REGISTER_MAP["FORCE_FLAG_BITS"],
+                REGISTER_MAP["FORCE_FLAG_BITS_HIGH"],
+            }
         )
 
 

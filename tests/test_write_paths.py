@@ -389,3 +389,93 @@ class TestWindPowerTableSteps:
         coordinator = make_coordinator(hass, api, group="wind_power_curve", registers=dict(WIND_TABLE))
         number = WindPowerCurveVNumber(coordinator, entry, 3)
         assert (number.native_min_value, number.native_max_value, number.native_step) == (0, 255, 1)
+
+
+class TestForceChargeMode:
+    """The selector that raises ForceFloat/ForceBulk/ForceEqualize (Table 4160-1).
+
+    It used to log a failure and return, so Home Assistant showed the mode that was
+    clicked even when the Classic had not accepted it.
+    """
+
+    @pytest.mark.parametrize(
+        ("option", "expected"),
+        [
+            ("Float", (4160, 0x0020)),  # ForceFloatF
+            ("Bulk", (4160, 0x0040)),  # ForceBulkF
+            ("Equalize", (4160, 0x0080)),  # ForceEqualizeF
+        ],
+    )
+    def test_forcing_a_mode_writes_the_documented_flag(self, hass, entry, option, expected):
+        from midnite_solar.select import ChargeModeSelector
+
+        api = FakeApi()
+        coordinator = make_coordinator(hass, api)
+        asyncio.run(ChargeModeSelector(coordinator, entry).async_select_option(option))
+        assert api.writes == [expected]
+
+    def test_none_does_nothing(self, hass, entry):
+        from midnite_solar.select import ChargeModeSelector
+
+        api = FakeApi()
+        coordinator = make_coordinator(hass, api)
+        asyncio.run(ChargeModeSelector(coordinator, entry).async_select_option("None"))
+        assert api.writes == []
+
+    def test_a_rejected_flag_is_reported(self, hass, entry):
+        from midnite_solar.select import ChargeModeSelector
+
+        api = FakeApi(error_writes=True)
+        coordinator = make_coordinator(hass, api)
+        with pytest.raises(HomeAssistantError):
+            asyncio.run(ChargeModeSelector(coordinator, entry).async_select_option("Float"))
+
+    def test_a_reset_connection_is_reported(self, hass, entry):
+        from midnite_solar.select import ChargeModeSelector
+
+        api = FakeApi(fail_writes=True)
+        coordinator = make_coordinator(hass, api)
+        with pytest.raises(HomeAssistantError):
+            asyncio.run(ChargeModeSelector(coordinator, entry).async_select_option("Bulk"))
+
+    def test_an_option_that_cannot_be_forced_is_refused(self, hass, entry):
+        from midnite_solar.select import ChargeModeSelector
+
+        coordinator = make_coordinator(hass, FakeApi())
+        with pytest.raises(HomeAssistantError):
+            asyncio.run(ChargeModeSelector(coordinator, entry).async_select_option("Absorb"))
+
+    def test_the_force_registers_are_not_read_back(self, hass, entry):
+        """Table 4160-1 is headed "(Write Only)", so there is nothing to read."""
+        from midnite_solar.select import ChargeModeSelector
+
+        api = FakeApi()
+        coordinator = make_coordinator(hass, api)
+        asyncio.run(ChargeModeSelector(coordinator, entry).async_select_option("Equalize"))
+        assert api.reads == []
+
+    def test_a_successful_force_refreshes_the_status(self, hass, entry):
+        from midnite_solar.select import ChargeModeSelector
+
+        coordinator = make_coordinator(hass, FakeApi())
+        asyncio.run(ChargeModeSelector(coordinator, entry).async_select_option("Bulk"))
+        assert coordinator.refresh_requests == 1
+
+
+class TestButtonFailures:
+    """A button press that does nothing looks identical to a refused press."""
+
+    def test_a_rejected_press_is_reported(self, hass, entry):
+        coordinator = make_coordinator(hass, FakeApi(error_writes=True))
+        with pytest.raises(HomeAssistantError):
+            asyncio.run(ForceEEpromUpdateButton(coordinator, entry).async_press())
+
+    def test_a_dead_connection_is_reported(self, hass, entry):
+        coordinator = make_coordinator(hass, FakeApi(fail_writes=True))
+        with pytest.raises(HomeAssistantError):
+            asyncio.run(ForceSweepButton(coordinator, entry).async_press())
+
+    def test_a_press_that_landed_refreshes_the_device(self, hass, entry):
+        coordinator = make_coordinator(hass, FakeApi())
+        asyncio.run(ResetInfoFlagsButton(coordinator, entry).async_press())
+        assert coordinator.refresh_requests == 1

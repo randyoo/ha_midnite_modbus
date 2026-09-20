@@ -31,7 +31,7 @@ from .entity_writes import (
     async_write_setting,
     register_value,
 )
-from .register_values import read_field, write_field
+from .register_values import force_flag_write, read_field, write_field
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -126,20 +126,16 @@ class ChargeModeSelector(MidniteSolarSelect):
             "Equalize": FORCE_FLAGS["ForceEqualize"],
         }
         
-        flag_bit = flag_map.get(option)
-        if flag_bit is not None:
-            flag_value = 1 << flag_bit
-            _LOGGER.info(f"Forcing {option} mode with value: {flag_value} (0x{flag_value:x})")
-            try:
-                result = await self.hass.async_add_executor_job(
-                    self.coordinator.api.write_register, REGISTER_MAP["FORCE_FLAG_BITS"], flag_value
-                )
-                if not result or result.isError():
-                    _LOGGER.error(f"Failed to write {option} mode to force register")
-            except Exception as e:
-                _LOGGER.error(f"Error writing {option} mode to force register: {e}")
-        
-        # Request a refresh after changing mode
+        if option not in flag_map:
+            raise HomeAssistantError(f"{option} is not a charge mode that can be forced")
+        flag_bit = flag_map[option]
+        flag_value = 1 << flag_bit
+        # Table 4160-1 lists the flags as 32-bit values over two registers, so the
+        # register is taken from the value rather than assumed to be 4160; and a
+        # failed press has to raise, or Home Assistant shows a charge mode that the
+        # Classic never accepted.
+        register, word = force_flag_write(flag_value)
+        await async_write_setting(self.hass, self.coordinator.api, register, word, f"Force {option}")
         await self.coordinator.async_request_refresh()
 
 

@@ -15,6 +15,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, FORCE_FLAGS, REGISTER_MAP
 from .coordinator import MidniteSolarUpdateCoordinator
+from .entity_writes import async_write_setting
 from .register_values import force_flag_write
 
 _LOGGER = logging.getLogger(__name__)
@@ -74,15 +75,10 @@ class MidniteSolarButton(CoordinatorEntity[MidniteSolarUpdateCoordinator], Butto
         flag_value = 1 << FORCE_FLAGS[self._flag]
         register, word = force_flag_write(flag_value)
         _LOGGER.info("Writing force flag %s: 0x%x to register %d", self._flag, flag_value, register)
-        try:
-            result = await self.hass.async_add_executor_job(
-                self.coordinator.api.write_register, register, word
-            )
-        except Exception as err:
-            _LOGGER.error("Error writing force flag %s: %s", self._flag, err)
-            return
-        if result is None or result.isError():
-            _LOGGER.error("Failed to write force flag %s", self._flag)
+        # A button that reports nothing and does nothing is indistinguishable from
+        # a Classic that ignored the press, so the failure has to reach the UI.
+        await async_write_setting(self.hass, self.coordinator.api, register, word, self.name)
+        await self.coordinator.async_request_refresh()
 
 
 class ForceEEpromUpdateButton(MidniteSolarButton):

@@ -3,10 +3,21 @@
 import logging
 import threading
 import time
+from typing import Optional
 
 from pymodbus.client import ModbusTcpClient
 
+from .const import REGISTER_MAP
+from .register_values import unlock_values
+
 _LOGGER = logging.getLogger(__name__)
+
+UNLOCK_SERIAL_MSB = REGISTER_MAP["UNLOCK_SERIAL_MSB"]
+UNLOCK_SERIAL_LSB = REGISTER_MAP["UNLOCK_SERIAL_LSB"]
+
+
+class WriteLockedError(RuntimeError):
+    """Raised when the Classic still write-protects Ethernet writes."""
 
 
 class MidniteHub:
@@ -52,6 +63,11 @@ class MidniteHub:
         # hold the lock. A plain Lock would self-deadlock on that re-acquisition.
         self._lock = threading.RLock()
         self._client = self._make_client()
+        # The Classic ignores writes over Ethernet until the serial number has
+        # been written to the unlock registers, and that grant ends as soon as
+        # the connection drops, so both are tracked next to the socket.
+        self._serial: Optional[int] = None
+        self._unlocked = False
 
     def _make_client(self) -> ModbusTcpClient:
         """Create a fresh Modbus TCP client with bounded timeouts."""
@@ -108,6 +124,7 @@ class MidniteHub:
             try:
                 if self._client.is_socket_open():
                     _LOGGER.debug(f"Disconnecting from {self.host}:{self.port}")
+                    self._unlocked = False
                     return self._client.close()
             except Exception as e:
                 _LOGGER.debug(f"Error during disconnect: {e}")
@@ -128,6 +145,7 @@ class MidniteHub:
             # Let the device drop the old session before we open a new one.
             time.sleep(self.RECONNECT_DELAY)
             self._client = self._make_client()
+            self._unlocked = False
 
     def _reconnect(self) -> bool:
         """Fully release the connection, wait, then open ONE fresh connection.
@@ -145,6 +163,7 @@ class MidniteHub:
             # Let the device drop the old session before we open a new one.
             time.sleep(self.RECONNECT_DELAY)
             self._client = self._make_client()
+            self._unlocked = False
             ok = self._client.connect()
             if ok:
                 _LOGGER.info(f"Reconnected to {self.host}:{self.port}")
@@ -163,6 +182,47 @@ class MidniteHub:
             return True
         return self._reconnect()
 
+    def set_serial_number(self, serial: Optional[int]) -> None:
+        """Provide the serial number that releases the Ethernet write protect.
+
+        The serial number is read from registers 28673/28674; the hub does not
+        read them itself rather than duplicate the coordinator's polling, so the
+        coordinator hands the value over. A change means the unlock is stale.
+        """
+        if serial == self._serial:
+            return
+        self._serial = serial
+        self._unlocked = False
+
+    def _ensure_unlocked(self) -> bool:
+        """Write the unlock registers if the Classic is still write-protected.
+
+        The map is explicit: "W Serial Number (Unlock Code) For writing to Classic
+        modbus registers over Ethernet ... Write the Classic's serial number over
+        Ethernet to unlock writing of modbus registers over Ethernet. Setting this
+        will last until the TCP/IP connection is dropped". Until that write
+        happens the Classic ignores setting writes, which is why the absorb
+        voltage never took effect. Called with the lock held, and it writes
+        straight to the client so it cannot recurse.
+        """
+        if self._unlocked:
+            return True
+        if self._serial is None:
+            _LOGGER.warning(
+                "Classic write protect is engaged and the serial number is not known yet"
+            )
+            return False
+        msb, lsb = unlock_values(self._serial)
+        for address, value in ((UNLOCK_SERIAL_MSB, msb), (UNLOCK_SERIAL_LSB, lsb)):
+            result = self._client.write_register(address=address - 1, value=value)
+            if result is None or result.isError():
+                _LOGGER.error("Unlock write to register %s failed: %s", address, result)
+                self._unlocked = False
+                return False
+        self._unlocked = True
+        _LOGGER.debug("Released the Classic Ethernet write protect")
+        return True
+
     def write_register(self, address: int, value: int, retries: int = 2):
         """Write a register with retry + reconnect-on-connection-error."""
         with self._lock:
@@ -173,6 +233,11 @@ class MidniteHub:
                     if attempt < retries - 1:
                         time.sleep(0.2 * (attempt + 1))
                     continue
+                if not self._ensure_unlocked():
+                    raise WriteLockedError(
+                        "The Classic write-protects Ethernet writes; the "
+                        "serial number unlock has not succeeded yet"
+                    )
                 try:
                     result = self._client.write_register(
                         address=address - 1,  # Modbus addresses are 0-indexed

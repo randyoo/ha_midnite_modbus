@@ -117,9 +117,23 @@ REGISTER_MAP = {
     # Flags at or above 0x10000 live in this high register.
     "FORCE_FLAG_BITS_HIGH": 4161,
     
-    # NOTE: Registers 20492/20493 (SERIAL_NUMBER_MSB/LSB) have been removed
-    # These registers caused Modbus protocol errors and are not reliably accessible
-    # We now use DEVICE_ID (registers 4111-4112) as the serial number identifier instead
+    # Ethernet write protect. The map: "20492 20493 W Serial Number (Unlock Code)
+    # For writing to Classic modbus registers over Ethernet ... Write the Classic's
+    # serial number over Ethernet to unlock writing of modbus registers over
+    # Ethernet. Setting this will last until the TCP/IP connection is dropped".
+    # These are WRITE ONLY, and reading them answers with a Modbus protocol error -
+    # which is why an earlier note here claimed they "caused Modbus protocol errors
+    # and are not reliably accessible". Nothing is written to them until a user
+    # changes a setting, and the Classic reports SerialWriteLock while locked.
+    "UNLOCK_SERIAL_MSB": 20492,
+    "UNLOCK_SERIAL_LSB": 20493,
+    # "28673 28674 R Classic serial number ([28673] << 16) + [28674]"
+    "SERIAL_NUMBER_MSB_RO": 28673,
+    "SERIAL_NUMBER_LSB_RO": 28674,
+    # "4130 4131 R InfoFlagsBits (InfoFlagsBits2) ([4131] << 16) + [4130]
+    # See Table 4130-1 (read as 32 bits or singly)"
+    "INFO_FLAGS_LOW": 4130,
+    "INFO_FLAGS_HIGH": 4131,
     
     # Unit name (ASCII, 8 characters from registers 4210-4213)
     "UNIT_NAME_0": 4210,
@@ -198,6 +212,36 @@ REST_REASONS = {
 }
 
 # Force flag bit mappings (from register 4160)
+# Table 4130-1 "Info Flag Bits: READ ONLY (can read single 16 bit Low or High
+# words if wanted)". Values are the map's; bits marked RESERVED are omitted.
+INFO_FLAGS = {
+    "ClassicOverTemp": 0x00000001,
+    "EepromError": 0x00000002,
+    "SerialWriteLock": 0x00000004,
+    "EqualizeInProgress": 0x00000008,
+    "EQMppt": 0x00000080,
+    "InVLowerThanOut": 0x00000100,
+    "CurrentLimit": 0x00000200,
+    "HyperVoc": 0x00000400,
+    "BattTempSensorInstalled": 0x00002000,
+    "Aux1StateOn": 0x00004000,
+    "Aux2StateOn": 0x00008000,
+    "GroundFaultF": 0x00010000,
+    "OCP": 0x00020000,
+    "ArcFaultF": 0x00040000,
+    "NegBatCurrentF": 0x00080000,
+    "XtraInfo2DsplayF": 0x00200000,
+    "PvPartialShadeF": 0x00400000,
+    "WatchdogResetF": 0x00800000,
+    "LowBatteryVF": 0x01000000,
+    "StackumperF": 0x02000000,
+    "EqDoneF": 0x04000000,
+    "TempCompShortedF": 0x08000000,
+    "UNLockJumperF": 0x10000000,
+    "XtraJumperF": 0x20000000,
+    "InputShortedF": 0x40000000,
+}
+
 # Force Flag Bits, as bit positions. Table 4160-1 gives these as 32-bit
 # values spread over registers 4160 (low word) and 4161 (high word); use
 # register_values.force_flag_write() to pick the register, or the 16-bit
@@ -288,6 +332,14 @@ AUX2_FUNCTIONS = [
 # Define the register groups we need to read from the device
 # Each group represents a functional category of registers
 REGISTER_GROUPS = {
+    "info_flags": [
+        REGISTER_MAP["INFO_FLAGS_LOW"],
+        REGISTER_MAP["INFO_FLAGS_HIGH"],
+    ],
+    "serial": [
+        REGISTER_MAP["SERIAL_NUMBER_MSB_RO"],
+        REGISTER_MAP["SERIAL_NUMBER_LSB_RO"],
+    ],
     "device_info": [
         REGISTER_MAP["UNIT_ID"],
         # Software build date (registers 4102-4103)

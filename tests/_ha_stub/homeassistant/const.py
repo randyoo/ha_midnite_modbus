@@ -37,6 +37,7 @@ class UnitOfTime(str, Enum):
 
 class Platform(str, Enum):
     SENSOR = "sensor"
+    BINARY_SENSOR = "binary_sensor"
     NUMBER = "number"
     SELECT = "select"
     TEXT = "text"

@@ -179,3 +179,26 @@ class TemperatureFilter:
             self._rejections = 0
             return value
         return None
+
+
+def serial_from_registers(msb: int, lsb: int) -> int:
+    """Combine the two read-only serial number registers.
+
+    The map gives "28673 28674 R Classic serial number ([28673] << 16) +
+    [28674]", so the lower address carries the high word here.
+    """
+    return (msb << 16) | lsb
+
+
+def unlock_values(serial: int) -> Tuple[int, int]:
+    """Return the two words to write to 20492/20493 to unlock Ethernet writes.
+
+    The map's example: "the serial number is: 0x12345678 (hex) -> 20492 = MSB
+    (Serial number) 0x1234, 20493 = LSB (Serial number) 0x5678".
+    """
+    return (serial >> 16) & 0xFFFF, serial & 0xFFFF
+
+
+def info_flag_set(flags: int, mask: int) -> bool:
+    """Return True if an Info Flag Bit from Table 4130-1 is set."""
+    return bool(flags & mask)

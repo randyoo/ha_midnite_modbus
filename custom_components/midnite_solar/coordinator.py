@@ -23,6 +23,7 @@ from homeassistant.helpers.update_coordinator import (
 
 from .const import DOMAIN, REGISTER_GROUPS, REGISTER_MAP
 from .hub import MidniteHub
+from .register_values import serial_from_registers
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -103,10 +104,30 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
                 for reg in registers:
                     unavailable_entities[str(reg)] = False
 
+        self._hand_over_serial_number(data)
+
         return {
             "data": data,
             "availability": unavailable_entities,
         }
+
+    def _hand_over_serial_number(self, data: Dict[str, Any]) -> None:
+        """Give the hub the serial number that releases the Ethernet write protect.
+
+        The map requires the serial number to be written to registers 20492/20493
+        before the Classic accepts writes over Ethernet, and says the grant lasts
+        only until the TCP/IP connection is dropped. The hub re-sends it after
+        every (re)connect; here it only has to supply the value it read from
+        28673/28674.
+        """
+        serial_group = data.get("serial")
+        if not serial_group:
+            return
+        msb = serial_group.get(REGISTER_MAP["SERIAL_NUMBER_MSB_RO"])
+        lsb = serial_group.get(REGISTER_MAP["SERIAL_NUMBER_LSB_RO"])
+        if msb is None or lsb is None:
+            return
+        self.api.set_serial_number(serial_from_registers(msb, lsb))
 
     async def _safe_read(self, address: int, count: int, retries: int):
         """Read registers in the executor with a hard timeout.

@@ -17,6 +17,7 @@ MODULES = [
     "midnite_solar.number",
     "midnite_solar.select",
     "midnite_solar.sensor",
+    "midnite_solar.binary_sensor",
     "midnite_solar.text",
     "midnite_solar.config_flow",
 ]

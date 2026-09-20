@@ -15,6 +15,10 @@ class UnitOfElectricCurrent(str, Enum):
     AMPERE = "A"
 
 
+class UnitOfElectricPotential(str, Enum):
+    VOLT = "V"
+
+
 class UnitOfEnergy(str, Enum):
     KILO_WATT_HOUR = "kWh"
 

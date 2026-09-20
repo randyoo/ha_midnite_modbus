@@ -24,6 +24,14 @@ from midnite_solar.button import (
 )
 from midnite_solar import number as number_module
 from midnite_solar.const import EE_BACKED_REGISTERS, REGISTER_MAP
+# The map's own voltage example [64,68,70,72,75,78,81,83,85,87,89,91,93,98,104,112]
+# packed the way the map says: "WindPowerTableV(stp 1) << 8) + WindPowerTableV(stp 0)".
+WIND_STEPS = [64, 68, 70, 72, 75, 78, 81, 83, 85, 87, 89, 91, 93, 98, 104, 112]
+WIND_TABLE = {
+    4301 + even // 2: (WIND_STEPS[even + 1] << 8) | WIND_STEPS[even]
+    for even in range(0, 16, 2)
+}
+
 from midnite_solar.number import (
     AbsorbTimeNumber,
     AbsorbVoltageNumber,
@@ -34,6 +42,8 @@ from midnite_solar.number import (
     FloatVoltageNumber,
     MidniteSolarNumber,
     MinAbsorbTimeNumber,
+    WindPowerCurveINumber,
+    WindPowerCurveVNumber,
 )
 
 
@@ -242,7 +252,7 @@ class TestEveryNumberCommits:
         ]
 
     def test_all_number_classes_are_covered(self):
-        assert len(self.number_classes()) == 29
+        assert len(self.number_classes()) == 16
 
     def test_every_ee_backed_setting_sends_a_commit(self, hass, entry):
         missing = []
@@ -291,3 +301,79 @@ class TestButtons:
         register, word = api.writes[0]
         assert register == REGISTER_MAP["FORCE_FLAG_BITS_HIGH"]
         assert word << 16 == 0x00800000
+
+
+class TestWindPowerTableSteps:
+    """Section 1.3.3: 16 bytes per table, "0 to 255 volts" / "0 to 255 amps".
+
+    The map packs them "WindPowerTableV(stp 1) << 8) + WindPowerTableV(stp 0)"
+    into registers 4301-4308 (voltage) and 4309-4316 (current), so each write has
+    to keep the neighbouring step and must not scale by ten.
+    """
+
+    @pytest.mark.parametrize(
+        ("step", "address", "expected"),
+        [(0, 4301, 64), (1, 4301, 68), (2, 4302, 70), (15, 4308, 112)],
+    )
+    def test_each_step_reads_its_own_byte(self, hass, api, entry, step, address, expected):
+        api = FakeApi()
+        coordinator = make_coordinator(hass, api, group="wind_power_curve", registers=dict(WIND_TABLE))
+        number = WindPowerCurveVNumber(coordinator, entry, step)
+        assert number.register_address == address
+        assert number.native_value == expected
+
+    def test_writing_a_step_leaves_its_neighbour_alone(self, hass, api, entry):
+        coordinator = make_coordinator(hass, api, group="wind_power_curve", registers=dict(WIND_TABLE))
+        number = WindPowerCurveVNumber(coordinator, entry, 0)
+        asyncio.run(number.async_set_native_value(70))
+        # 4301 held step1 = 68 (0x44) and step0 = 64 (0x40); only the low byte moves.
+        assert api.writes[0] == (4301, 0x4446)
+
+    def test_writing_the_high_byte_step_keeps_the_low_byte(self, hass, api, entry):
+        coordinator = make_coordinator(hass, api, group="wind_power_curve", registers=dict(WIND_TABLE))
+        number = WindPowerCurveVNumber(coordinator, entry, 1)
+        asyncio.run(number.async_set_native_value(75))
+        assert api.writes[0] == (4301, 0x4B40)
+
+    def test_steps_are_not_scaled_by_ten(self, hass, api, entry):
+        """The running copy wrote 930 into an 8-bit field for a step of 93."""
+        coordinator = make_coordinator(hass, api, group="wind_power_curve", registers=dict(WIND_TABLE))
+        number = WindPowerCurveVNumber(coordinator, entry, 10)
+        assert number.register_address == 4306
+        asyncio.run(number.async_set_native_value(100))
+        assert api.writes[0][1] & 0xFF == 100
+        assert api.writes[0][1] >> 8 == 91, "step 11 of the same register is untouched"
+
+    def test_current_steps_live_in_the_second_table(self, hass, api, entry):
+        """Spec example table I: [0,2,4,6,8,10,15,20,25,30,35,40,45,50,55,60]."""
+        # Current example: [0,2,4,6,8,10,15,20,25,30,35,40,45,50,55,60]
+        registers = {4309: (2 << 8) | 0, 4310: (6 << 8) | 4, 4316: (60 << 8) | 55}
+        coordinator = make_coordinator(hass, api, group="wind_power_curve", registers=registers)
+        assert WindPowerCurveINumber(coordinator, entry, 0).native_value == 0
+        assert WindPowerCurveINumber(coordinator, entry, 1).native_value == 2
+        assert WindPowerCurveINumber(coordinator, entry, 15).native_value == 60
+
+    def test_every_step_gets_an_eeprom_commit(self, hass, api, entry):
+        # Current example [0,2,4,6,8,10,15,20,...]: step 6 (15 A) shares 4312 with step 7.
+        registers = {4312: (20 << 8) | 15}
+        coordinator = make_coordinator(hass, api, group="wind_power_curve", registers=registers)
+        number = WindPowerCurveINumber(coordinator, entry, 7)
+        asyncio.run(number.async_set_native_value(18))
+        assert api.writes == [(4312, (18 << 8) | 15), (4160, 0x0004)]
+
+    def test_out_of_range_step_is_rejected_before_writing(self, hass, api, entry):
+        coordinator = make_coordinator(hass, api, group="wind_power_curve", registers=dict(WIND_TABLE))
+        number = WindPowerCurveVNumber(coordinator, entry, 0)
+        with pytest.raises(HomeAssistantError):
+            asyncio.run(number._async_set_value(300))
+        assert api.writes == []
+
+    def test_unique_ids_follow_the_step_number(self, hass, api, entry):
+        coordinator = make_coordinator(hass, api, group="wind_power_curve", registers=dict(WIND_TABLE))
+        assert WindPowerCurveVNumber(coordinator, entry, 0).unique_id == "entry-1_wind_power_curve_v0"
+        assert WindPowerCurveINumber(coordinator, entry, 15).unique_id == "entry-1_wind_power_curve_i15"
+
+    def test_step_range_is_the_byte_range(self, hass, api, entry):
+        coordinator = make_coordinator(hass, api, group="wind_power_curve", registers=dict(WIND_TABLE))
+        number = WindPowerCurveVNumber(coordinator, entry, 3)
+        assert (number.native_min_value, number.native_max_value, number.native_step) == (0, 255, 1)

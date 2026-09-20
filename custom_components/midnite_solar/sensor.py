@@ -650,6 +650,7 @@ class FETTemperatureSensor(TemperatureSensorBase):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
         self._attr_name = "FET Temperature"
+        self._attr_unique_id = f"{entry.entry_id}_fet_temp"
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
 
@@ -662,6 +663,7 @@ class PCBTemperatureSensor(TemperatureSensorBase):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
         self._attr_name = "PCB Temperature"
+        self._attr_unique_id = f"{entry.entry_id}_pcb_temp"
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
 

@@ -6,6 +6,9 @@ class Hass:
 
     def __init__(self):
         self.executor_calls = []
+        # Real Home Assistant keeps integrations' data here; __init__.py stores
+        # the coordinator under hass.data[DOMAIN][entry_id].
+        self.data = {}
 
     async def async_add_executor_job(self, target, *args):
         """Run the blocking Modbus call inline and remember it."""

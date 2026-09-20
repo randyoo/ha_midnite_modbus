@@ -20,7 +20,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, EE_BACKED_REGISTERS, FORCE_FLAGS, REGISTER_MAP
+from .const import (
+    AUX_THRESHOLD_SETTINGS,
+    DOMAIN,
+    EE_BACKED_REGISTERS,
+    FORCE_FLAGS,
+    REGISTER_MAP,
+)
 from .coordinator import MidniteSolarUpdateCoordinator
 from .entity_writes import async_store_settings, async_verify_write, async_write_setting
 from .register_values import (
@@ -56,6 +62,11 @@ async def async_setup_entry(
         MinBatteryTempCompVoltageNumber(coordinator, entry),
         BatteryTempCompValueNumber(coordinator, entry),
         EqualizeRetryDaysNumber(coordinator, entry),
+        # The Aux thresholds are read every interval and had no entity at all.
+        *(
+            AuxThresholdNumber(coordinator, entry, setting)
+            for setting in AUX_THRESHOLD_SETTINGS
+        ),
         # The wind tables are 16 steps each, packed two steps per register.
         *(WindPowerCurveVNumber(coordinator, entry, step) for step in range(16)),
         *(WindPowerCurveINumber(coordinator, entry, step) for step in range(16)),
@@ -473,3 +484,27 @@ class EqualizeIntervalDaysNumber(MidniteSolarNumber):
         self._attr_native_max_value = 365  # 1 year
         self._attr_native_step = 1
         self._attr_entity_category = EntityCategory.CONFIG
+
+class AuxThresholdNumber(MidniteSolarNumber):
+    """One Aux 1 / Aux 2 threshold: a set point in tenths of a volt or milliseconds.
+
+    These are the levels an Aux output switches on: absolute battery voltage,
+    voltage relative to the charge stage target (waste-not), or PV voltage, plus
+    the delay and hold times that debounce the switching.
+    """
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any, setting):
+        """Initialize the number for one threshold."""
+        super().__init__(coordinator, entry)
+        key, name, units, tenths, minimum, maximum, step = setting
+        self._attr_name = name
+        self._attr_unique_id = f"{entry.entry_id}_{key.lower()}"
+        self._attr_native_unit_of_measurement = units
+        self._attr_mode = NumberMode.BOX
+        self._attr_entity_category = EntityCategory.CONFIG
+        self.register_address = REGISTER_MAP[key]
+        # A millisecond register holds plain counts; a volt register holds tenths.
+        self.is_raw_value = not tenths
+        self._attr_native_min_value = minimum
+        self._attr_native_max_value = maximum
+        self._attr_native_step = step

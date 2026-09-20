@@ -23,7 +23,11 @@ from midnite_solar.button import (
     ResetInfoFlagsButton,
 )
 from midnite_solar import number as number_module
-from midnite_solar.const import EE_BACKED_REGISTERS, REGISTER_MAP
+from midnite_solar.const import (
+    AUX_THRESHOLD_SETTINGS,
+    EE_BACKED_REGISTERS,
+    REGISTER_MAP,
+)
 # The map's own voltage example [64,68,70,72,75,78,81,83,85,87,89,91,93,98,104,112]
 # packed the way the map says: "WindPowerTableV(stp 1) << 8) + WindPowerTableV(stp 0)".
 WIND_STEPS = [64, 68, 70, 72, 75, 78, 81, 83, 85, 87, 89, 91, 93, 98, 104, 112]
@@ -34,6 +38,7 @@ WIND_TABLE = {
 
 from midnite_solar.number import (
     AbsorbTimeNumber,
+    AuxThresholdNumber,
     AbsorbVoltageNumber,
     BatteryCurrentLimitNumber,
     BatteryTempCompValueNumber,
@@ -251,15 +256,22 @@ class TestEveryNumberCommits:
             and obj is not MidniteSolarNumber
         ]
 
+    @staticmethod
+    def build(cls, coordinator, entry):
+        """AuxThresholdNumber is one class covering thirteen registers."""
+        if cls is AuxThresholdNumber:
+            return cls(coordinator, entry, AUX_THRESHOLD_SETTINGS[0])
+        return cls(coordinator, entry)
+
     def test_all_number_classes_are_covered(self):
-        assert len(self.number_classes()) == 16
+        assert len(self.number_classes()) == 17
 
     def test_every_ee_backed_setting_sends_a_commit(self, hass, entry):
         missing = []
         for cls in self.number_classes():
             api = FakeApi()
             coordinator = make_coordinator(hass, api)
-            number = cls(coordinator, entry)
+            number = self.build(cls, coordinator, entry)
             asyncio.run(number._async_set_value(1))
             ee_backed = number.register_address in EE_BACKED_REGISTERS
             if ee_backed and len(api.writes) != 2:
@@ -271,7 +283,7 @@ class TestEveryNumberCommits:
     def test_commit_always_follows_the_setting(self, hass, entry):
         for cls in self.number_classes():
             api = FakeApi()
-            number = cls(make_coordinator(hass, api), entry)
+            number = self.build(cls, make_coordinator(hass, api), entry)
             asyncio.run(number._async_set_value(1))
             if number.register_address in EE_BACKED_REGISTERS:
                 assert api.writes[1] == (4160, 0x0004), cls.__name__

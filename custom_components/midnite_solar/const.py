@@ -332,6 +332,34 @@ NO_READBACK_REGISTERS = frozenset(
 # registers that can be saved to EEprom are saved at this time." A plain write
 # therefore takes effect immediately but is lost on the next restart, which is
 # why set points such as the absorb voltage appeared not to be saved.
+# The Aux 1 / Aux 2 thresholds. The register map gives one register per threshold
+# and the integration reads all of them every interval, but never had an entity for
+# any of them, so they were invisible.
+#
+# (REGISTER_MAP key, name, units, tenths, minimum, maximum, step)
+#
+# The minimums and maximums are only filled in where the register map states a
+# range - register 4169 says "0,1,2,3,4 or 5 volts". Everywhere else the map gives
+# no range, so none is invented.
+AUX_THRESHOLD_SETTINGS = (
+    ("AUX1_VOLTS_LO_ABS", "Aux 1 Low Absolute Voltage", "V", True, None, None, 0.1),
+    ("AUX1_VOLTS_HI_ABS", "Aux 1 High Absolute Voltage", "V", True, None, None, 0.1),
+    ("AUX1_DELAY_T_MS", "Aux 1 Delay Before Asserting", "ms", False, None, None, 1.0),
+    ("AUX1_HOLD_T_MS", "Aux 1 Hold Before De-asserting", "ms", False, None, None, 1.0),
+    ("AUX2_PWM_VWIDTH", "Aux 2 PWM Voltage Width", "V", True, 0.0, 5.0, 1.0),
+    ("AUX2_VOLTS_HI_ABS", "Aux 2 High Absolute Voltage", "V", True, None, None, 0.1),
+    # The four waste-not thresholds are offsets from the charge stage target. The
+    # register map writes "([4174] /10) Volts" and gives no sign convention, so the
+    # value is shown as the register holds it and nothing is guessed.
+    ("AUX1_VOLTS_LO_REL", "Aux 1 Waste-Not Lower Voltage", "V", True, None, None, 0.1),
+    ("AUX1_VOLTS_HI_REL", "Aux 1 Waste-Not Upper Voltage", "V", True, None, None, 0.1),
+    ("AUX2_VOLTS_LO_REL", "Aux 2 Waste-Not Lower Voltage", "V", True, None, None, 0.1),
+    ("AUX2_VOLTS_HI_REL", "Aux 2 Waste-Not Upper Voltage", "V", True, None, None, 0.1),
+    ("AUX1_VOLTS_LO_PV_ABS", "Aux 1 Low PV Absolute Voltage", "V", True, None, None, 0.1),
+    ("AUX1_VOLTS_HI_PV_ABS", "Aux 1 High PV Absolute Voltage", "V", True, None, None, 0.1),
+    ("AUX2_VOLTS_HI_PV_ABS", "Aux 2 High PV Absolute Voltage", "V", True, None, None, 0.1),
+)
+
 EE_BACKED_REGISTERS = frozenset(
     {
         REGISTER_MAP["MODBUS_PORT_REGISTER"],
@@ -348,9 +376,40 @@ EE_BACKED_REGISTERS = frozenset(
         REGISTER_MAP["EQUALIZE_TIME_EEPROM"],
         REGISTER_MAP["EQUALIZE_INTERVAL_DAYS_EEPROM"],
         REGISTER_MAP["CLASSIC_MODBUS_ADDR_EEPROM"],
+        # Every Aux threshold is marked "(EE)" in the register map, so a change
+        # needs the same EEPROM commit the set points do.
+        *(REGISTER_MAP[key] for key, *_ in AUX_THRESHOLD_SETTINGS),
     }
     | {REGISTER_MAP[f"WIND_POWER_TABLE_V_{step}_EEPA"] for step in range(8)}
     | {REGISTER_MAP[f"WIND_POWER_TABLE_I_{step}_EEPA"] for step in range(8)}
+)
+
+# The Aux 1 / Aux 2 thresholds. The register map gives one register per threshold
+# and the integration reads all of them every interval, but never had an entity for
+# any of them, so they were invisible.
+#
+# (REGISTER_MAP key, name, units, tenths, minimum, maximum, step)
+#
+# The minimums and maximums are only filled in where the register map states a
+# range - register 4169 says "0,1,2,3,4 or 5 volts". Everywhere else the map gives
+# no range, so none is invented.
+AUX_THRESHOLD_SETTINGS = (
+    ("AUX1_VOLTS_LO_ABS", "Aux 1 Low Absolute Voltage", "V", True, None, None, 0.1),
+    ("AUX1_VOLTS_HI_ABS", "Aux 1 High Absolute Voltage", "V", True, None, None, 0.1),
+    ("AUX1_DELAY_T_MS", "Aux 1 Delay Before Asserting", "ms", False, None, None, 1.0),
+    ("AUX1_HOLD_T_MS", "Aux 1 Hold Before De-asserting", "ms", False, None, None, 1.0),
+    ("AUX2_PWM_VWIDTH", "Aux 2 PWM Voltage Width", "V", True, 0.0, 5.0, 1.0),
+    ("AUX2_VOLTS_HI_ABS", "Aux 2 High Absolute Voltage", "V", True, None, None, 0.1),
+    # The four waste-not thresholds are offsets from the charge stage target. The
+    # register map writes "([4174] /10) Volts" and gives no sign convention, so the
+    # value is shown as the register holds it and nothing is guessed.
+    ("AUX1_VOLTS_LO_REL", "Aux 1 Waste-Not Lower Voltage", "V", True, None, None, 0.1),
+    ("AUX1_VOLTS_HI_REL", "Aux 1 Waste-Not Upper Voltage", "V", True, None, None, 0.1),
+    ("AUX2_VOLTS_LO_REL", "Aux 2 Waste-Not Lower Voltage", "V", True, None, None, 0.1),
+    ("AUX2_VOLTS_HI_REL", "Aux 2 Waste-Not Upper Voltage", "V", True, None, None, 0.1),
+    ("AUX1_VOLTS_LO_PV_ABS", "Aux 1 Low PV Absolute Voltage", "V", True, None, None, 0.1),
+    ("AUX1_VOLTS_HI_PV_ABS", "Aux 1 High PV Absolute Voltage", "V", True, None, None, 0.1),
+    ("AUX2_VOLTS_HI_PV_ABS", "Aux 2 High PV Absolute Voltage", "V", True, None, None, 0.1),
 )
 
 # MPPT mode mappings (from register 4164)

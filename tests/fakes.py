@@ -90,7 +90,12 @@ class FakeCoordinator(DataUpdateCoordinator):
         self.refresh_requests = 0
 
     async def async_request_refresh(self):
+        """A refresh brings back what the device reports now, as a real one does."""
         self.refresh_requests += 1
+        for group in self.data["data"].values():
+            for address in group:
+                if address in self.api.read_values:
+                    group[address] = self.api.read_values[address]
 
     def get_register_value(self, address: int) -> Any:
         for group in self.data["data"].values():

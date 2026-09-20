@@ -9,13 +9,15 @@ from .base import MidniteBaseEntityDescription
 
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.const import UnitOfElectricCurrent, UnitOfTemperature, UnitOfTime
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DEVICE_TYPES, DOMAIN, REGISTER_MAP
+from .const import DOMAIN, EE_BACKED_REGISTERS, FORCE_FLAGS, REGISTER_MAP
 from .coordinator import MidniteSolarUpdateCoordinator
+from .register_values import force_flag_write, scaled_register, scaled_value
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -72,6 +74,14 @@ class MidniteSolarNumber(CoordinatorEntity[MidniteSolarUpdateCoordinator], Numbe
     _attr_native_max_value: float | None = None
     _attr_native_step: float | None = None
 
+    # How the entity's units differ from the register's own units. Most set
+    # points are tenths ("([4149] /10) Volts"); times are plain seconds, and the
+    # temperature compensation value is stored as a negative.
+    is_time_value = False
+    is_raw_value = False
+    is_negative = False
+    seconds_in_register = False
+
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
         super().__init__(coordinator)
@@ -92,52 +102,95 @@ class MidniteSolarNumber(CoordinatorEntity[MidniteSolarUpdateCoordinator], Numbe
             self.coordinator, self._entry, DOMAIN
         )
 
+    def _to_register_value(self, value: float) -> int:
+        """Convert the user-facing value to the integer the register holds."""
+        if self.seconds_in_register:
+            return int(round(value * 60))
+        if self.is_negative:
+            return scaled_register(-value)
+        if self.is_time_value or self.is_raw_value:
+            return int(value)
+        return scaled_register(value)
+
+    def _from_register_value(self, raw: int) -> float:
+        """Convert the register integer to the user-facing value."""
+        if self.seconds_in_register:
+            minutes = raw / 60.0
+            return int(minutes) if minutes.is_integer() else minutes
+        if self.is_negative:
+            return -scaled_value(raw)
+        if self.is_time_value or self.is_raw_value:
+            return float(raw)
+        return scaled_value(raw)
+
     @property
     def native_value(self) -> float | None:
         """Return the current value."""
-        # Get the raw register value from coordinator data
-        value = self.coordinator.get_register_value(self.register_address)
-        if value is not None:
-            # Convert from register value (divide by 10 for voltage/current)
-            # Time values and raw values should NOT be divided by 10
-            if hasattr(self, 'is_time_value') and self.is_time_value or \
-               hasattr(self, 'is_raw_value') and self.is_raw_value:
-                return float(value)
-            else:
-                return float(value) / 10.0
-        else:
-            _LOGGER.debug(f"Register value is None for register {self.register_address}")
-            # Check if coordinator has data at all
-            if self.coordinator.data and "data" in self.coordinator.data:
-                _LOGGER.debug(f"Coordinator data keys: {list(self.coordinator.data['data'].keys())}")
-        return None
+        raw = self.coordinator.get_register_value(self.register_address)
+        if raw is None:
+            _LOGGER.debug("Register %s has no value yet", self.register_address)
+            return None
+        return self._from_register_value(raw)
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Update the current value."""
+        await self._async_set_value(value)
 
     async def _async_set_value(self, value: float) -> None:
         """Set the value on the device."""
-        # Convert to register value (multiply by 10 for voltage/current)
-        # Time values and raw values should NOT be multiplied by 10
-        if hasattr(self, 'is_time_value') and self.is_time_value or \
-           hasattr(self, 'is_raw_value') and self.is_raw_value:
-            register_value = int(value)
-        else:
-            register_value = int(value * 10)
-        
+        register_value = self._to_register_value(value)
+
         _LOGGER.debug(f"Writing value {value} to register {self.register_address} (raw value: {register_value})")
-        
+
         try:
             result = await self.hass.async_add_executor_job(
                 self.coordinator.api.write_register, self.register_address, register_value
             )
-            if not result or result.isError():
-                _LOGGER.error(f"Failed to write value {value} to register {self.register_address}")
-                return False
         except Exception as e:
             _LOGGER.error(f"Error writing to register {self.register_address}: {e}")
-            return False
-        
+            raise HomeAssistantError(
+                f"Could not write {self.name}: {e}"
+            ) from e
+        if result is None or result.isError():
+            _LOGGER.error(f"Failed to write value {value} to register {self.register_address}")
+            raise HomeAssistantError(
+                f"The Classic rejected the write of {value} to {self.name}"
+            )
+
+        await self._async_commit_to_eeprom()
+
         # Request a refresh after writing
         await self.coordinator.async_request_refresh()
-        return True
+
+    async def _async_commit_to_eeprom(self) -> None:
+        """Tell the Classic to store the settings it just received.
+
+        Registers the register map marks (EE) are applied straight away but only
+        written to EEPROM when ForceEEpromUpdateWriteF is sent, so without this
+        the new value reverts to the old one at the next restart. The map also
+        notes the commit stores every (EE) register at once, which is why it is
+        done per user action and not on every poll.
+        """
+        if self.register_address not in EE_BACKED_REGISTERS:
+            return
+
+        flag_value = 1 << FORCE_FLAGS["ForceEEpromUpdate"]
+        register, word = force_flag_write(flag_value)
+        _LOGGER.debug(f"Committing {self.name} to EEPROM: 0x{word:x} to register {register}")
+        try:
+            result = await self.hass.async_add_executor_job(
+                self.coordinator.api.write_register, register, word
+            )
+        except Exception as e:
+            _LOGGER.error(f"Error committing {self.name} to EEPROM: {e}")
+            raise HomeAssistantError(
+                f"{self.name} is active but was not saved to EEPROM: {e}"
+            ) from e
+        if result is None or result.isError():
+            _LOGGER.error(f"Failed to commit {self.name} to EEPROM")
+            raise HomeAssistantError(
+                f"{self.name} is active but the Classic did not accept the EEPROM commit"
+            )
 
 
 class AbsorbVoltageNumber(MidniteSolarNumber):
@@ -158,11 +211,6 @@ class AbsorbVoltageNumber(MidniteSolarNumber):
         self._attr_native_step = 0.1
         self._attr_entity_registry_enabled_default = False  # Disable by default
 
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
-
 class WindPowerCurveV0Number(MidniteSolarNumber):
     """Number to set wind power curve voltage step 0 (cut-in)."""
 
@@ -180,11 +228,6 @@ class WindPowerCurveV0Number(MidniteSolarNumber):
         self._attr_native_step = 1.0
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
-
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
 
 class WindPowerCurveV1Number(MidniteSolarNumber):
     """Number to set wind power curve voltage step 1."""
@@ -204,11 +247,6 @@ class WindPowerCurveV1Number(MidniteSolarNumber):
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
 
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
-
 class WindPowerCurveV2Number(MidniteSolarNumber):
     """Number to set wind power curve voltage step 2."""
 
@@ -226,11 +264,6 @@ class WindPowerCurveV2Number(MidniteSolarNumber):
         self._attr_native_step = 1.0
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
-
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
 
 class WindPowerCurveV3Number(MidniteSolarNumber):
     """Number to set wind power curve voltage step 3."""
@@ -250,11 +283,6 @@ class WindPowerCurveV3Number(MidniteSolarNumber):
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
 
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
-
 class WindPowerCurveV4Number(MidniteSolarNumber):
     """Number to set wind power curve voltage step 4."""
 
@@ -272,11 +300,6 @@ class WindPowerCurveV4Number(MidniteSolarNumber):
         self._attr_native_step = 1.0
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
-
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
 
 class WindPowerCurveV5Number(MidniteSolarNumber):
     """Number to set wind power curve voltage step 5."""
@@ -296,11 +319,6 @@ class WindPowerCurveV5Number(MidniteSolarNumber):
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
 
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
-
 class WindPowerCurveV6Number(MidniteSolarNumber):
     """Number to set wind power curve voltage step 6."""
 
@@ -319,11 +337,6 @@ class WindPowerCurveV6Number(MidniteSolarNumber):
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
 
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
-
 class WindPowerCurveV7Number(MidniteSolarNumber):
     """Number to set wind power curve voltage step 7."""
 
@@ -341,11 +354,6 @@ class WindPowerCurveV7Number(MidniteSolarNumber):
         self._attr_native_step = 1.0
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
-
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
 
 class WindPowerCurveI0Number(MidniteSolarNumber):
     """Number to set wind power curve current step 0 (cut-in)."""
@@ -366,11 +374,6 @@ class WindPowerCurveI0Number(MidniteSolarNumber):
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
 
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
-
 class WindPowerCurveI1Number(MidniteSolarNumber):
     """Number to set wind power curve current step 1."""
 
@@ -389,11 +392,6 @@ class WindPowerCurveI1Number(MidniteSolarNumber):
         self.is_raw_value = True  # Don't divide by 10 for current values in wind table
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
-
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
 
 class WindPowerCurveI2Number(MidniteSolarNumber):
     """Number to set wind power curve current step 2."""
@@ -414,11 +412,6 @@ class WindPowerCurveI2Number(MidniteSolarNumber):
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
 
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
-
 class WindPowerCurveI3Number(MidniteSolarNumber):
     """Number to set wind power curve current step 3."""
 
@@ -437,11 +430,6 @@ class WindPowerCurveI3Number(MidniteSolarNumber):
         self.is_raw_value = True  # Don't divide by 10 for current values in wind table
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
-
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
 
 class WindPowerCurveI4Number(MidniteSolarNumber):
     """Number to set wind power curve current step 4."""
@@ -462,11 +450,6 @@ class WindPowerCurveI4Number(MidniteSolarNumber):
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
 
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
-
 class WindPowerCurveI5Number(MidniteSolarNumber):
     """Number to set wind power curve current step 5."""
 
@@ -485,11 +468,6 @@ class WindPowerCurveI5Number(MidniteSolarNumber):
         self.is_raw_value = True  # Don't divide by 10 for current values in wind table
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
-
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
 
 class WindPowerCurveI6Number(MidniteSolarNumber):
     """Number to set wind power curve current step 6."""
@@ -510,11 +488,6 @@ class WindPowerCurveI6Number(MidniteSolarNumber):
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
 
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
-
 class WindPowerCurveI7Number(MidniteSolarNumber):
     """Number to set wind power curve current step 7."""
 
@@ -533,11 +506,6 @@ class WindPowerCurveI7Number(MidniteSolarNumber):
         self.is_raw_value = True  # Don't divide by 10 for current values in wind table
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
-
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
 
 class MinAbsorbTimeNumber(MidniteSolarNumber):
     """Number to set minimum absorb time."""
@@ -558,43 +526,6 @@ class MinAbsorbTimeNumber(MidniteSolarNumber):
         self.is_time_value = True  # Don't divide by 10
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
-
-    @property
-    def native_value(self) -> float | None:
-        """Return the current value in seconds."""
-        # Get the raw register value from coordinator data (stored in seconds)
-        value = self.coordinator.get_register_value(self.register_address)
-        if value is not None:
-            return float(value)
-        return None
-
-    async def _async_set_value(self, value: float) -> None:
-        """Set the value on the device (stored in seconds)."""
-        # Convert from seconds to seconds for register (no conversion needed)
-        register_value = int(value)
-        
-        _LOGGER.debug(f"Writing minimum absorb time {value} seconds to register {self.register_address} (raw value: {register_value} seconds)")
-        
-        try:
-            result = await self.hass.async_add_executor_job(
-                self.coordinator.api.write_register, self.register_address, register_value
-            )
-            if not result or result.isError():
-                _LOGGER.error(f"Failed to write value {value} seconds to register {self.register_address}")
-                return False
-        except Exception as e:
-            _LOGGER.error(f"Error writing to register {self.register_address}: {e}")
-            return False
-        
-        # Request a refresh after writing
-        await self.coordinator.async_request_refresh()
-        return True
-
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
-
 class MaxBatteryTempCompVoltageNumber(MidniteSolarNumber):
     """Number to set maximum battery temperature compensation voltage."""
 
@@ -612,11 +543,6 @@ class MaxBatteryTempCompVoltageNumber(MidniteSolarNumber):
         self._attr_native_step = 0.1
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
-
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
 
 class MinBatteryTempCompVoltageNumber(MidniteSolarNumber):
     """Number to set minimum battery temperature compensation voltage."""
@@ -636,13 +562,11 @@ class MinBatteryTempCompVoltageNumber(MidniteSolarNumber):
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
 
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
-
 class BatteryTempCompValueNumber(MidniteSolarNumber):
     """Number to set battery temperature compensation value per 2V cell."""
+
+    # The register unit differs from the entity unit; see the base class hooks.
+    is_negative = True
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
@@ -659,42 +583,6 @@ class BatteryTempCompValueNumber(MidniteSolarNumber):
         self._attr_native_step = 0.1
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
-
-    @property
-    def native_value(self) -> float | None:
-        """Return the current value (negative of register value)."""
-        value = self.coordinator.get_register_value(self.register_address)
-        if value is not None:
-            return -float(value) / 10.0
-        return None
-
-    async def _async_set_value(self, value: float) -> None:
-        """Set the value on the device (convert to negative register value)."""
-        # Convert to register value (negative of input)
-        register_value = int(-value * 10)
-        
-        _LOGGER.debug(f"Writing battery temp comp value {value} to register {self.register_address} (raw value: {register_value})")
-        
-        try:
-            result = await self.hass.async_add_executor_job(
-                self.coordinator.api.write_register, self.register_address, register_value
-            )
-            if not result or result.isError():
-                _LOGGER.error(f"Failed to write value {value} to register {self.register_address}")
-                return False
-        except Exception as e:
-            _LOGGER.error(f"Error writing to register {self.register_address}: {e}")
-            return False
-        
-        # Request a refresh after writing
-        await self.coordinator.async_request_refresh()
-        return True
-
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
-
 class EqualizeRetryDaysNumber(MidniteSolarNumber):
     """Number to set equalize retry days until giving up."""
 
@@ -713,11 +601,6 @@ class EqualizeRetryDaysNumber(MidniteSolarNumber):
         self.is_raw_value = True  # Don't divide by 10 for days
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
-
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
 
 class ModbusAddressNumber(MidniteSolarNumber):
     """Number to set Modbus address."""
@@ -738,11 +621,6 @@ class ModbusAddressNumber(MidniteSolarNumber):
         self.is_raw_value = True  # Don't divide by 10 for Modbus address
         self._attr_native_unit_of_measurement = None  # No unit for Modbus address
 
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
-
 class FloatVoltageNumber(MidniteSolarNumber):
     """Number to set float voltage."""
 
@@ -759,11 +637,6 @@ class FloatVoltageNumber(MidniteSolarNumber):
         self._attr_native_min_value = 10.0
         self._attr_native_max_value = 65.0
         self._attr_native_step = 0.1
-
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
 
 class EqualizeVoltageNumber(MidniteSolarNumber):
     """Number to set equalize voltage."""
@@ -782,11 +655,6 @@ class EqualizeVoltageNumber(MidniteSolarNumber):
         self._attr_native_max_value = 65.0
         self._attr_native_step = 0.1
 
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
-
 class BatteryCurrentLimitNumber(MidniteSolarNumber):
     """Number to set battery output current limit."""
 
@@ -804,13 +672,11 @@ class BatteryCurrentLimitNumber(MidniteSolarNumber):
         self._attr_native_step = 1.0
         self._attr_entity_category = EntityCategory.CONFIG
 
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
-
 class AbsorbTimeNumber(MidniteSolarNumber):
     """Number to set absorb time."""
+
+    # The register unit differs from the entity unit; see the base class hooks.
+    seconds_in_register = True
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
@@ -829,48 +695,11 @@ class AbsorbTimeNumber(MidniteSolarNumber):
         self._attr_has_entity_name = True
         self._attr_precision = 0  # Display whole numbers only
         self._attr_entity_category = EntityCategory.CONFIG
-
-    @property
-    def native_value(self) -> float | None:
-        """Return the current value in minutes."""
-        # Get the raw register value from coordinator data (stored in seconds)
-        value = self.coordinator.get_register_value(self.register_address)
-        if value is not None:
-            # Convert from seconds to minutes for display
-            minutes = float(value) / 60.0
-            # Return as int if it's a whole number, otherwise as float
-            return int(minutes) if minutes.is_integer() else minutes
-        return None
-
-    async def _async_set_value(self, value: float) -> None:
-        """Set the value on the device (convert minutes to seconds)."""
-        # Convert from minutes to seconds for register
-        register_value = int(value * 60)
-        
-        _LOGGER.debug(f"Writing absorb time {value} minutes to register {self.register_address} (raw value: {register_value} seconds)")
-        
-        try:
-            result = await self.hass.async_add_executor_job(
-                self.coordinator.api.write_register, self.register_address, register_value
-            )
-            if not result or result.isError():
-                _LOGGER.error(f"Failed to write value {value} minutes to register {self.register_address}")
-                return False
-        except Exception as e:
-            _LOGGER.error(f"Error writing to register {self.register_address}: {e}")
-            return False
-        
-        # Request a refresh after writing
-        await self.coordinator.async_request_refresh()
-        return True
-
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
-
 class EqualizeTimeNumber(MidniteSolarNumber):
     """Number to set equalize time."""
+
+    # The register unit differs from the entity unit; see the base class hooks.
+    seconds_in_register = True
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the number."""
@@ -889,46 +718,6 @@ class EqualizeTimeNumber(MidniteSolarNumber):
         self._attr_has_entity_name = True
         self._attr_precision = 0  # Display whole numbers only
         self._attr_entity_category = EntityCategory.CONFIG
-
-    @property
-    def native_value(self) -> float | None:
-        """Return the current value in minutes."""
-        # Get the raw register value from coordinator data (stored in seconds)
-        value = self.coordinator.get_register_value(self.register_address)
-        if value is not None:
-            # Convert from seconds to minutes for display
-            minutes = float(value) / 60.0
-            # Return as int if it's a whole number, otherwise as float
-            return int(minutes) if minutes.is_integer() else minutes
-        return None
-
-    async def _async_set_value(self, value: float) -> None:
-        """Set the value on the device (convert minutes to seconds)."""
-        # Convert from minutes to seconds for register
-        register_value = int(value * 60)
-        
-        _LOGGER.debug(f"Writing equalize time {value} minutes to register {self.register_address} (raw value: {register_value} seconds)")
-        
-        try:
-            result = await self.hass.async_add_executor_job(
-                self.coordinator.api.write_register, self.register_address, register_value
-            )
-            if not result or result.isError():
-                _LOGGER.error(f"Failed to write value {value} minutes to register {self.register_address}")
-                return False
-        except Exception as e:
-            _LOGGER.error(f"Error writing to register {self.register_address}: {e}")
-            return False
-        
-        # Request a refresh after writing
-        await self.coordinator.async_request_refresh()
-        return True
-
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
-
-
 class EqualizeIntervalDaysNumber(MidniteSolarNumber):
     """Number to set equalize interval in days."""
 
@@ -945,7 +734,3 @@ class EqualizeIntervalDaysNumber(MidniteSolarNumber):
         self._attr_native_max_value = 365  # 1 year
         self._attr_native_step = 1
         self._attr_entity_category = EntityCategory.CONFIG
-
-    async def async_set_native_value(self, value: float) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)

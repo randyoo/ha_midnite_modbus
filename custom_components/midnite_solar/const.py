@@ -217,6 +217,33 @@ FORCE_FLAGS = {
     "ForceResetFaults": 23,       # 0x00800000, high word
 }
 
+# Registers the register map marks "(EE)". The map says: "When you see (EE),
+# this means that register value is saved to EEprom whenever the Force write to
+# EEprom is set and sent to the Classic. When write to EEprom is requested, ALL
+# registers that can be saved to EEprom are saved at this time." A plain write
+# therefore takes effect immediately but is lost on the next restart, which is
+# why set points such as the absorb voltage appeared not to be saved.
+EE_BACKED_REGISTERS = frozenset(
+    {
+        REGISTER_MAP["MODBUS_PORT_REGISTER"],
+        REGISTER_MAP["BATTERY_OUTPUT_CURRENT_LIMIT"],
+        REGISTER_MAP["ABSORB_SETPOINT_VOLTAGE"],
+        REGISTER_MAP["FLOAT_VOLTAGE_SETPOINT"],
+        REGISTER_MAP["EQUALIZE_VOLTAGE_SETPOINT"],
+        REGISTER_MAP["MIN_ABSORB_TIME"],
+        REGISTER_MAP["ABSORB_TIME_EEPROM"],
+        REGISTER_MAP["MAX_BATTERY_TEMP_COMP_VOLTAGE"],
+        REGISTER_MAP["MIN_BATTERY_TEMP_COMP_VOLTAGE"],
+        REGISTER_MAP["BATTERY_TEMP_COMP_VALUE"],
+        REGISTER_MAP["EQUALIZE_RETRY_DAYS"],
+        REGISTER_MAP["EQUALIZE_TIME_EEPROM"],
+        REGISTER_MAP["EQUALIZE_INTERVAL_DAYS_EEPROM"],
+        REGISTER_MAP["CLASSIC_MODBUS_ADDR_EEPROM"],
+    }
+    | {REGISTER_MAP[f"WIND_POWER_TABLE_V_{step}_EEPA"] for step in range(8)}
+    | {REGISTER_MAP[f"WIND_POWER_TABLE_I_{step}_EEPA"] for step in range(8)}
+)
+
 # MPPT mode mappings (from register 4164)
 MPPT_MODES = {
     0x0001: "PV_Uset",

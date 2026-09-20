@@ -22,6 +22,7 @@ from .const import (
     DOMAIN,
     FORCE_FLAGS,
     MPPT_MODES,
+    NOMINAL_BATTERY_VOLTAGES,
     REGISTER_MAP,
 )
 from .coordinator import MidniteSolarUpdateCoordinator
@@ -53,6 +54,8 @@ async def async_setup_entry(
         # function itself to be a manual one.
         Aux1StateSelect(coordinator, entry),
         Aux2StateSelect(coordinator, entry),
+        # A multiple of twelve is a choice out of ten values, so it is a select.
+        NominalBatteryVoltageSelect(coordinator, entry),
     ]
     
     async_add_entities(selectors)
@@ -353,3 +356,54 @@ class Aux2StateSelect(AuxStateSelect):
         self._attr_unique_id = f"{entry.entry_id}_aux2_state_select"
         self._attr_options = list(self._labels.values())
         self._attr_entity_category = EntityCategory.CONFIG
+
+
+class NominalBatteryVoltageSelect(MidniteSolarSettingSelect):
+    """Selector for register 4245 VbattNominal (EE).
+
+    The map gives it as "[4245] 12 * 1 thru 10 (120 Max for 250 KS)": the register
+    holds a multiplier, so the bank voltage is twelve times whatever is written.
+    Offering a free-number field would invite a value the Classic would read as a
+    different bank, so the options are the ten voltages that can be expressed.
+    """
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the selector."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Nominal Battery Voltage"
+        self._attr_unique_id = f"{entry.entry_id}_nominal_battery_voltage"
+        self._attr_options = [f"{volts} V" for volts in NOMINAL_BATTERY_VOLTAGES.values()]
+        self._attr_entity_category = EntityCategory.CONFIG
+
+    @property
+    def current_option(self) -> Optional[str]:
+        """Return the bank voltage the Classic reports."""
+        multiplier = register_value(
+            self.coordinator.data, "classic_status", REGISTER_MAP["VBATT_NOMINAL"]
+        )
+        if multiplier is None:
+            return None
+        volts = NOMINAL_BATTERY_VOLTAGES.get(multiplier)
+        if volts is None:
+            return f"Unset ({multiplier})"
+        return f"{volts} V"
+
+    async def async_select_option(self, option: str) -> None:
+        """Write the multiplier that stands for the chosen voltage."""
+        multiplier = next(
+            (
+                code
+                for code, volts in NOMINAL_BATTERY_VOLTAGES.items()
+                if f"{volts} V" == option
+            ),
+            None,
+        )
+        if multiplier is None:
+            raise HomeAssistantError(
+                f"{option} is not a bank voltage the Classic can be told"
+            )
+        await self._async_write(
+            REGISTER_MAP["VBATT_NOMINAL"],
+            multiplier,
+            f"Nominal battery voltage {option}",
+        )

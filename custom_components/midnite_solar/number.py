@@ -62,6 +62,9 @@ async def async_setup_entry(
         MinBatteryTempCompVoltageNumber(coordinator, entry),
         BatteryTempCompValueNumber(coordinator, entry),
         EqualizeRetryDaysNumber(coordinator, entry),
+        # Settings the map marks R/W (EE) that no entity used to reach.
+        EndingAmperageNumber(coordinator, entry),
+        RebulkVoltageNumber(coordinator, entry),
         # The Aux thresholds are read every interval and had no entity at all.
         *(
             AuxThresholdNumber(coordinator, entry, setting)
@@ -508,3 +511,41 @@ class AuxThresholdNumber(MidniteSolarNumber):
         self._attr_native_min_value = minimum
         self._attr_native_max_value = maximum
         self._attr_native_step = step
+
+
+class EndingAmperageNumber(MidniteSolarNumber):
+    """Number for register 4246 EndingAmps (EE), "([4246] /10) Amps".
+
+    The map: "Goes to Float below this Batt current if Temp Comp'd Absorb voltage
+    is held". This is the current at which a Classic decides the bank is full; no
+    range is stated, so none is imposed.
+    """
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Ending Amperage"
+        self._attr_unique_id = f"{entry.entry_id}_ending_amperage"
+        self._attr_native_unit_of_measurement = "A"
+        self._attr_mode = NumberMode.BOX
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_native_step = 0.1
+        self.register_address = REGISTER_MAP["ENDING_AMPS"]
+
+
+class RebulkVoltageNumber(MidniteSolarNumber):
+    """Number for register 4249 RebulkVolts (EE), "([4249] /10) Volts".
+
+    The map: "Rebulks if battery drops below this for > 90 Seconds".
+    """
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the number."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Rebulk Voltage"
+        self._attr_unique_id = f"{entry.entry_id}_rebulk_voltage"
+        self._attr_native_unit_of_measurement = "V"
+        self._attr_mode = NumberMode.BOX
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_native_step = 0.1
+        self.register_address = REGISTER_MAP["REBULK_VOLTS"]

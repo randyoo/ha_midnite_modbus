@@ -264,7 +264,7 @@ class TestEveryNumberCommits:
         return cls(coordinator, entry)
 
     def test_all_number_classes_are_covered(self):
-        assert len(self.number_classes()) == 17
+        assert len(self.number_classes()) == 19
 
     def test_every_ee_backed_setting_sends_a_commit(self, hass, entry):
         missing = []

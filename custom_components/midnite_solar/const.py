@@ -355,10 +355,13 @@ NO_READBACK_REGISTERS = frozenset(
 # therefore takes effect immediately but is lost on the next restart, which is
 # why set points such as the absorb voltage appeared not to be saved.
 # Read-only views of what the Classic is actually doing, transcribed from the
-# register map. None of these had an entity, and three of them are the numbers a
-# user needs to make sense of a charge cycle: the compensated target the Classic
-# regulates to (4244), the nominal bank voltage it settled on (4245), and why it
-# reset (4142).
+# register map. None of these had an entity, and two of them are numbers a user
+# needs to make sense of a charge cycle: the compensated target the Classic
+# regulates to (4244) and the reason it reset (4142).
+#
+# 4245 VbattNominal, 4246 EndingAmps and 4249 RebulkVolts are deliberately not
+# here: the map marks them "R/W (EE)", so they are a select and two numbers
+# instead, and a sensor on top of that would report the same quantity twice.
 #
 # (REGISTER_MAP key, group, name, units, kind, diagnostic, enabled by default)
 #
@@ -372,9 +375,6 @@ NO_READBACK_REGISTERS = frozenset(
 # 4376/4377 entries with formulas of their own.
 CLASSIC_STATUS_SENSORS = (
     ("VBATT_REG_SET_P_TMP_COMP", "classic_status", "Battery Regulation Target", "V", "tenths", False, True),
-    ("VBATT_NOMINAL", "classic_status", "Nominal Battery Voltage", "V", "nominal", False, True),
-    ("ENDING_AMPS", "classic_status", "Ending Amperage", "A", "tenths", False, True),
-    ("REBULK_VOLTS", "classic_status", "Rebulk Voltage", "V", "tenths", False, True),
     ("VPV_TARGET_RD", "classic_status", "PV Target Voltage", "V", "tenths", True, False),
     ("IBATT_UNFILTERED", "classic_status", "Battery Current Unfiltered", "A", "tenths", True, False),
     ("VBATT_UNFILTERED", "classic_status", "Battery Voltage Unfiltered", "V", "tenths", True, False),
@@ -385,6 +385,11 @@ CLASSIC_STATUS_SENSORS = (
     ("PWM_READ_ONLY", "time_settings", "PWM Duty Cycle Command", None, "raw", True, False),
     ("NITE_MINUTES_NO_PWR", "settings", "Minutes Without Power", "min", "raw", True, False),
 )
+
+# Register 4245 VbattNominal: "[4245] 12 * 1 thru 10 (120 Max for 250 KS)". The
+# register is a multiplier, so the bank voltage is twelve times it: ten values, not
+# a range. A user picks volts and the Classic gets the multiplier.
+NOMINAL_BATTERY_VOLTAGES = {multiplier: 12 * multiplier for multiplier in range(1, 11)}
 
 # The Aux 1 / Aux 2 thresholds. The register map gives one register per threshold
 # and the integration reads all of them every interval, but never had an entity for
@@ -430,6 +435,10 @@ EE_BACKED_REGISTERS = frozenset(
         REGISTER_MAP["EQUALIZE_TIME_EEPROM"],
         REGISTER_MAP["EQUALIZE_INTERVAL_DAYS_EEPROM"],
         REGISTER_MAP["CLASSIC_MODBUS_ADDR_EEPROM"],
+        # 4245 VbattNominal, 4246 EndingAmps and 4249 RebulkVolts are (EE) too.
+        REGISTER_MAP["VBATT_NOMINAL"],
+        REGISTER_MAP["ENDING_AMPS"],
+        REGISTER_MAP["REBULK_VOLTS"],
         # Every Aux threshold is marked "(EE)" in the register map, so a change
         # needs the same EEPROM commit the set points do.
         *(REGISTER_MAP[key] for key, *_ in AUX_THRESHOLD_SETTINGS),

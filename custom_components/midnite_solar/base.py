@@ -22,6 +22,27 @@ class MidniteBaseEntityDescription(EntityDescription):
     value_fn: Callable[[dict], StateType] = lambda_func()
 
     @staticmethod
+    def serial_number(coordinator):
+        """The Classic's serial number, from registers 28673/28674.
+
+        The register map identifies a Classic by this number: it is what the
+        write unlock is built from and what a label on the case says. The
+        32-bit device ID in 4111/4112 is a device type stamp, not a serial.
+        """
+        if not coordinator.data or "data" not in coordinator.data:
+            return None
+        serial_data = coordinator.data["data"].get("serial")
+        if not serial_data:
+            return None
+        from .const import REGISTER_MAP
+        from .register_values import serial_from_registers
+
+        msb = serial_data.get(REGISTER_MAP["SERIAL_NUMBER_MSB_RO"])
+        lsb = serial_data.get(REGISTER_MAP["SERIAL_NUMBER_LSB_RO"])
+        if msb is None or lsb is None:
+            return None
+        return serial_from_registers(msb, lsb)
+
     @staticmethod
     def get_device_info(coordinator, entry, domain):
         """Extract device info from coordinator data."""
@@ -79,6 +100,7 @@ class MidniteBaseEntityDescription(EntityDescription):
                         "model": model,
                         "hw_version": f"PCB {pcb_revision}" if pcb_revision is not None else None,
                         "sw_version": sw_build_date,
+                        "serial_number": MidniteBaseEntityDescription.serial_number(coordinator),
                     }
         
         # Fallback to entry_id if device ID not available
@@ -86,4 +108,5 @@ class MidniteBaseEntityDescription(EntityDescription):
             "identifiers": {(domain, entry.entry_id)},
             "name": entry.title,
             "manufacturer": "Midnite Solar",
+            "serial_number": MidniteBaseEntityDescription.serial_number(coordinator),
         }

@@ -245,18 +245,3 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
 
         return None
 
-    def get_32bit_value(self, low_address: int, high_address: int) -> Optional[int]:
-        """Get a 32-bit value from two registers."""
-        if self.data is None or "data" not in self.data:
-            return None
-
-        for group_name, registers in REGISTER_GROUPS.items():
-            if low_address in registers and high_address in registers:
-                data = self.data["data"].get(group_name)
-                if data is not None:
-                    low_value = data.get(low_address)
-                    high_value = data.get(high_address)
-                    if low_value is not None and high_value is not None:
-                        return (high_value << 16) | low_value
-
-        return None

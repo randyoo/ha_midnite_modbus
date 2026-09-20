@@ -113,6 +113,19 @@ class MidniteSolarSensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], Senso
             self.coordinator, self._entry, DOMAIN
         )
 
+    def _group(self, name: str) -> dict:
+        """Return one register group from the last update, or an empty dict."""
+        if not self.coordinator.data or "data" not in self.coordinator.data:
+            return {}
+        return self.coordinator.data["data"].get(name) or {}
+
+    @staticmethod
+    def _register(group: dict, key: str) -> Optional[int]:
+        """Return one register by its const name, or None if it was not read."""
+        from .const import REGISTER_MAP
+
+        return group.get(REGISTER_MAP[key])
+
     @property
     def native_value(self) -> Optional[float]:
         """Return the state of the sensor."""
@@ -471,7 +484,15 @@ class ChargeStageSensor(MidniteSolarSensor):
 
 
 class InternalStateSensor(MidniteSolarSensor):
-    """Representation of an internal state sensor."""
+    """The Classic's own state: Table 4120-2, the low byte of register 4120.
+
+    "4120 | R | ComboChargeStage | Charge Stage = [4120] MSB State = [4120] LSB".
+    It used to append the rest reason while the Classic was resting, which put one
+    quantity in two entities and made this sensor's history a function of something
+    else: the reported state changed whenever the reason changed, so a graph of the
+    Classic's states was really a graph of its reasons. The reason has had its own
+    sensor since; the high byte of the same register is the charge stage sensor.
+    """
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
@@ -479,44 +500,15 @@ class InternalStateSensor(MidniteSolarSensor):
         self._attr_name = "Internal State"
         self._attr_unique_id = f"{entry.entry_id}_internal_state"
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
-        # Track last seen invalid rest reason to avoid repeated logging
-        self._last_invalid_rest_reason: Optional[int] = None
 
     @property
     def native_value(self) -> Optional[str]:
-        """Return the state of the sensor."""
-        if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            diagnostics_data = self.coordinator.data["data"].get("diagnostics")
-            
-            if status_data:
-                raw_value = status_data.get(REGISTER_MAP["COMBO_CHARGE_STAGE"])
-                if raw_value is not None:
-                    # Extract LSB (low byte) for internal state
-                    internal_state_value = raw_value & 0xFF
-                    internal_state = INTERNAL_STATES.get(internal_state_value, f"Unknown ({internal_state_value})")
-                    
-                    # If device is resting and we have diagnostics data, append rest reason
-                    if internal_state == "Resting" and diagnostics_data:
-                        rest_reason_value = diagnostics_data.get(REGISTER_MAP["REASON_FOR_RESTING"])
-                        if rest_reason_value is not None:
-                            # Extract only the low byte (8 bits) since this register contains an 8-bit value
-                            extracted_value = rest_reason_value & 0xFF
-                            _LOGGER.debug(f"REASON_FOR_RESTING raw: {rest_reason_value}, extracted LSB: {extracted_value}")
-                            
-                            # Validate value is in documented range (1-35)
-                            if 1 <= extracted_value <= 35:
-                                rest_reason = REST_REASONS.get(extracted_value, "Reason Unknown")
-                                return f"{internal_state}: {rest_reason}"
-                            else:
-                                # Only log warning if this is a new invalid value or first occurrence
-                                if self._last_invalid_rest_reason != extracted_value:
-                                    _LOGGER.warning(f"Invalid rest reason code: {extracted_value}. Expected 1-35. Using 'Reason Unknown'")
-                                    self._last_invalid_rest_reason = extracted_value
-                                return f"{internal_state}: Reason Unknown"
-                    
-                    return internal_state
-        return None
+        """Return the state named in Table 4120-2."""
+        raw_value = self._register(self._group("status"), "COMBO_CHARGE_STAGE")
+        if raw_value is None:
+            return None
+        state = raw_value & 0xFF
+        return INTERNAL_STATES.get(state, f"Unknown ({state})")
 
 
 class DeviceTypeSensor(MidniteSolarSensor):
@@ -544,7 +536,15 @@ class DeviceTypeSensor(MidniteSolarSensor):
 
 
 class RestReasonSensor(MidniteSolarSensor):
-    """Representation of the rest reason sensor."""
+    """Why the Classic went to rest: register 4275, decoded by Table 4275-1.
+
+    "4275 | R | ReasonForResting | [4275] Reason number | Reason Classic went to
+    Rest (See Table 4275-1)". The register keeps the last reason even after the
+    Classic wakes up, so a reason shown while the Classic is running is history and
+    not an explanation of what it is doing now; that is said instead of shown as if
+    it were current. It used to be a hidden duplicate of the text the internal state
+    sensor was appending, which left the reason with no entity of its own.
+    """
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
@@ -552,46 +552,17 @@ class RestReasonSensor(MidniteSolarSensor):
         self._attr_name = "Rest Reason"
         self._attr_unique_id = f"{entry.entry_id}_rest_reason"
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
-        self._attr_entity_registry_enabled_default = False  # Hide by default - info is in Internal State sensor
-        # Track last seen invalid rest reason to avoid repeated logging
-        self._last_invalid_rest_reason: Optional[int] = None
 
     @property
     def native_value(self) -> Optional[str]:
-        """Return the state of the sensor."""
-        if self.coordinator.data and "data" in self.coordinator.data:
-            status_data = self.coordinator.data["data"].get("status")
-            diagnostics_data = self.coordinator.data["data"].get("diagnostics")
-            
-            if status_data and diagnostics_data:
-                # Get internal state from COMBO_CHARGE_STAGE register
-                raw_value = status_data.get(REGISTER_MAP["COMBO_CHARGE_STAGE"])
-                if raw_value is not None:
-                    # Extract LSB (low byte) for internal state
-                    internal_state_value = raw_value & 0xFF
-                    internal_state = INTERNAL_STATES.get(internal_state_value, f"Unknown ({internal_state_value})")
-                    
-                    # Only show rest reason if device is actually resting
-                    if internal_state == "Resting":
-                        value = diagnostics_data.get(REGISTER_MAP["REASON_FOR_RESTING"])
-                        if value is not None:
-                            # Extract only the low byte (8 bits) since this register contains an 8-bit value
-                            extracted_value = value & 0xFF
-                            _LOGGER.debug(f"RestReasonSensor REASON_FOR_RESTING raw: {value}, extracted LSB: {extracted_value}")
-                            
-                            # Validate value is in documented range (1-35)
-                            if 1 <= extracted_value <= 35:
-                                return str(extracted_value)
-                            else:
-                                # Only log warning if this is a new invalid value or first occurrence
-                                if self._last_invalid_rest_reason != extracted_value:
-                                    _LOGGER.warning(f"Invalid rest reason code: {extracted_value}. Expected 1-35. Showing raw value")
-                                    self._last_invalid_rest_reason = extracted_value
-                                return str(value)  # Show raw number for debugging
-                    else:
-                        # Device is not resting
-                        return "Not resting"
-        return None
+        """Return the reason from Table 4275-1, or say it is not resting."""
+        reason = self._register(self._group("diagnostics"), "REASON_FOR_RESTING")
+        if reason is None:
+            return None
+        state = self._register(self._group("status"), "COMBO_CHARGE_STAGE")
+        if state is not None and (state & 0xFF) != 0:
+            return "Not resting"
+        return REST_REASONS.get(reason, f"Unknown reason ({reason})")
 
 
 class TemperatureSensorBase(MidniteSolarSensor):

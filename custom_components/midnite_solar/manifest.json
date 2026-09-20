@@ -1,18 +1,27 @@
 {
   "domain": "midnite_solar",
   "name": "Midnite Solar",
-  "codeowners": ["@randyoo"],
-  "config_flow": true,
-  "documentation": "https://github.com/randyoo/ha_midnite_modbus/",
-  "iot_class": "local_polling",
-  "loggers": ["pymodbus"],
-  "requirements": ["pymodbus>=3.6.0,<4.0.0"],
   "version": "0.0.1",
+  "integration_type": "device",
+  "documentation": "https://github.com/randyoo/ha_midnite_modbus/",
+  "codeowners": [
+    "@randyoo"
+  ],
+  "config_flow": true,
+  "requirements": [
+    "pymodbus>=3.6.0,<4.0.0"
+  ],
+  "iot_class": "local_polling",
+  "loggers": [
+    "pymodbus"
+  ],
   "dhcp": [
     {
       "hostname": "*",
       "macaddress": "601D0F*"
+    },
+    {
+      "registered_devices": true
     }
-  ],
-  "registered_devices": true
+  ]
 }

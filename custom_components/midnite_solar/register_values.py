@@ -202,3 +202,25 @@ def unlock_values(serial: int) -> Tuple[int, int]:
 def info_flag_set(flags: int, mask: int) -> bool:
     """Return True if an Info Flag Bit from Table 4130-1 is set."""
     return bool(flags & mask)
+
+
+def read_field(value: int, mask: int, shift: int) -> int:
+    """Return one bit field of a register.
+
+    The map decodes packed registers this way, for example
+    "Aux1Function = Aux12Function & 0x3f;" and
+    "Aux2OffAutoOn = ((Aux12FunctionS & 0xc000) >> 14);".
+    """
+    return (value & mask) >> shift
+
+
+def write_field(value: int, mask: int, shift: int, field_value: int) -> int:
+    """Return the register with one bit field replaced, others untouched.
+
+    Needed because the Aux selects share register 4165: writing the whole
+    register would clobber the other output's function.
+    """
+    width = bin(mask).count("1")
+    if not 0 <= field_value < (1 << width):
+        raise ValueError(f"{field_value} does not fit in a {width}-bit field")
+    return (value & ~mask) | ((field_value << shift) & mask)

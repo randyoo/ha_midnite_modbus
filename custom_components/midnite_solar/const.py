@@ -242,6 +242,61 @@ INFO_FLAGS = {
     "InputShortedF": 0x40000000,
 }
 
+# Register 4165 (EE) "Aux 1 and 2 Function ... Combined Aux 1&2 Functions +
+# On/Off", decoded exactly as the map spells it out.
+AUX_FIELDS = {
+    # "Aux1Function = Aux12Function & 0x3f;"
+    "aux1_function": (0x003F, 0),
+    # "Aux1OffAutoOn = (((Aux12Function & 0xc0) >> 6));"
+    "aux1_mode": (0x00C0, 6),
+    # "Aux2Function = (Aux12FunctionS & 0x3f00) >> 8;"
+    "aux2_function": (0x3F00, 8),
+    # "Aux2OffAutoOn = ((Aux12FunctionS & 0xc000) >> 14);"
+    "aux2_mode": (0xC000, 14),
+}
+
+# Tables 4165-1 and 4165-2, "Aux 1/2 Off Auto On".
+AUX_OFF_AUTO_ON = {0: "Off", 1: "Auto", 2: "On", 3: "Unimplemented"}
+
+# Table 4165-3, Aux1Function (bits 0-5). Note there is no value 0.
+AUX1_FUNCTIONS = {
+    1: "Diversion Slow High",
+    2: "Low Battery Disconnect High",
+    3: "Waste Not High",
+    4: "Waste Not Low",
+    7: "PV On High",
+    8: "PV On Low",
+    13: "Toggle Test",
+    14: "Nite Light High",
+    15: "Day Light High",
+    16: "Wind Clipper Control",
+    17: "Float High",
+    18: "Float Low",
+    19: "Vent Fan High",
+    20: "Vent Fan Low",
+    21: "GFP Trip High",
+}
+
+# Table 4165-4, Aux2Function (bits 8-13). This table does start at 0.
+AUX2_FUNCTIONS = {
+    0: "Diversion High PWM",
+    1: "Diversion Low PWM",
+    2: "Waste Not High",
+    3: "Waste Not Low",
+    6: "Toggle Test",
+    7: "PV V On High",
+    8: "PV V On Low",
+    10: "Wind Clipper Control",
+    11: "Nite Light High",
+    12: "Day Light High",
+    13: "Float High Output",
+    14: "Float Low Output",
+    15: "Active High Turn Off",
+    16: "Active Low Turn Off",
+    17: "Active High Float",
+    18: "Whizbang Junior (WB Jr.)",
+}
+
 # Force Flag Bits, as bit positions. Table 4160-1 gives these as 32-bit
 # values spread over registers 4160 (low word) and 4161 (high word); use
 # register_values.force_flag_write() to pick the register, or the 16-bit
@@ -307,27 +362,7 @@ IP_SETTINGS_FLAGS = {
 }
 
 # Auxiliary function mappings for AUX_1_AND_2_FUNCTION register
-AUX1_FUNCTIONS = [
-    "Off",
-    "Auto",
-    "On",
-    "HiAbs",
-    "LoAbs",
-    "WasteNot",
-    "PVHiAbs",
-    "PVLoAbs",
-]
 
-AUX2_FUNCTIONS = [
-    "Off",
-    "Auto",
-    "On",
-    "HiAbs",
-    "LoAbs",
-    "WasteNot",
-    "PWM",
-    "PVHiAbs",
-]
 
 # Define the register groups we need to read from the device
 # Each group represents a functional category of registers

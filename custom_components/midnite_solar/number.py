@@ -22,6 +22,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, EE_BACKED_REGISTERS, FORCE_FLAGS, REGISTER_MAP
 from .coordinator import MidniteSolarUpdateCoordinator
+from .entity_writes import async_store_settings, async_write_setting
 from .register_values import (
     byte_of,
     force_flag_write,
@@ -133,60 +134,20 @@ class MidniteSolarNumber(CoordinatorEntity[MidniteSolarUpdateCoordinator], Numbe
         await self._async_set_value(value)
 
     async def _async_set_value(self, value: float) -> None:
-        """Set the value on the device."""
+        """Set the value on the device and store it."""
         register_value = self._to_register_value(value)
-
-        _LOGGER.debug(f"Writing value {value} to register {self.register_address} (raw value: {register_value})")
-
-        try:
-            result = await self.hass.async_add_executor_job(
-                self.coordinator.api.write_register, self.register_address, register_value
-            )
-        except Exception as e:
-            _LOGGER.error(f"Error writing to register {self.register_address}: {e}")
-            raise HomeAssistantError(
-                f"Could not write {self.name}: {e}"
-            ) from e
-        if result is None or result.isError():
-            _LOGGER.error(f"Failed to write value {value} to register {self.register_address}")
-            raise HomeAssistantError(
-                f"The Classic rejected the write of {value} to {self.name}"
-            )
-
-        await self._async_commit_to_eeprom()
-
-        # Request a refresh after writing
+        _LOGGER.debug(
+            "Writing %s to register %s (raw value %s)",
+            value,
+            self.register_address,
+            register_value,
+        )
+        await async_write_setting(
+            self.hass, self.coordinator.api, self.register_address, register_value, self.name
+        )
+        if self.register_address in EE_BACKED_REGISTERS:
+            await async_store_settings(self.hass, self.coordinator.api, self.name)
         await self.coordinator.async_request_refresh()
-
-    async def _async_commit_to_eeprom(self) -> None:
-        """Tell the Classic to store the settings it just received.
-
-        Registers the register map marks (EE) are applied straight away but only
-        written to EEPROM when ForceEEpromUpdateWriteF is sent, so without this
-        the new value reverts to the old one at the next restart. The map also
-        notes the commit stores every (EE) register at once, which is why it is
-        done per user action and not on every poll.
-        """
-        if self.register_address not in EE_BACKED_REGISTERS:
-            return
-
-        flag_value = 1 << FORCE_FLAGS["ForceEEpromUpdate"]
-        register, word = force_flag_write(flag_value)
-        _LOGGER.debug(f"Committing {self.name} to EEPROM: 0x{word:x} to register {register}")
-        try:
-            result = await self.hass.async_add_executor_job(
-                self.coordinator.api.write_register, register, word
-            )
-        except Exception as e:
-            _LOGGER.error(f"Error committing {self.name} to EEPROM: {e}")
-            raise HomeAssistantError(
-                f"{self.name} is active but was not saved to EEPROM: {e}"
-            ) from e
-        if result is None or result.isError():
-            _LOGGER.error(f"Failed to commit {self.name} to EEPROM")
-            raise HomeAssistantError(
-                f"{self.name} is active but the Classic did not accept the EEPROM commit"
-            )
 
 
 class AbsorbVoltageNumber(MidniteSolarNumber):

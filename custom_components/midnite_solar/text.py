@@ -5,15 +5,31 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
+from .base import MidniteBaseEntityDescription
+
 from homeassistant.components.text import TextEntity
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DEVICE_TYPES, DOMAIN, REGISTER_MAP
+from .const import DOMAIN, REGISTER_MAP
 from .coordinator import MidniteSolarUpdateCoordinator
+from .entity_writes import (
+    async_store_settings,
+    async_verify_write,
+    async_write_setting,
+)
+from .register_values import byte_of
 
 _LOGGER = logging.getLogger(__name__)
+
+# The register map's example for the unit name:
+#   "CLASSIC" = 0x4C43, 0x5341, 0x4953, 0x0043
+# The low byte of the first register is the first character, so a name is written
+# two characters at a time with the earlier character in the low byte.
+NAME_REGISTERS = tuple(REGISTER_MAP[f"UNIT_NAME_{index}"] for index in range(4))
+MAX_NAME_LENGTH = 8
 
 
 async def async_setup_entry(
@@ -23,12 +39,47 @@ async def async_setup_entry(
 ) -> None:
     """Set up Midnite Solar text inputs."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    
+
     texts = [
         HostNameText(coordinator, entry),
     ]
-    
+
     async_add_entities(texts)
+
+
+def name_from_registers(registers: list[int]) -> str:
+    """Read the 8-character unit name out of four registers.
+
+    Map: "4210 4211 4212 4213 | R/W | ID name (EE) … End with 0 if less than 8
+    chars". A shorter name is terminated by a zero byte, so everything from the
+    first zero onwards is padding.
+    """
+    chars = []
+    for register in registers:
+        for index in (0, 1):
+            byte = byte_of(register, index)
+            if byte == 0:
+                return "".join(chars).rstrip()
+            chars.append(chr(byte))
+    return "".join(chars).rstrip()
+
+
+def registers_for_name(value: str) -> list[int]:
+    """Pack a name into the four registers, zero padded as the map says."""
+    if len(value) > MAX_NAME_LENGTH:
+        raise HomeAssistantError(
+            f"A Classic unit name is {MAX_NAME_LENGTH} characters; {value!r} is {len(value)}"
+        )
+    # The map terminates a short name with a zero byte rather than spaces:
+    # "End with 0 if less than 8 chars", and "CLASSIC" is 0x4C43, 0x5341,
+    # 0x4953, 0x0043 - the fourth register ends in a zero, not a space.
+    padded = value.ljust(MAX_NAME_LENGTH, chr(0))
+    registers = []
+    for index in range(4):
+        low = ord(padded[index * 2])
+        high = ord(padded[index * 2 + 1])
+        registers.append(low | (high << 8))
+    return registers
 
 
 class MidniteSolarText(CoordinatorEntity[MidniteSolarUpdateCoordinator], TextEntity):
@@ -38,8 +89,6 @@ class MidniteSolarText(CoordinatorEntity[MidniteSolarUpdateCoordinator], TextEnt
         """Initialize the text input."""
         super().__init__(coordinator)
         self._entry = entry
-        
-        # Create device info - will be updated dynamically when data becomes available
         self._attr_device_info = {
             "identifiers": {(DOMAIN, entry.entry_id)},
             "name": entry.title,
@@ -48,150 +97,59 @@ class MidniteSolarText(CoordinatorEntity[MidniteSolarUpdateCoordinator], TextEnt
 
     @property
     def device_info(self):
-        """Return dynamic device info with device ID and model if available."""
-        # Try to get device ID from coordinator data (registers 4111-4112)
-        if self.coordinator.data and "data" in self.coordinator.data:
-            device_info_data = self.coordinator.data["data"].get("device_info")
-            if device_info_data:
-                device_id_lsw = device_info_data.get(REGISTER_MAP["DEVICE_ID_LSW"])
-                device_id_msw = device_info_data.get(REGISTER_MAP["DEVICE_ID_MSW"])
-                if device_id_lsw is not None and device_id_msw is not None:
-                    device_id = (device_id_msw << 16) | device_id_lsw
-                    # Try to get device model from UNIT_ID register
-                    unit_id_value = device_info_data.get(REGISTER_MAP["UNIT_ID"])
-                    if unit_id_value is not None:
-                        device_type = unit_id_value & 0xFF  # Get LSB (unit type)
-                        model = DEVICE_TYPES.get(device_type, f"Unknown ({device_type})")
-                    else:
-                        model = "Midnite Solar Device"
-                    
-                    # Get PCB revision from UNIT_ID register (bits 8-15)
-                    pcb_revision = None
-                    if unit_id_value is not None:
-                        pcb_revision = (unit_id_value >> 8) & 0xFF
-                    
-                    # Get software build date
-                    sw_date_ro = device_info_data.get(REGISTER_MAP["UNIT_SW_DATE_RO"])
-                    sw_date_month_day = device_info_data.get(REGISTER_MAP["UNIT_SW_DATE_MONTH_DAY"])
-                    sw_build_date = None
-                    if sw_date_ro is not None and sw_date_month_day is not None:
-                        # Format: YYYY-MM-DD from two registers
-                        # Register 4102 contains year, register 4103 has MSB=month, LSB=day
-                        year = sw_date_ro & 0xFFFF  # Get full 16-bit value for year
-                        month = (sw_date_month_day >> 8) & 0xFF  # Extract high byte (MSB)
-                        day = sw_date_month_day & 0xFF  # Extract low byte (LSB)
-                        
-                        try:
-                            sw_build_date = f"{year:04d}-{month:02d}-{day:02d}"
-                        except (ValueError, TypeError) as e:
-                            _LOGGER.warning(f"Failed to format software build date: year={year}, month={month}, day={day}. Error: {e}")
-                    
-                    return {
-                        "identifiers": {(DOMAIN, str(device_id))},
-                        "name": f"{model} ({device_id})",
-                        "manufacturer": "Midnite Solar",
-                        "model": model,
-                        "hw_version": f"PCB {pcb_revision}" if pcb_revision is not None else None,
-                        "sw_version": sw_build_date,
-                    }
-        
-        # Fallback to entry_id if device ID not available
-        return {
-            "identifiers": {(DOMAIN, self._entry.entry_id)},
-            "name": self._entry.title,
-            "manufacturer": "Midnite Solar",
-        }
+        """Return the device info, which the base builds for every platform."""
+        return MidniteBaseEntityDescription.get_device_info(
+            self.coordinator, self._entry, DOMAIN
+        )
 
     @property
-    def native_value(self) -> Optional[str]:
-        """Return the current value."""
-        # Read the unit name from registers 4210-4213
-        if self.coordinator.data and "data" in self.coordinator.data:
-            device_info_data = self.coordinator.data["data"].get("device_info")
-            if device_info_data:
-                reg_0 = device_info_data.get(REGISTER_MAP["UNIT_NAME_0"])
-                reg_1 = device_info_data.get(REGISTER_MAP["UNIT_NAME_1"])
-                reg_2 = device_info_data.get(REGISTER_MAP["UNIT_NAME_2"])
-                reg_3 = device_info_data.get(REGISTER_MAP["UNIT_NAME_3"])
-                
-                if all(r is not None for r in [reg_0, reg_1, reg_2, reg_3]):
-                    # Each register contains 2 bytes of ASCII characters
-                    # Registers are little-endian: LSB = char 0/2/4/6, MSB = char 1/3/5/7
-                    chars = []
-                    
-                    def get_bytes(reg_value):
-                        """Extract two bytes from a 16-bit register value."""
-                        # LSB (low byte) first, then MSB (high byte)
-                        return [reg_value & 0xFF, (reg_value >> 8) & 0xFF]
-                    
-                    chars.extend(get_bytes(reg_0))
-                    chars.extend(get_bytes(reg_1))
-                    chars.extend(get_bytes(reg_2))
-                    chars.extend(get_bytes(reg_3))
-                    
-                    # Filter out null/zero bytes and convert to string
-                    name = "".join(chr(c) for c in chars if c != 0)
-                    return name.strip()
-        return None
-
-    async def _async_set_value(self, value: str) -> None:
-        """Set the value on the device."""
-        # Ensure the value is exactly 8 characters, pad with spaces if needed
-        padded_value = (value[:8].ljust(8))
-        
-        try:
-            # Write each pair of characters to a register
-            # Each register holds 2 ASCII characters (16 bits)
-            for i in range(4):
-                start_idx = i * 2
-                char1 = padded_value[start_idx]
-                char2 = padded_value[start_idx + 1]
-                
-                # Combine two characters into a 16-bit value
-                # Device uses little-endian format: LSB = first char, MSB = second char
-                register_value = ord(char1) | (ord(char2) << 8)
-                
-                register_address = REGISTER_MAP[f"UNIT_NAME_{i}"]
-                result = await self.hass.async_add_executor_job(
-                    self.coordinator.api.write_register, register_address, register_value
-                )
-                if not result or result.isError():
-                    _LOGGER.error(f"Failed to write value {padded_value} to register {register_address}")
-                    return False
-        except Exception as e:
-            _LOGGER.error(f"Error writing host name: {e}")
-            return False
-        
-        # After writing the name, we need to force an EEPROM update
-        # This saves the changes to non-volatile memory
-        try:
-            force_value = 1 << 2  # ForceEEpromUpdate flag (bit 2)
-            result = await self.hass.async_add_executor_job(
-                self.coordinator.api.write_register, REGISTER_MAP["FORCE_FLAG_BITS"], force_value
-            )
-            if not result or result.isError():
-                _LOGGER.error("Failed to trigger EEPROM update")
-                return False
-        except Exception as e:
-            _LOGGER.error(f"Error triggering EEPROM update: {e}")
-            return False
-        
-        # Request a refresh after writing
-        await self.coordinator.async_request_refresh()
-        return True
+    def _group(self) -> dict:
+        """Return the register group this platform reads."""
+        if not self.coordinator.data or "data" not in self.coordinator.data:
+            return {}
+        return self.coordinator.data["data"].get("device_info") or {}
 
 
 class HostNameText(MidniteSolarText):
-    """Text input to set the host name."""
+    """Text input for the unit name, registers 4210-4213.
+
+    The map calls it "ID name (EE)" and says it "Takes place of MODBUS Register in
+    MNGP display if present", so it is the label a Midnite NPE shows.
+    """
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the text input."""
         super().__init__(coordinator, entry)
         self._attr_name = "Host Name"
         self._attr_unique_id = f"{entry.entry_id}_host_name"
-        self._attr_max_length = 8
-        self._attr_pattern = r"^[A-Za-z0-9_\-\. ]*$"  # Alphanumeric, underscore, hyphen, dot, space
+        self._attr_max_length = MAX_NAME_LENGTH
+        self._attr_pattern = r"^[A-Za-z0-9_\-\. ]*$"
+
+    @property
+    def native_value(self) -> Optional[str]:
+        """Return the unit name the Classic reports."""
+        group = self._group
+        registers = [group.get(address) for address in NAME_REGISTERS]
+        if any(value is None for value in registers):
+            return None
+        return name_from_registers(registers)
 
     async def async_set_value(self, value: str) -> None:
-        """Update the current value."""
-        await self._async_set_value(value)
+        """Write the name, store it, and read it back."""
+        registers = registers_for_name(value)
+        for address, register_value in zip(NAME_REGISTERS, registers):
+            await async_write_setting(
+                self.hass, self.coordinator.api, address, register_value, self.name
+            )
+        # "(EE)": the name has to be committed to EEPROM or it is gone on restart.
+        await async_store_settings(self.hass, self.coordinator.api, self.name)
+        for address, register_value in zip(NAME_REGISTERS, registers):
+            await async_verify_write(
+                self.hass,
+                self.coordinator.api,
+                address,
+                register_value,
+                self.name,
+                lambda raw: f"0x{raw:04X}",
+            )
+        await self.coordinator.async_request_refresh()

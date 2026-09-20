@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import time
 from typing import Any, Optional
 
 from .base import MidniteBaseEntityDescription
@@ -27,6 +26,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import CHARGE_STAGES, DEVICE_TYPES, DOMAIN, INTERNAL_STATES, REGISTER_MAP, REST_REASONS
 from .coordinator import MidniteSolarUpdateCoordinator
+from .register_values import TemperatureFilter, combine32, format_ipv4, scaled_value
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -317,7 +317,8 @@ class SlidingCurrentLimitSensor(MidniteSolarSensor):
             if settings_data:
                 value = settings_data.get(REGISTER_MAP["SLIDING_CURRENT_LIMIT"])
                 if value is not None:
-                    return value / 10.0
+                    # The map gives "[4152] Amps" with no divisor.
+                    return float(value)
         return None
 
 
@@ -581,143 +582,86 @@ class RestReasonSensor(MidniteSolarSensor):
 
 
 class TemperatureSensorBase(MidniteSolarSensor):
-    """Base class for temperature sensors with shared validation logic."""
+    """Base class for the temperature sensors, with noise filtering.
+
+    A Classic reports nonsense when the battery temperature probe is unplugged
+    or a read is torn, and that garbage lands in the history. Readings outside
+    the plausible range, and readings far from the median of the recent ones,
+    are dropped. The filter gives up after a handful of rejections and starts a
+    new baseline, so a genuine change - or a filter that has it wrong - can
+    never lock a sensor out of reporting.
+    """
+
+    _address_key: str = ""
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
-        self._last_temp: Optional[float] = None
-        self._last_time: Optional[float] = None
-        # Track recent valid readings for basic sanity checking
-        self._recent_readings: list[float] = []
-        self._max_recent_readings = 20  # Keep last 20 valid readings
+        self._attr_device_class = SensorDeviceClass.TEMPERATURE
+        self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
+        self._attr_state_class = SensorStateClass.MEASUREMENT
+        self._attr_suggested_display_precision = 1
+        self._filter = TemperatureFilter()
 
-    def _validate_temperature(self, value: int, sensor_name: str) -> Optional[float]:
-        """
-        Validate temperature reading with range and rate-of-change checks.
-        Uses a more robust approach that doesn't rely on statistical outliers.
-        
-        Args:
-            value: Raw register value (scaled by 10)
-            sensor_name: Name of the sensor for logging
-            
-        Returns:
-            Validated temperature in Celsius, or None if invalid
-        """
-        # Convert raw value to temperature
-        temp_value = value / 10.0
-        # Check for negative temperature (two's complement)
-        if value > 32767:
-            temp_value = (value - 65536) / 10.0
-        
-        current_time = time.time()
-        
-        # Validate temperature range (-50°C to 150°C is reasonable)
-        if temp_value < -50 or temp_value > 150:
-            _LOGGER.warning(f"Invalid {sensor_name} reading: {temp_value}°C. Ignoring.")
+    @property
+    def native_value(self) -> Optional[float]:
+        """Return the temperature, or None while a reading is rejected."""
+        if not self.coordinator.data or "data" not in self.coordinator.data:
             return None
-        
-        # Check for sudden temperature changes
-        # Use a more reasonable threshold: 2°C per second (120°C per minute)
-        if self._last_temp is not None and self._last_time is not None:
-            time_diff = current_time - self._last_time
-            if time_diff > 0:  # Avoid division by zero
-                temp_change_rate = abs(temp_value - self._last_temp) / time_diff
-                # Allow up to 2°C per second (reasonable for real-world temperature changes)
-                if temp_change_rate > 2.0:
-                    _LOGGER.warning(
-                        f"Sudden {sensor_name} change detected: {self._last_temp}°C -> {temp_value}°C "
-                        f"({temp_change_rate:.2f}°C/s over {time_diff:.1f}s). Possible sensor error. Ignoring reading."
-                    )
-                    return None
-        
-        # Track recent readings for basic sanity checking
-        self._recent_readings.append(temp_value)
-        if len(self._recent_readings) > self._max_recent_readings:
-            self._recent_readings.pop(0)
-        
-        # Update last values
-        self._last_temp = temp_value
-        self._last_time = current_time
-        
-        return temp_value
+        temps_data = self.coordinator.data["data"].get("temperatures")
+        if not temps_data:
+            return None
+        raw = temps_data.get(REGISTER_MAP[self._address_key])
+        if raw is None:
+            return None
+        # The map gives "([4132] /10)" with negatives as two's complement.
+        temperature = self._filter.apply(scaled_value(raw))
+        if temperature is None:
+            _LOGGER.warning(
+                "%s: rejecting implausible reading %.1f °C", self.name, scaled_value(raw)
+            )
+        return temperature
+
+    @property
+    def extra_state_attributes(self) -> dict[str, int]:
+        """Return how many readings in this run have been rejected."""
+        return {"rejected_readings": self._filter.rejected}
 
 
 class BatteryTemperatureSensor(TemperatureSensorBase):
     """Representation of a battery temperature sensor."""
+
+    _address_key = "BATT_TEMPERATURE"
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
         self._attr_name = "Battery Temperature"
         self._attr_unique_id = f"{entry.entry_id}_batt_temp"
-        self._attr_device_class = SensorDeviceClass.TEMPERATURE
-        self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
-        self._attr_state_class = SensorStateClass.MEASUREMENT
-        self._attr_suggested_display_precision = 1
-
-    @property
-    def native_value(self) -> Optional[float]:
-        """Return the state of the sensor."""
-        if self.coordinator.data and "data" in self.coordinator.data:
-            temps_data = self.coordinator.data["data"].get("temperatures")
-            if temps_data:
-                value = temps_data.get(REGISTER_MAP["BATT_TEMPERATURE"])
-                if value is not None:
-                    return self._validate_temperature(value, "battery temperature")
-        return None
 
 
 class FETTemperatureSensor(TemperatureSensorBase):
     """Representation of a FET temperature sensor."""
 
+    _address_key = "FET_TEMPERATURE"
+
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
         self._attr_name = "FET Temperature"
-        self._attr_unique_id = f"{entry.entry_id}_fet_temp"
-        self._attr_device_class = SensorDeviceClass.TEMPERATURE
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
-        self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
-        self._attr_state_class = SensorStateClass.MEASUREMENT
-        self._attr_suggested_display_precision = 1
-
-    @property
-    def native_value(self) -> Optional[float]:
-        """Return the state of the sensor."""
-        if self.coordinator.data and "data" in self.coordinator.data:
-            temps_data = self.coordinator.data["data"].get("temperatures")
-            if temps_data:
-                value = temps_data.get(REGISTER_MAP["FET_TEMPERATURE"])
-                if value is not None:
-                    return self._validate_temperature(value, "FET temperature")
-        return None
 
 
 class PCBTemperatureSensor(TemperatureSensorBase):
     """Representation of a PCB temperature sensor."""
 
+    _address_key = "PCB_TEMPERATURE"
+
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
         self._attr_name = "PCB Temperature"
-        self._attr_unique_id = f"{entry.entry_id}_pcb_temp"
-        self._attr_device_class = SensorDeviceClass.TEMPERATURE
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
-        self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
-        self._attr_state_class = SensorStateClass.MEASUREMENT
-        self._attr_suggested_display_precision = 1
-
-    @property
-    def native_value(self) -> Optional[float]:
-        """Return the state of the sensor."""
-        if self.coordinator.data and "data" in self.coordinator.data:
-            temps_data = self.coordinator.data["data"].get("temperatures")
-            if temps_data:
-                value = temps_data.get(REGISTER_MAP["PCB_TEMPERATURE"])
-                if value is not None:
-                    return self._validate_temperature(value, "PCB temperature")
-        return None
 
 
 class DailyAmpHoursSensor(MidniteSolarSensor):
@@ -775,8 +719,8 @@ class LifetimeEnergySensor(MidniteSolarSensor):
                 low_value = energy_data.get(REGISTER_MAP["LIFETIME_KW_HOURS_1"])
                 high_value = energy_data.get(REGISTER_MAP["LIFETIME_KW_HOURS_1"] + 1)
                 if low_value is not None and high_value is not None:
-                    value = (high_value << 16) | low_value
-                    return value / 10.0
+                    # The map gives "(([4127] << 16) + [4126]) kWh" with no divisor.
+                    return float(combine32(low_value, high_value))
         return None
 
 
@@ -806,9 +750,8 @@ class LifetimeAmpHoursSensor(MidniteSolarSensor):
                 low_value = energy_data.get(REGISTER_MAP["LIFETIME_AMP_HOURS_1"])
                 high_value = energy_data.get(REGISTER_MAP["LIFETIME_AMP_HOURS_1"] + 1)
                 if low_value is not None and high_value is not None:
-                    value = (high_value << 16) | low_value
-                    # Value is in amp-hours from the register (divided by 10 for precision)
-                    return float(value) / 10.0
+                    # The map gives "(([4129] << 16) + [4128]) Amp Hours" with no divisor.
+                    return float(combine32(low_value, high_value))
         return None
 
 
@@ -1059,177 +1002,100 @@ class ModbusPortSensor(MidniteSolarSensor):
         return None
 
 
-class IPAddressSensor(MidniteSolarSensor):
+class NetworkAddressSensor(MidniteSolarSensor):
+    """A network address held in two registers.
+
+    The map composes every one of these the same way, for example
+    "[20483]MSB . [20483]LSB . [20482]MSB . [20482]LSB": the higher register of
+    the pair carries the first two octets and each register reads high byte
+    first. The const keys ending in _LSB_1/_LSB_2 are the low and the high
+    register of the pair.
+    """
+
+    _low_key: str = ""
+    _high_key: str = ""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry)
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+        self._attr_entity_registry_enabled_default = False  # Disable by default
+
+    @property
+    def native_value(self) -> Optional[str]:
+        """Return the dotted quad address."""
+        if not self.coordinator.data or "data" not in self.coordinator.data:
+            return None
+        network = self.coordinator.data["data"].get("network")
+        if not network:
+            return None
+        low = network.get(REGISTER_MAP[self._low_key])
+        high = network.get(REGISTER_MAP[self._high_key])
+        if low is None or high is None:
+            return None
+        return format_ipv4(low, high)
+
+
+class IPAddressSensor(NetworkAddressSensor):
     """Representation of IP address sensor."""
+
+    _low_key = "IP_ADDRESS_LSB_1"
+    _high_key = "IP_ADDRESS_LSB_2"
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
         self._attr_name = "IP Address"
         self._attr_unique_id = f"{entry.entry_id}_ip_address"
-        self._attr_entity_category = EntityCategory.DIAGNOSTIC
-        self._attr_entity_registry_enabled_default = False  # Disable by default
-
-    @property
-    def native_value(self) -> Optional[str]:
-        """Return the state of the sensor."""
-        if self.coordinator.data and "data" in self.coordinator.data:
-            network = self.coordinator.data["data"].get("network")
-            if network:
-                part1 = network.get(REGISTER_MAP["IP_ADDRESS_LSB_1"])
-                part2 = network.get(REGISTER_MAP["IP_ADDRESS_LSB_2"])
-                if part1 is not None and part2 is not None:
-                    # IP address format: [20483]MSB:[20483]LSB:[20482]MSB:[20482]LSB
-                    # Each register contains 2 bytes (16 bits)
-                    octets = []
-                    
-                    def get_octets(reg_value):
-                        """Extract two octets from a 16-bit register value."""
-                        return [(reg_value >> 8) & 0xFF, reg_value & 0xFF]
-                    
-                    octets.extend(get_octets(part2))  # Register 20483 (LSB_1)
-                    octets.extend(get_octets(part1))  # Register 20482 (LSB_2)
-                    
-                    # Reverse the octet order to get correct IP format
-                    return ".".join(str(octet) for octet in reversed(octets[:4]))
-        return None
 
 
-class GatewayAddressSensor(MidniteSolarSensor):
+class GatewayAddressSensor(NetworkAddressSensor):
     """Representation of gateway address sensor."""
+
+    _low_key = "GATEWAY_ADDRESS_LSB_1"
+    _high_key = "GATEWAY_ADDRESS_LSB_2"
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
         self._attr_name = "Gateway Address"
         self._attr_unique_id = f"{entry.entry_id}_gateway_address"
-        self._attr_entity_category = EntityCategory.DIAGNOSTIC
-        self._attr_entity_registry_enabled_default = False  # Disable by default
-
-    @property
-    def native_value(self) -> Optional[str]:
-        """Return the state of the sensor."""
-        if self.coordinator.data and "data" in self.coordinator.data:
-            network = self.coordinator.data["data"].get("network")
-            if network:
-                part1 = network.get(REGISTER_MAP["GATEWAY_ADDRESS_LSB_1"])
-                part2 = network.get(REGISTER_MAP["GATEWAY_ADDRESS_LSB_2"])
-                if part1 is not None and part2 is not None:
-                    # Gateway address format: [20485]MSB:[20485]LSB:[20484]MSB:[20484]LSB
-                    octets = []
-                    
-                    def get_octets(reg_value):
-                        """Extract two octets from a 16-bit register value."""
-                        return [(reg_value >> 8) & 0xFF, reg_value & 0xFF]
-                    
-                    octets.extend(get_octets(part2))  # Register 20485 (LSB_1)
-                    octets.extend(get_octets(part1))  # Register 20484 (LSB_2)
-                    
-                    # Reverse the octet order to get correct IP format
-                    return ".".join(str(octet) for octet in reversed(octets[:4]))
-        return None
 
 
-class SubnetMaskSensor(MidniteSolarSensor):
+class SubnetMaskSensor(NetworkAddressSensor):
     """Representation of subnet mask sensor."""
+
+    _low_key = "SUBNET_MASK_LSB_1"
+    _high_key = "SUBNET_MASK_LSB_2"
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
         self._attr_name = "Subnet Mask"
         self._attr_unique_id = f"{entry.entry_id}_subnet_mask"
-        self._attr_entity_category = EntityCategory.DIAGNOSTIC
-        self._attr_entity_registry_enabled_default = False  # Disable by default
-
-    @property
-    def native_value(self) -> Optional[str]:
-        """Return the state of the sensor."""
-        if self.coordinator.data and "data" in self.coordinator.data:
-            network = self.coordinator.data["data"].get("network")
-            if network:
-                part1 = network.get(REGISTER_MAP["SUBNET_MASK_LSB_1"])
-                part2 = network.get(REGISTER_MAP["SUBNET_MASK_LSB_2"])
-                if part1 is not None and part2 is not None:
-                    # Subnet mask format: [20487]MSB:[20487]LSB:[20486]MSB:[20486]LSB
-                    octets = []
-                    
-                    def get_octets(reg_value):
-                        """Extract two octets from a 16-bit register value."""
-                        return [(reg_value >> 8) & 0xFF, reg_value & 0xFF]
-                    
-                    octets.extend(get_octets(part2))  # Register 20487 (LSB_1)
-                    octets.extend(get_octets(part1))  # Register 20486 (LSB_2)
-                    
-                    # Reverse the octet order to get correct IP format
-                    return ".".join(str(octet) for octet in reversed(octets[:4]))
-        return None
 
 
-class DNSSensor1(MidniteSolarSensor):
+class DNSSensor1(NetworkAddressSensor):
     """Representation of primary DNS server sensor."""
+
+    _low_key = "DNS_1_LSB_1"
+    _high_key = "DNS_1_LSB_2"
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
         self._attr_name = "DNS Server 1"
         self._attr_unique_id = f"{entry.entry_id}_dns1"
-        self._attr_entity_category = EntityCategory.DIAGNOSTIC
-        self._attr_entity_registry_enabled_default = False  # Disable by default
-
-    @property
-    def native_value(self) -> Optional[str]:
-        """Return the state of the sensor."""
-        if self.coordinator.data and "data" in self.coordinator.data:
-            network = self.coordinator.data["data"].get("network")
-            if network:
-                part1 = network.get(REGISTER_MAP["DNS_1_LSB_1"])
-                part2 = network.get(REGISTER_MAP["DNS_1_LSB_2"])
-                if part1 is not None and part2 is not None:
-                    # DNS 1 format: [20489]MSB:[20489]LSB:[20488]MSB:[20488]LSB
-                    octets = []
-                    
-                    def get_octets(reg_value):
-                        """Extract two octets from a 16-bit register value."""
-                        return [(reg_value >> 8) & 0xFF, reg_value & 0xFF]
-                    
-                    octets.extend(get_octets(part2))  # Register 20489 (LSB_1)
-                    octets.extend(get_octets(part1))  # Register 20488 (LSB_2)
-                    
-                    # Reverse the octet order to get correct IP format
-                    return ".".join(str(octet) for octet in reversed(octets[:4]))
-        return None
 
 
-class DNSSensor2(MidniteSolarSensor):
+class DNSSensor2(NetworkAddressSensor):
     """Representation of secondary DNS server sensor."""
+
+    _low_key = "DNS_2_LSB_1"
+    _high_key = "DNS_2_LSB_2"
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator, entry)
         self._attr_name = "DNS Server 2"
         self._attr_unique_id = f"{entry.entry_id}_dns2"
-        self._attr_entity_category = EntityCategory.DIAGNOSTIC
-        self._attr_entity_registry_enabled_default = False  # Disable by default
-
-    @property
-    def native_value(self) -> Optional[str]:
-        """Return the state of the sensor."""
-        if self.coordinator.data and "data" in self.coordinator.data:
-            network = self.coordinator.data["data"].get("network")
-            if network:
-                part1 = network.get(REGISTER_MAP["DNS_2_LSB_1"])
-                part2 = network.get(REGISTER_MAP["DNS_2_LSB_2"])
-                if part1 is not None and part2 is not None:
-                    # DNS 2 format: [20491]MSB:[20491]LSB:[20490]MSB:[20490]LSB
-                    octets = []
-                    
-                    def get_octets(reg_value):
-                        """Extract two octets from a 16-bit register value."""
-                        return [(reg_value >> 8) & 0xFF, reg_value & 0xFF]
-                    
-                    octets.extend(get_octets(part2))  # Register 20491 (LSB_1)
-                    octets.extend(get_octets(part1))  # Register 20490 (LSB_2)
-                    
-                    # Reverse the octet order to get correct IP format
-                    return ".".join(str(octet) for octet in reversed(octets[:4]))
-        return None

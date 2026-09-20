@@ -1,5 +1,7 @@
 """Home Assistant core objects used by the integration."""
 
+import inspect
+
 
 class ConfigEntries:
     """The part of Home Assistant that owns config entries.
@@ -49,9 +51,17 @@ class Hass:
         self.config_entries = ConfigEntries(self)
 
     async def async_add_executor_job(self, target, *args):
-        """Run the blocking Modbus call inline and remember it."""
+        """Run the blocking Modbus call inline and remember it.
+
+        A target that returns a coroutine is awaited, the way awaiting a real
+        executor job waits for the thread to finish: that is what lets
+        asyncio.wait_for time out a wedged operation in a test.
+        """
         self.executor_calls.append((target, args))
-        return target(*args)
+        result = target(*args)
+        if inspect.isawaitable(result):
+            result = await result
+        return result
 
     def async_create_task(self, coro):
         """Return the coroutine so tests can await it themselves."""

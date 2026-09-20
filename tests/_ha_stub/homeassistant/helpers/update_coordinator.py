@@ -3,13 +3,13 @@
 import logging
 from typing import Any, Generic, TypeVar
 
+from homeassistant.exceptions import UpdateFailed
+
 from .entity import Entity
 
 _DataT = TypeVar("_DataT")
 
-
-class UpdateFailed(Exception):
-    """Raised when an update failed."""
+__all__ = ["DataUpdateCoordinator", "CoordinatorEntity", "UpdateFailed"]
 
 
 class DataUpdateCoordinator:

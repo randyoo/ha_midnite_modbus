@@ -15,3 +15,11 @@ class ConfigEntryError(HomeAssistantError):
 
 class ConfigEntryAuthFailed(ConfigEntryError):
     """Raised when authentication failed."""
+
+
+class UpdateFailed(HomeAssistantError):
+    """Raised when an update has failed, defined here as Home Assistant does."""
+
+
+class NoServiceInfo(Exception):
+    """Raised when a discovery has no service info."""

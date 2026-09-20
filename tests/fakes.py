@@ -51,6 +51,10 @@ class FakeApi:
         # fallback can be exercised; and addresses that never answer at all.
         self.bad_blocks = bad_blocks or set()
         self.unreadable_registers = unreadable_registers or set()
+        # The coordinator hands the serial number over after every update, because
+        # the write-protect grant dies with the connection.
+        self._serial = None
+        self.serial_sets = 0
 
     def write_register(self, address: int, value: int, retries: int = 2):
         self.writes.append((address, value))
@@ -69,6 +73,14 @@ class FakeApi:
         return ModbusResult(
             registers=[self.read_values.get(address + offset, 0) for offset in range(count)]
         )
+
+    def set_serial_number(self, serial):
+        self._serial = serial
+        self.serial_sets += 1
+
+    def connect(self):
+        """No socket to open."""
+        return True
 
     def disconnect(self):
         """No socket to close."""

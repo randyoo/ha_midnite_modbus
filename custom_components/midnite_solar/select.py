@@ -15,6 +15,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityCategory
 
 from .const import (
+    AUX_OFF_AUTO_ON,
     AUX1_FUNCTIONS,
     AUX2_FUNCTIONS,
     AUX_FIELDS,
@@ -48,6 +49,10 @@ async def async_setup_entry(
         MPPTModeSelector(coordinator, entry),
         Aux1FunctionSelector(coordinator, entry),
         Aux2FunctionSelector(coordinator, entry),
+        # Off / Auto / On for each output, so a forced On does not need the
+        # function itself to be a manual one.
+        Aux1StateSelect(coordinator, entry),
+        Aux2StateSelect(coordinator, entry),
     ]
     
     async_add_entities(selectors)
@@ -208,20 +213,22 @@ class MPPTModeSelector(MidniteSolarSettingSelect):
         await self._async_write(REGISTER_MAP["MPPT_MODE"], value, f"MPPT mode {option}")
 
 
-class AuxFunctionSelect(MidniteSolarSelect):
-    """Base for the two Aux function selects that share register 4165.
+class AuxFieldSelect(MidniteSolarSelect):
+    """Base for every select that owns one field of the packed Aux register.
 
-    The map packs both outputs into the one register and gives the decodes:
+    The map packs both outputs into the one register 4165 and gives the decodes:
     "Aux1Function = Aux12Function & 0x3f;",
     "Aux1OffAutoOn = (((Aux12Function & 0xc0) >> 6));",
     "Aux2Function = (Aux12FunctionS & 0x3f00) >> 8;",
     "Aux2OffAutoOn = ((Aux12FunctionS & 0xc000) >> 14);".
-    So changing one function has to preserve six other bits, which is why this
+    So any change here has to preserve the other six bits, which is why this
     refuses to write before the register has been read.
     """
 
-    _function_field: str = ""
-    _functions: dict[int, str] = {}
+    _field: str = ""
+    _labels: dict[int, str] = {}
+    # Values the Classic can report that a user cannot ask for.
+    _unselectable: tuple = ()
 
     def _register(self) -> Optional[int]:
         """Return the current packed Aux register."""
@@ -231,28 +238,30 @@ class AuxFunctionSelect(MidniteSolarSelect):
 
     @property
     def current_option(self) -> Optional[str]:
-        """Return the function this output is set to."""
+        """Return what this field of the register currently says."""
         value = self._register()
         if value is None:
             return None
-        mask, shift = AUX_FIELDS[self._function_field]
+        mask, shift = AUX_FIELDS[self._field]
         code = read_field(value, mask, shift)
-        return self._functions.get(code, f"Unset ({code})")
+        return self._labels.get(code, f"Unset ({code})")
 
     async def async_select_option(self, option: str) -> None:
-        """Change the function, leaving the other output alone."""
-        code = next(
-            (value for value, name in self._functions.items() if name == option), None
-        )
+        """Change this field, leaving every other field of 4165 alone."""
+        code = next((value for value, name in self._labels.items() if name == option), None)
         if code is None:
-            raise HomeAssistantError(f"{option} is not a function in the register map")
+            raise HomeAssistantError(f"{option} is not a value the register map gives")
+        if code in self._unselectable:
+            raise HomeAssistantError(
+                f"{option} is something the Classic reports, not something it accepts"
+            )
         current = self._register()
         if current is None:
             raise HomeAssistantError(
                 f"Aux settings have not been read yet, so {option} cannot be set without "
                 "clobbering the other Aux output"
             )
-        mask, shift = AUX_FIELDS[self._function_field]
+        mask, shift = AUX_FIELDS[self._field]
         new_value = write_field(current, mask, shift, code)
         await async_write_setting(
             self.hass,
@@ -273,11 +282,26 @@ class AuxFunctionSelect(MidniteSolarSelect):
         await self.coordinator.async_request_refresh()
 
 
+class AuxFunctionSelect(AuxFieldSelect):
+    """Base for the two function selects, Tables 4165-3 and 4165-4."""
+
+
+class AuxStateSelect(AuxFieldSelect):
+    """Base for the Off / Auto / On selects, Tables 4165-1 and 4165-2.
+
+    Value 3 is "Unimplemented" in the map, so it is a thing the Classic can report
+    but not a thing a user can ask for; it is left out of the options.
+    """
+
+    _labels = AUX_OFF_AUTO_ON
+    _unselectable = (3,)
+
+
 class Aux1FunctionSelector(AuxFunctionSelect):
     """Selector for AUX 1 function control, Table 4165-3 in bits 0-5."""
 
-    _function_field = "aux1_function"
-    _functions = AUX1_FUNCTIONS
+    _field = "aux1_function"
+    _labels = AUX1_FUNCTIONS
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the selector."""
@@ -292,8 +316,8 @@ class Aux1FunctionSelector(AuxFunctionSelect):
 class Aux2FunctionSelector(AuxFunctionSelect):
     """Selector for AUX 2 function control, Table 4165-4 in bits 8-13."""
 
-    _function_field = "aux2_function"
-    _functions = AUX2_FUNCTIONS
+    _field = "aux2_function"
+    _labels = AUX2_FUNCTIONS
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the selector."""
@@ -303,3 +327,33 @@ class Aux2FunctionSelector(AuxFunctionSelect):
         self._attr_options = list(AUX2_FUNCTIONS.values())
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
+
+
+class Aux1StateSelect(AuxStateSelect):
+    """Off / Auto / On for AUX 1: bits 6-7, Table 4165-1."""
+
+    _field = "aux1_mode"
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the selector."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "AUX 1 State"
+        self._attr_unique_id = f"{entry.entry_id}_aux1_state_select"
+        self._attr_options = [
+            name for code, name in self._labels.items() if code not in self._unselectable
+        ]
+        self._attr_entity_category = EntityCategory.CONFIG
+
+
+class Aux2StateSelect(AuxStateSelect):
+    """Off / Auto / On for AUX 2: bits 14-15, Table 4165-2."""
+
+    _field = "aux2_mode"
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the selector."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "AUX 2 State"
+        self._attr_unique_id = f"{entry.entry_id}_aux2_state_select"
+        self._attr_options = list(self._labels.values())
+        self._attr_entity_category = EntityCategory.CONFIG

@@ -29,6 +29,8 @@ from midnite_solar.register_values import read_field, write_field
 from midnite_solar.select import (
     MPPT_OFF,
     Aux1FunctionSelector,
+    Aux1StateSelect,
+    Aux2StateSelect,
     Aux2FunctionSelector,
     MPPTModeSelector,
 )
@@ -236,3 +238,78 @@ class TestMPPTMode:
         selector_obj = MPPTModeSelector(coordinator, entry)
         with pytest.raises(HomeAssistantError):
             asyncio.run(selector_obj.async_select_option("SOLAR"))
+
+
+class TestAuxStateSelects:
+    """Tables 4165-1 and 4165-2: the Off / Auto / On bits of each output."""
+
+    def test_the_options_are_the_three_states_a_user_can_ask_for(self, entry):
+        selector_obj, _ = selector(Aux1StateSelect, entry, {AUX_REGISTER: aux_value()})
+        assert selector_obj.options == ["Off", "Auto", "On"]
+
+    def test_unimplemented_is_reported_but_never_offered(self, entry):
+        selector_obj, _ = selector(
+            Aux1StateSelect, entry, {AUX_REGISTER: aux_value(aux1_mode=3)}
+        )
+        assert selector_obj.current_option == "Unimplemented"
+        assert "Unimplemented" not in selector_obj.options
+        with pytest.raises(HomeAssistantError):
+            asyncio.run(selector_obj.async_select_option("Unimplemented"))
+
+    def test_aux1_state_reads_bits_6_and_7(self, entry):
+        for mode, name in ((0, "Off"), (1, "Auto"), (2, "On")):
+            selector_obj, _ = selector(
+                Aux1StateSelect, entry, {AUX_REGISTER: aux_value(aux1_mode=mode)}
+            )
+            assert selector_obj.current_option == name
+
+    def test_aux2_state_reads_bits_14_and_15(self, entry):
+        for mode, name in ((0, "Off"), (1, "Auto"), (2, "On")):
+            selector_obj, _ = selector(
+                Aux2StateSelect, entry, {AUX_REGISTER: aux_value(aux2_mode=mode)}
+            )
+            assert selector_obj.current_option == name
+
+    def test_the_two_states_are_read_independently(self, entry):
+        start = aux_value(aux1_function=19, aux1_mode=0, aux2_function=7, aux2_mode=2)
+        aux1, _ = selector(Aux1StateSelect, entry, {AUX_REGISTER: start})
+        aux2, _ = selector(Aux2StateSelect, entry, {AUX_REGISTER: start})
+        assert aux1.current_option == "Off"
+        assert aux2.current_option == "On"
+
+    def test_forcing_aux1_on_leaves_the_functions_and_aux2_alone(self, entry):
+        start = aux_value(aux1_function=1, aux1_mode=1, aux2_function=7, aux2_mode=1)
+        selector_obj, api = selector(Aux1StateSelect, entry, {AUX_REGISTER: start})
+        asyncio.run(selector_obj.async_select_option("On"))
+        assert api.writes[0][1] == aux_value(
+            aux1_function=1, aux1_mode=2, aux2_function=7, aux2_mode=1
+        ), "only bits 6-7 may change"
+
+    def test_forcing_aux2_off_leaves_aux1_alone(self, entry):
+        start = aux_value(aux1_function=17, aux1_mode=2, aux2_function=3, aux2_mode=1)
+        selector_obj, api = selector(Aux2StateSelect, entry, {AUX_REGISTER: start})
+        asyncio.run(selector_obj.async_select_option("Off"))
+        assert api.writes[0][1] == aux_value(
+            aux1_function=17, aux1_mode=2, aux2_function=3, aux2_mode=0
+        ), "only bits 14-15 may change"
+
+    def test_a_state_write_is_committed_and_read_back(self, entry):
+        selector_obj, api = selector(Aux2StateSelect, entry, {AUX_REGISTER: aux_value()})
+        asyncio.run(selector_obj.async_select_option("Auto"))
+        assert [address for address, _ in api.writes] == [AUX_REGISTER, 4160]
+        assert api.writes[1] == (4160, 0x0004)
+        assert api.reads == [AUX_REGISTER]
+
+    def test_a_state_write_refuses_to_guess_the_other_field(self, entry):
+        selector_obj, api = selector(Aux1StateSelect, entry, {})
+        with pytest.raises(HomeAssistantError):
+            asyncio.run(selector_obj.async_select_option("On"))
+        assert api.writes == []
+
+    def test_each_output_has_its_own_entity(self, entry):
+        aux1, _ = selector(Aux1StateSelect, entry, {AUX_REGISTER: aux_value()})
+        aux2, _ = selector(Aux2StateSelect, entry, {AUX_REGISTER: aux_value()})
+        assert aux1.unique_id == "entry-1_aux1_state_select"
+        assert aux2.unique_id == "entry-1_aux2_state_select"
+        assert aux1.name == "AUX 1 State"
+        assert aux2.name == "AUX 2 State"

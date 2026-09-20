@@ -33,6 +33,8 @@ class FakeApi:
         error_writes=False,
         stale_read: bool = False,
         unreadable: bool = False,
+        bad_blocks: Optional[set[tuple[int, int]]] = None,
+        unreadable_registers: Optional[set[int]] = None,
     ):
         self.read_values = read_values or {}
         self.writes: list[tuple[int, int]] = []
@@ -45,6 +47,10 @@ class FakeApi:
         # that does not answer at all.
         self.stale_read = stale_read
         self.unreadable = unreadable
+        # (address, count) pairs that answer with an exception, so the block
+        # fallback can be exercised; and addresses that never answer at all.
+        self.bad_blocks = bad_blocks or set()
+        self.unreadable_registers = unreadable_registers or set()
 
     def write_register(self, address: int, value: int, retries: int = 2):
         self.writes.append((address, value))
@@ -56,9 +62,13 @@ class FakeApi:
 
     def read_holding_registers(self, address: int, count: int = 1, retries: int = 5):
         self.reads.append(address)
-        if self.unreadable:
+        if self.unreadable or (address, count) in self.bad_blocks:
             return ModbusResult(error=True)
-        return ModbusResult(registers=[self.read_values.get(address, 0) for _ in range(count)])
+        if count == 1 and address in self.unreadable_registers:
+            return ModbusResult(error=True)
+        return ModbusResult(
+            registers=[self.read_values.get(address + offset, 0) for offset in range(count)]
+        )
 
     def disconnect(self):
         """No socket to close."""

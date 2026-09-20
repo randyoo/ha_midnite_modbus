@@ -27,6 +27,34 @@ from .register_values import serial_from_registers
 
 _LOGGER = logging.getLogger(__name__)
 
+# One register per request means 86 requests per interval on a Classic that has a
+# single Modbus connection and is known to get out of sorts when it is pushed.
+# The SNMP card answers up to 125 registers in one request, so neighbouring
+# registers are read as blocks and these caps stay far inside that.
+MAX_BLOCK_SPAN = 32
+MAX_BLOCK_GAP = 6
+
+
+def register_blocks(registers) -> list:
+    """Contiguous (first, last) inclusive blocks covering these registers.
+
+    A gap longer than MAX_BLOCK_GAP starts a new block, so a register the card
+    will not answer cannot sit between two settings we want and black out the
+    block around it. A block never grows past MAX_BLOCK_SPAN registers.
+    """
+    ordered = sorted(set(registers))
+    if not ordered:
+        return []
+    blocks = []
+    start = previous = ordered[0]
+    for register in ordered[1:]:
+        if register - previous > MAX_BLOCK_GAP or register - start + 1 > MAX_BLOCK_SPAN:
+            blocks.append((start, previous))
+            start = register
+        previous = register
+    blocks.append((start, previous))
+    return blocks
+
 # Hard cap (seconds) for a single blocking Modbus operation. The Modbus client
 # already uses bounded socket timeouts; this is a final safety net so that a
 # wedged operation can never hang the coordinator (and, with it, Home Assistant).
@@ -160,22 +188,46 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.error(f"Failed to reset Modbus connection: {e}")
 
     async def _read_register_group(self, registers: List[int]) -> Optional[Dict[int, Any]]:
-        """Read a group of registers."""
+        """Read a group of registers as blocks, one request per block."""
         if not registers:
             return None
 
-        # Sort and deduplicate registers
         sorted_regs = sorted(set(registers))
-        result_data = {}
-        failed_registers = []
+        wanted = set(sorted_regs)
+        result_data: Dict[int, Any] = {}
+        failed_registers: List[int] = []
 
-        for reg in sorted_regs:
-            value_result = await self._safe_read(reg, 1, retries=5)
-            if value_result is not None and not value_result.isError():
-                result_data[reg] = value_result.registers[0]
-            else:
-                _LOGGER.warning(f"Failed to read register {reg} (group: {REGISTER_MAP.get(reg, 'unknown')})")
-                failed_registers.append(reg)
+        for first, last in register_blocks(sorted_regs):
+            span = last - first + 1
+            block = await self._safe_read(first, span, retries=5)
+            if block is not None and not block.isError() and len(block.registers) == span:
+                for offset, value in enumerate(block.registers):
+                    address = first + offset
+                    if address in wanted:
+                        result_data[address] = value
+                continue
+
+            # The block did not come back whole. Fall back to reading it one
+            # register at a time, so a single register the card will not answer
+            # marks only itself unavailable instead of blacking out every
+            # setting that happens to sit next to it.
+            _LOGGER.debug(
+                "Block %d-%d (%d registers) did not come back; reading it register by register",
+                first,
+                last,
+                span,
+            )
+            for register in [r for r in sorted_regs if first <= r <= last]:
+                single = await self._safe_read(register, 1, retries=5)
+                if single is not None and not single.isError():
+                    result_data[register] = single.registers[0]
+                else:
+                    _LOGGER.warning(
+                        "Failed to read register %d (group: %s)",
+                        register,
+                        REGISTER_MAP.get(register, "unknown"),
+                    )
+                    failed_registers.append(register)
 
         if failed_registers:
             _LOGGER.debug(f"Failed to read registers: {failed_registers}")

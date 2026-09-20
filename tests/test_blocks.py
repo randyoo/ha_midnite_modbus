@@ -1,0 +1,131 @@
+"""Tests for block reads: fewer requests, same values, graceful fallback."""
+
+from __future__ import annotations
+
+import asyncio
+
+import pytest
+from fakes import FakeApi, ModbusResult
+from homeassistant.core import Hass
+
+from midnite_solar.const import REGISTER_GROUPS, REGISTER_MAP
+from midnite_solar.coordinator import (
+    MAX_BLOCK_GAP,
+    MAX_BLOCK_SPAN,
+    MidniteSolarUpdateCoordinator,
+    register_blocks,
+)
+
+
+def blocks_for(group):
+    return register_blocks(REGISTER_GROUPS[group])
+
+
+def coordinator(api):
+    coordinator = MidniteSolarUpdateCoordinator(Hass(), "192.168.88.53", 502, interval=15)
+    coordinator.api = api
+    return coordinator
+
+
+def read_group(api, registers):
+    return asyncio.run(coordinator(api)._read_register_group(registers))
+
+
+class TestRegisterBlocks:
+    """How the register lists are chopped into requests."""
+
+    def test_contiguous_registers_are_one_request(self):
+        assert blocks_for("status") == [(4113, 4124)]
+        assert blocks_for("energy") == [(4125, 4129)]
+        assert blocks_for("temperatures") == [(4132, 4134)]
+        assert blocks_for("serial") == [(28673, 28674)]
+        assert blocks_for("network") == [(20482, 20491)]
+        assert blocks_for("aux_settings") == [(4165, 4181)]
+
+    def test_a_long_gap_starts_a_new_block(self):
+        assert register_blocks([4101, 4102, 4200, 4201]) == [(4101, 4102), (4200, 4201)]
+
+    def test_a_gap_at_the_limit_still_joins(self):
+        assert register_blocks([4101, 4101 + MAX_BLOCK_GAP]) == [(4101, 4101 + MAX_BLOCK_GAP)]
+
+    def test_a_block_never_exceeds_the_span(self):
+        for group in REGISTER_GROUPS:
+            for first, last in blocks_for(group):
+                assert last - first + 1 <= MAX_BLOCK_SPAN, group
+
+    def test_every_wanted_register_is_covered_exactly_once(self):
+        for group, registers in REGISTER_GROUPS.items():
+            wanted = set(registers)
+            covered = []
+            for first, last in blocks_for(group):
+                covered += [r for r in range(first, last + 1) if r in wanted]
+            assert sorted(covered) == sorted(wanted), group
+            assert len(covered) == len(set(covered)), group
+
+    def test_the_request_count_drops_by_an_order_of_magnitude(self):
+        """The whole reason for this: ~97 requests an interval on one socket."""
+        per_register = sum(len(set(r)) for r in REGISTER_GROUPS.values())
+        blocks = sum(len(blocks_for(group)) for group in REGISTER_GROUPS)
+        assert per_register == 97
+        assert blocks == 19
+
+    def test_the_modbus_address_register_is_read_on_its_own(self):
+        """4326 is the Classic's own Modbus address, 160 registers past 4163."""
+        assert (4326, 4326) in blocks_for("eeprom_settings")
+
+
+class TestBlockReads:
+    """Values must land exactly where the one-per-request code put them."""
+
+    def test_a_block_fills_every_register_it_covers(self):
+        api = FakeApi(read_values={4113 + i: 100 + i for i in range(12)})
+        assert read_group(api, REGISTER_GROUPS["status"]) == {
+            4113 + i: 100 + i for i in range(12)
+        }
+        assert api.reads == [4113], "one request for twelve registers"
+
+    def test_a_word_between_the_registers_we_want_is_ignored(self):
+        api = FakeApi(read_values={4101: 60, 4102: 5, 4103: 99})
+        assert read_group(api, [4101, 4102]) == {4101: 60, 4102: 5}
+
+    def test_a_failed_block_is_read_register_by_register(self):
+        """A register the card will not answer must not black out its neighbours."""
+        api = FakeApi(
+            read_values={4113: 600, 4114: 540, 4115: 300},
+            bad_blocks={(4113, 12)},
+        )
+        data = read_group(api, REGISTER_GROUPS["status"])
+        assert {reg: data[reg] for reg in (4113, 4114, 4115)} == {4113: 600, 4114: 540, 4115: 300}
+        assert api.reads[0] == 4113, "the block was attempted first"
+        assert len(api.reads) > 1, "then the registers went individually"
+
+    def test_a_short_answer_falls_back_to_singles(self):
+        api = FakeApi(read_values={4113: 600, 4114: 540})
+        original = api.read_holding_registers
+
+        def short(address, count=1, retries=5):
+            if count > 1:
+                return ModbusResult(registers=[600])
+            return original(address, 1, retries)
+
+        api.read_holding_registers = short
+        assert read_group(api, [4113, 4114]) == {4113: 600, 4114: 540}
+
+    def test_a_register_that_never_answers_is_the_only_one_lost(self):
+        api = FakeApi(
+            read_values={4113: 600, 4114: 540},
+            bad_blocks={(4113, 12)},
+            unreadable_registers={4114},
+        )
+        data = read_group(api, REGISTER_GROUPS["status"])
+        assert 4114 not in data
+        assert data[4113] == 600
+
+    def test_an_empty_group_reads_nothing(self):
+        api = FakeApi()
+        assert read_group(api, []) is None
+        assert api.reads == []
+
+    def test_a_group_that_answers_nothing_reports_no_data(self):
+        api = FakeApi(unreadable=True)
+        assert read_group(api, REGISTER_GROUPS["energy"]) is None

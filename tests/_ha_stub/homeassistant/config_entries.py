@@ -17,6 +17,13 @@ class ConfigEntry:
 class ConfigFlow:
     """Minimal config flow base class."""
 
+    def __init_subclass__(cls, domain=None, **kwargs):
+        """Home Assistant passes the domain to the flow class."""
+        super().__init_subclass__(**kwargs)
+        cls.VERSION = 1
+        if domain:
+            cls._hass_domain = domain
+
     def __init__(self, *args, **kwargs):
         self.hass = None
         self._async_current_ids = lambda: set()

@@ -1,7 +1,7 @@
 {
   "domain": "midnite_solar",
   "name": "Midnite Solar",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "integration_type": "device",
   "documentation": "https://github.com/randyoo/ha_midnite_modbus/",
   "codeowners": [

@@ -10,12 +10,13 @@ from .base import MidniteBaseEntityDescription
 from homeassistant.components.button import ButtonEntity
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.core import HomeAssistant
+from homeassistant.util import dt as dt_util
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, FORCE_FLAGS, REGISTER_MAP
 from .coordinator import MidniteSolarUpdateCoordinator
-from .entity_writes import async_write_setting
+from .entity_writes import async_write_setting, async_set_clock, async_reboot_classic
 from .register_values import force_flag_write
 
 _LOGGER = logging.getLogger(__name__)
@@ -35,6 +36,8 @@ async def async_setup_entry(
         ResetInfoFlagsButton(coordinator, entry),
         ForceSweepButton(coordinator, entry),
         ResetFaultsButton(coordinator, entry),
+        SetClockButton(coordinator, entry),
+        RebootClassicButton(coordinator, entry),
     ]
 
     async_add_entities(buttons)
@@ -141,3 +144,45 @@ class ResetFaultsButton(MidniteSolarButton):
         super().__init__(coordinator, entry, "ForceResetFaults")
         self._attr_name = "Reset Faults"
         self._attr_unique_id = f"{entry.entry_id}_reset_faults"
+
+
+class SetClockButton(MidniteSolarButton):
+    """Button to set the Classic's clock to Home Assistant's current time.
+
+    The Classic has no NTP and its clock is only writable through the AIR
+    app's private file command; this writes the same 20-byte payload
+    (PROTOCOL.md section 4.2) so the Classic's clock tracks HA's.
+    """
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the button."""
+        super().__init__(coordinator, entry, "SetClock")
+        self._attr_name = "Set Classic Clock"
+        self._attr_unique_id = f"{entry.entry_id}_set_clock"
+
+    async def async_press(self) -> None:
+        """Set the Classic's wall clock to HA's local time now."""
+        await async_set_clock(self.hass, self.coordinator.api, dt_util.now())
+        await self.coordinator.async_request_refresh()
+
+
+class RebootClassicButton(MidniteSolarButton):
+    """Button to reboot the Classic, mirroring the AIR app's "Bully Menu".
+
+    It enables the "AutoDlyReset" flag (4186 bit 2) and then raises ForceNite
+    (4160 bit 8), the exact two writes ConfigMenuLocal.handleReboot makes. The
+    Classic drops the connection as it reboots, so this is disabled by default
+    and lives in Diagnostic only.
+    """
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the button."""
+        super().__init__(coordinator, entry, "Reboot")
+        self._attr_name = "Reboot Classic"
+        self._attr_unique_id = f"{entry.entry_id}_reboot_classic"
+        self._attr_entity_registry_enabled_default = False
+
+    async def async_press(self) -> None:
+        """Reboot the Classic. It will drop and come back on its own."""
+        _LOGGER.info("Rebooting the Classic")
+        await async_reboot_classic(self.hass, self.coordinator.api)

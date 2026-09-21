@@ -13,6 +13,8 @@ class SensorDeviceClass(str, Enum):
     TEMPERATURE = "temperature"
     DURATION = "duration"
     TIMESTAMP = "timestamp"
+    DATE = "date"
+    TIME = "time"
     ENUM = "enum"
     DATA_SIZE = "data_size"
 

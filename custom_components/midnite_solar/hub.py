@@ -7,7 +7,12 @@ from typing import Optional
 
 from pymodbus.client import ModbusTcpClient
 
-from .const import REGISTER_MAP
+from .const import CLOCK_FILE_ADDRESS, REGISTER_MAP
+from .private_pdu import (
+    ReadInternalPDU,
+    WriteInternalPDU,
+    register_private_pdus,
+)
 from .register_values import unlock_values
 
 _LOGGER = logging.getLogger(__name__)
@@ -77,13 +82,20 @@ class MidniteHub:
         self._unlocked = False
 
     def _make_client(self) -> ModbusTcpClient:
-        """Create a fresh Modbus TCP client with bounded timeouts."""
-        return ModbusTcpClient(
+        """Create a fresh Modbus TCP client with bounded timeouts.
+
+        The Classic's private function codes are registered on THIS client's
+        decoder only (see private_pdu.py), so the registration dies with the
+        client and never shadows standard Write Coil decoding process-wide.
+        """
+        client = ModbusTcpClient(
             host=self.host,
             port=self.port,
             timeout=self.DEFAULT_TIMEOUT,
             retries=self.DEFAULT_RETRIES,
         )
+        register_private_pdus(client)
+        return client
 
     @classmethod
     def _is_connection_error(cls, exc: Exception) -> bool:
@@ -317,4 +329,87 @@ class MidniteHub:
                 if attempt < retries - 1:
                     time.sleep(0.2 * (attempt + 1))
             _LOGGER.error(f"All {retries} attempts failed for address {address}, count={count}")
+            return None
+    def write_internal(self, device: int, data, address: int = CLOCK_FILE_ADDRESS, retries: int = 2):
+        """Write an internal file (function 105) with the write protect released.
+
+        The clock lives here; like a settings write it goes through the
+        Ethernet write protect, so the serial-number unlock is ensured first,
+        exactly as write_register does. The frame's own address is used as-is
+        (it is a file address, not a Modbus register). Returns the decoded
+        response PDU (which echoes the request header), raising the last error
+        if no attempt succeeds.
+        """
+        with self._lock:
+            last_result = None
+            for attempt in range(retries):
+                if not self._ensure_connected():
+                    _LOGGER.warning(f"Attempt {attempt + 1}: no connection for internal write to file {device}")
+                    if attempt < retries - 1:
+                        time.sleep(0.2 * (attempt + 1))
+                    continue
+                try:
+                    unlocked = self._ensure_unlocked()
+                except Exception as e:
+                    last_result = e
+                    _LOGGER.warning(f"Attempt {attempt + 1} exception unlocking for internal write: {e}")
+                    if self._is_connection_error(e):
+                        self._reconnect()
+                    if attempt < retries - 1:
+                        time.sleep(0.2 * (attempt + 1))
+                    continue
+                if not unlocked:
+                    raise WriteLockedError(
+                        "The Classic write-protects Ethernet writes; the "
+                        "serial number unlock has not succeeded yet"
+                    )
+                try:
+                    result = self._client.execute(
+                        False, WriteInternalPDU(device=device, data=data, address=address)
+                    )
+                    if result is not None and not result.isError():
+                        return result
+                    last_result = result
+                    _LOGGER.warning(f"Attempt {attempt + 1} internal write failed: {result}")
+                except Exception as e:
+                    last_result = e
+                    _LOGGER.warning(f"Attempt {attempt + 1} internal write exception: {e}")
+                    if self._is_connection_error(e):
+                        self._reconnect()
+                if attempt < retries - 1:
+                    time.sleep(0.2 * (attempt + 1))
+            if last_result is None:
+                raise OSError(f"Could not write internal file {device} (no connection)")
+            if isinstance(last_result, Exception):
+                raise last_result
+            return last_result
+
+    def read_internal(self, device: int, length: int, address: int = 0, retries: int = 5):
+        """Read an internal file (function 104), returning the response PDU.
+
+        The Classic answers with the echoed header plus the raw payload bytes,
+        which the response PDU exposes as `.payload`. Reads are not gated by
+        the Ethernet write protect (only writes are), so this skips the unlock.
+        Returns None if no attempt succeeds.
+        """
+        with self._lock:
+            for attempt in range(retries):
+                if not self._ensure_connected():
+                    if attempt < retries - 1:
+                        time.sleep(0.2 * (attempt + 1))
+                    continue
+                try:
+                    result = self._client.execute(
+                        False, ReadInternalPDU(device=device, length=length, address=address)
+                    )
+                    if result is not None and not result.isError():
+                        return result
+                    _LOGGER.warning(f"Attempt {attempt + 1} internal read failed: {result}")
+                except Exception as e:
+                    _LOGGER.warning(f"Attempt {attempt + 1} internal read exception: {e}")
+                    if self._is_connection_error(e):
+                        self._reconnect()
+                if attempt < retries - 1:
+                    time.sleep(0.2 * (attempt + 1))
+            _LOGGER.error(f"All {retries} attempts failed for internal read of file {device}")
             return None

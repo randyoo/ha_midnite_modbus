@@ -10,6 +10,7 @@ word order and force-flag bit positions.
 from __future__ import annotations
 
 from collections import deque
+from datetime import datetime
 from typing import Deque, Optional, Tuple
 
 # Register holding the low 16 bits of the write-only Force Flag Bits, and the
@@ -262,3 +263,56 @@ VERSION_FIELDS = (("major", 0xF000, 12), ("minor", 0x0F00, 8), ("release", 0x00F
 def version_from_register(raw: int) -> str:
     """Return the "major.minor.release" the version register holds."""
     return ".".join(str(read_field(raw, mask, shift)) for _name, mask, shift in VERSION_FIELDS)
+
+
+def clock_file_payload(now) -> list:
+    """Return the 20-byte payload the clock file write carries.
+
+    Transcribed from the AIR app's TimeToFileWrite
+    (air-app-reverse ClassicRegisterConversions.as:457-474): a 20-byte block
+    whose time and date sit at offset 9, everything else zero. The Classic
+    answers function 105 with the echoed header and no payload; the app never
+    commits anything for it and never writes seconds or weekday.
+    """
+    payload = [0] * 20
+    payload[9] = now.hour & 0x1F
+    payload[10] = now.minute & 0x3F
+    payload[11] = now.second & 0x3F
+    payload[12] = now.year >> 8 & 0xFF
+    payload[13] = now.year & 0xFF
+    payload[14] = now.month & 0x0F
+    payload[15] = now.day & 0x1F
+    return payload
+
+
+def clock_from_registers(
+    seconds_minutes: Optional[int],
+    hours_weekday: Optional[int],
+    day_month: Optional[int],
+    year: Optional[int],
+):
+    """Decode the Classic's clock words into a naive datetime, or None.
+
+    The app reads its clock from the ordinary block as CTIME0 =
+    ([4215] << 16) + [4214] and CTIME1 = ([4217] << 16) + [4216], and splits
+    them with the masks at ConfigMenuLocal.as:4347-4357:
+
+        4214 = seconds | minutes << 8
+        4215 = hours   | weekday << 8     (weekday is the Classic's own, +1)
+        4216 = day     | month << 8
+        4217 = year
+
+    A word that was never read, or a value that cannot be a real date
+    (firmware garbage), yields None instead of a wrong clock.
+    """
+    if None in (seconds_minutes, hours_weekday, day_month, year):
+        return None
+    second = seconds_minutes & 0x3F
+    minute = (seconds_minutes >> 8) & 0x3F
+    hour = hours_weekday & 0x1F
+    day = day_month & 0x1F
+    month = (day_month >> 8) & 0x0F
+    try:
+        return datetime(year, month, day, hour, minute, second)
+    except ValueError:
+        return None

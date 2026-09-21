@@ -41,6 +41,10 @@ class FakeApi:
         self.read_values = read_values or {}
         self.writes: list[tuple[int, int]] = []
         self.reads: list[int] = []
+        # Private function 104/105 "internal file" calls (the clock), recorded
+        # the same way so the clock feature is testable without a Classic.
+        self.internal_writes: list[tuple[int, list[int], int]] = []
+        self.internal_reads: list[tuple[int, int, int]] = []
         self.fail_writes = fail_writes
         self.error_writes = error_writes
         # A Classic that accepts a write stores it, so a read-back returns it.
@@ -83,6 +87,18 @@ class FakeApi:
         return ModbusResult(
             registers=[self.read_values.get(address + offset, 0) for offset in range(count)]
         )
+
+    def write_internal(self, device, data, address=0, retries: int = 2):
+        """Record a private function-105 file write instead of sending it."""
+        self.internal_writes.append((device, list(data), address))
+        if not self.stale_read and not self.unreadable:
+            return ModbusResult(error=self.error_writes)
+        return ModbusResult(error=True)
+
+    def read_internal(self, device, length, address=0, retries: int = 5):
+        """Record a private function-104 file read; answer it empty."""
+        self.internal_reads.append((device, length, address))
+        return ModbusResult(error=self.error_writes)
 
     def set_serial_number(self, serial):
         self._serial = serial

@@ -43,6 +43,7 @@ from .register_values import (
     format_mac_from_registers,
     scaled_value,
     version_from_register,
+    clock_from_registers,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -104,6 +105,9 @@ async def async_setup_entry(
             ClassicStatusSensor(coordinator, entry, setting)
             for setting in CLASSIC_STATUS_SENSORS
         ),
+        # The Classic's own wall clock (set via the Set Classic Clock button).
+        ClassicDateSensor(coordinator, entry),
+        ClassicTimeSensor(coordinator, entry),
     ]
     
     async_add_entities(sensors)
@@ -1230,3 +1234,56 @@ class FirmwareRevisionSensor(MidniteSolarSensor):
         if low is None or high is None:
             return None
         return combine32(low, high)
+
+
+class ClassicDateSensor(MidniteSolarSensor):
+    """The Classic's own calendar date, from its clock registers.
+
+    The Classic keeps a wall clock that has no timezone and is normally only
+    settable by the AIR app. The CTIME words (4214-4217) say what it thinks it
+    is; the app reads them the same way (PROTOCOL.md section 4.1).
+    """
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Classic Date"
+        self._attr_unique_id = f"{entry.entry_id}_classic_date"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+        self._attr_device_class = SensorDeviceClass.DATE
+
+    @property
+    def native_value(self):
+        """Return the Classic's date, or None if its clock is not sensible."""
+        clock = self._group("clock")
+        moment = clock_from_registers(
+            self._register(clock, "CTIME_SECONDS_MINUTES"),
+            self._register(clock, "CTIME_HOURS_WEEKDAY"),
+            self._register(clock, "CTIME_DAY_MONTH"),
+            self._register(clock, "CTIME_YEAR"),
+        )
+        return moment.date() if moment else None
+
+
+class ClassicTimeSensor(MidniteSolarSensor):
+    """The Classic's own time of day, from its clock registers."""
+
+    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
+        """Initialize the sensor."""
+        super().__init__(coordinator, entry)
+        self._attr_name = "Classic Time"
+        self._attr_unique_id = f"{entry.entry_id}_classic_time"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+        self._attr_device_class = SensorDeviceClass.TIME
+
+    @property
+    def native_value(self):
+        """Return the Classic's time, or None if its clock is not sensible."""
+        clock = self._group("clock")
+        moment = clock_from_registers(
+            self._register(clock, "CTIME_SECONDS_MINUTES"),
+            self._register(clock, "CTIME_HOURS_WEEKDAY"),
+            self._register(clock, "CTIME_DAY_MONTH"),
+            self._register(clock, "CTIME_YEAR"),
+        )
+        return moment.time() if moment else None

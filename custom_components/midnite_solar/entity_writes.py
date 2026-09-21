@@ -116,3 +116,68 @@ async def async_verify_write(
         "write-protected (see the Ethernet Writes Locked sensor) or the value is "
         "outside what the Classic allows."
     )
+
+
+async def async_set_clock(hass: Any, api: Any, now) -> None:
+    """Write the Classic's clock to `now` (its local wall clock, no timezone).
+
+    The AIR app sets the clock with the private function 105 "file write" of
+    a 20-byte payload to internal file 7 address 0 (PROTOCOL.md section 4.2).
+    The Classic takes it immediately and needs no EEPROM commit - the app
+    sends nothing else.
+    """
+    from .const import CLOCK_FILE_ADDRESS, CLOCK_FILE_DEVICE
+    from .register_values import clock_file_payload
+
+    payload = clock_file_payload(now)
+    _LOGGER.debug("Setting the Classic clock to %s", now)
+    try:
+        result = await hass.async_add_executor_job(
+            api.write_internal, CLOCK_FILE_DEVICE, payload, CLOCK_FILE_ADDRESS
+        )
+    except Exception as e:
+        raise HomeAssistantError(f"Could not set the Classic clock: {e}") from e
+    if result is None or result.isError():
+        raise HomeAssistantError("The Classic did not accept the clock write")
+
+
+async def async_reboot_classic(hass: Any, api: Any) -> None:
+    """Reboot the Classic the way the AIR app's "Bully Menu" does.
+
+    Two ordinary writes, read-first so no other setting bit moves: enable the
+    "AutoDlyReset" bit of 4186, then raise ForceNite (bit 8) in 4160
+    (ConfigMenuLocal.as:4877-4890). The Classic drops the connection as the
+    reboot starts - the app warns the same thing - so the device going
+    unavailable afterwards is expected, not an error.
+    """
+    from .const import ENABLE_FLAGS_2_AUTO_DLY_RESET, FORCE_FLAGS, REGISTER_MAP
+    from .register_values import FORCE_FLAG_BITS_LOW_REGISTER
+
+    enable_register = REGISTER_MAP["ENABLE_FLAGS_2"]
+    enable_flags = await _read_one(hass, api, enable_register, "auto-restart flags")
+    await async_write_setting(
+        hass,
+        api,
+        enable_register,
+        enable_flags | ENABLE_FLAGS_2_AUTO_DLY_RESET,
+        "Reboot (enable auto-restart)",
+    )
+    force_flags = await _read_one(hass, api, FORCE_FLAG_BITS_LOW_REGISTER, "force flags")
+    await async_write_setting(
+        hass,
+        api,
+        FORCE_FLAG_BITS_LOW_REGISTER,
+        force_flags | (1 << FORCE_FLAGS["ForceNite"]),
+        "Reboot (ForceNite)",
+    )
+
+
+async def _read_one(hass: Any, api: Any, address: int, label: str) -> int:
+    """Read one register or raise; the reboot must not send half a sequence."""
+    try:
+        result = await hass.async_add_executor_job(api.read_holding_registers, address, 1)
+    except Exception as e:
+        raise HomeAssistantError(f"Could not read the Classic's {label}: {e}") from e
+    if result is None or result.isError() or not result.registers:
+        raise HomeAssistantError(f"Could not read the Classic's {label}")
+    return result.registers[0]

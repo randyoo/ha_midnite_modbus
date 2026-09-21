@@ -171,7 +171,36 @@ REGISTER_MAP = {
     # Device ID (alternative serial, registers 4111-4112)
     "DEVICE_ID_LOW_WORD": 4111,
     "DEVICE_ID_HIGH_WORD": 4112,
+
+    # "Enable Flags 2" (the AIR app's name for it, ClassicDataDictionary.as:543).
+    # Bit 2 is the "AutoDlyReset" the app enables as the first half of its
+    # Reboot (ConfigMenuLocal.as:4882); the other bits are the diversion,
+    # shading, waste-not and similar feature enables (ClassicRegisterConversions.as:18-44).
+    "ENABLE_FLAGS_2": 4186,
+
+    # The Classic's own clock, which the AIR app reads from the ordinary block
+    # as CTIME0 = ([4215] << 16) + [4214], CTIME1 = ([4217] << 16) + [4216] and
+    # CTIME2 = [4218] (an unused 16-bit word) - ClassicDataDictionary.as:727-750.
+    # The bench census saw the year move in 4217, matching CTIME1's high word.
+    "CTIME_SECONDS_MINUTES": 4214,
+    "CTIME_HOURS_WEEKDAY": 4215,
+    "CTIME_DAY_MONTH": 4216,
+    "CTIME_YEAR": 4217,
+    "CTIME2": 4218,
 }
+
+# The private "internal file" commands the AIR app uses on the same port.
+# See private_pdu.py and air-app-reverse/PROTOCOL.md for the frame.
+READ_INTERNAL_FUNCTION = 104
+WRITE_INTERNAL_FUNCTION = 105
+# The clock lives in internal "file" device 7 at address 0, and the app's
+# TimeToFileWrite payload is always 20 bytes (PROTOCOL.md section 4.2).
+CLOCK_FILE_DEVICE = 7
+CLOCK_FILE_ADDRESS = 0
+CLOCK_FILE_LENGTH = 20
+# 4186 bit 2 "AutoDlyReset"; the app's reboot is 4186|0x04 then 4160|0x100
+# (ForceNite). It deliberately leaves the auto-restart setting enabled.
+ENABLE_FLAGS_2_AUTO_DLY_RESET = 0x04
 
 # Charge stage mappings (from register 4120 MSB)
 CHARGE_STAGES = {
@@ -587,6 +616,16 @@ REGISTER_GROUPS = {
         # 4141 and 4142 are inside the 4138-4143 block this group already reads.
         REGISTER_MAP["PWM_READ_ONLY"],
         REGISTER_MAP["REASON_FOR_RESET"],
+    ],
+    # The Classic's clock words. One block read of five registers; the AIR app
+    # polls the same three words (4214/4216/4218) once its firmware is new
+    # enough (controls/StatusPanel.as:580-584).
+    "clock": [
+        REGISTER_MAP["CTIME_SECONDS_MINUTES"],
+        REGISTER_MAP["CTIME_HOURS_WEEKDAY"],
+        REGISTER_MAP["CTIME_DAY_MONTH"],
+        REGISTER_MAP["CTIME_YEAR"],
+        REGISTER_MAP["CTIME2"],
     ],
     # Add settings registers for MPPT mode, Modbus port, etc.
     "settings": [

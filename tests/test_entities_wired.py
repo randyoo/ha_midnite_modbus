@@ -27,17 +27,17 @@ from midnite_solar.const import DOMAIN, REGISTER_GROUPS, REGISTER_MAP
 PLATFORMS = ("sensor", "binary_sensor", "number", "select", "text", "button", "switch")
 
 ENTITIES_PER_PLATFORM = {
-    "sensor": 45,
+    "sensor": 47,  # + Classic Date / Classic Time (CTIME0-1)
     "binary_sensor": 27,  # 25 Info Flags + 2 Network Settings Flags
     "number": 60,
     "select": 7,
     "text": 1,
-    "button": 5,
+    "button": 7,  # + Set Classic Clock + Reboot Classic (from the AIR app)
     "switch": 1,  # "Auto Save EEPROM" - the opt-in commit (§33)
 }
-# 65 as before, + Absorb Voltage and + MPPT Mode (the two primary controls that
-# were hidden behind an enable toggle), + the switch, which is on by default.
-ENABLED_BY_DEFAULT = 68
+# 68 before the clock work, + Classic Date + Classic Time + Set Classic Clock
+# (all on by default). The Reboot Classic button is a diagnostic and off.
+ENABLED_BY_DEFAULT = 71
 
 
 async def _build():
@@ -47,6 +47,16 @@ async def _build():
     groups = {
         group: {address: 0 for address in registers}
         for group, registers in REGISTER_GROUPS.items()
+    }
+    # The clock is the one group that cannot be "all zero": words 4214-4217 of
+    # 0 are the impossible date year 0, and the CTIME sensors correctly show
+    # nothing for it. Seed a real time so the date/time entities are exercised.
+    groups["clock"] = {
+        REGISTER_MAP["CTIME_SECONDS_MINUTES"]: (30 << 8) | 5,
+        REGISTER_MAP["CTIME_HOURS_WEEKDAY"]: (1 << 8) | 14,
+        REGISTER_MAP["CTIME_DAY_MONTH"]: (9 << 8) | 21,
+        REGISTER_MAP["CTIME_YEAR"]: 2026,
+        REGISTER_MAP["CTIME2"]: 0,
     }
     coordinator = FakeCoordinator(hass, FakeApi(), groups)
     coordinator.hass = hass

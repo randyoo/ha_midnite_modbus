@@ -218,7 +218,11 @@ class WindPowerTableNumber(MidniteSolarNumber):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any, step: int = 0):
         """Initialize the number for one table step."""
         super().__init__(coordinator, entry)
-        self.step = step
+        # step_index, not step: Home Assistant 2026.x's NumberEntity owns a
+        # read-only "step" property (the widget's numeric step) and assigning
+        # to it kills the entire platform at setup ("property 'step' has no
+        # setter", dev bench 2026-09-20).
+        self.step_index = step
         self._attr_name = f"Wind Power Curve {self._id_suffix.upper()}{step}"
         self._attr_unique_id = f"{entry.entry_id}_wind_power_curve_{self._id_suffix}{step}"
         self._attr_entity_category = EntityCategory.CONFIG
@@ -227,11 +231,11 @@ class WindPowerTableNumber(MidniteSolarNumber):
     @property
     def register_address(self) -> int:
         """Return the register holding this step, shared with its neighbour."""
-        return self._table_first_register + (self.step >> 1)
+        return self._table_first_register + (self.step_index >> 1)
 
     def _from_register_value(self, raw: int) -> float:
         """Return this step's byte out of the shared register."""
-        return float(byte_of(raw, self.step & 1))
+        return float(byte_of(raw, self.step_index & 1))
 
     def _to_register_value(self, value: float) -> int:
         """Return the register value that changes only this step."""
@@ -244,11 +248,11 @@ class WindPowerTableNumber(MidniteSolarNumber):
             # failed group read). Better to refuse than to corrupt.
             raise HomeAssistantError(
                 f"The wind power table register {self.register_address} has not been "
-                f"read yet, so step {self.step} cannot be set without zeroing the "
+                f"read yet, so step {self.step_index} cannot be set without zeroing the "
                 "step that shares its register"
             )
         try:
-            return pack_byte_pair(current, self.step & 1, int(value))
+            return pack_byte_pair(current, self.step_index & 1, int(value))
         except ValueError as e:
             raise HomeAssistantError(
                 f"Wind power table steps are 0 to 255, got {value}"
@@ -261,7 +265,7 @@ class WindPowerTableNumber(MidniteSolarNumber):
         may have changed it between the read that built this packed value and
         the read-back. Blaming it would report a good write as refused.
         """
-        index = self.step & 1
+        index = self.step_index & 1
         await async_verify_write(
             self.hass,
             self.coordinator.api,

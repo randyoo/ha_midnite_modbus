@@ -34,7 +34,10 @@ class MidniteBaseEntityDescription(EntityDescription):
         lsb = serial_data.get(REGISTER_MAP["SERIAL_NUMBER_LSB_RO"])
         if msb is None or lsb is None:
             return None
-        return serial_from_registers(msb, lsb)
+        # A string: the device registry takes serial_number as text and logs a
+        # breaking change for ints ("This will stop working in Home Assistant
+        # 2026.12.0", observed every platform on the dev bench 2026-09-20).
+        return str(serial_from_registers(msb, lsb))
 
     @staticmethod
     def get_device_info(coordinator, entry, domain):

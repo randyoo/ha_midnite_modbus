@@ -41,7 +41,9 @@ class TestSerialNumber:
             api,
             {"serial": {28673: 0x00A1, 28674: 0xB2C3}},
         )
-        assert MidniteBaseEntityDescription.serial_number(coordinator) == 0x00A1B2C3
+        # A string: the device registry deprecates int serials outright
+        # ("will stop working in 2026.12.0", logged on the dev bench).
+        assert MidniteBaseEntityDescription.serial_number(coordinator) == "10597059"  # 0x00A1B2C3
 
     def test_the_serial_reaches_the_device_info(self, entry):
         info = MidniteBaseEntityDescription.get_device_info(
@@ -53,7 +55,7 @@ class TestSerialNumber:
             entry,
             DOMAIN,
         )
-        assert info["serial_number"] == 0x00A1B2C3
+        assert info["serial_number"] == "10597059"  # 0x00A1B2C3, as text
 
     def test_a_device_that_has_not_been_read_yet_reports_no_serial(self, entry):
         coordinator = FakeCoordinator(Hass(), FakeApi(), {})
@@ -74,7 +76,7 @@ class TestSerialNumber:
             DOMAIN,
         )
         assert info["identifiers"] == {(DOMAIN, "entry-1")}
-        assert info["serial_number"] == 0x00010002
+        assert info["serial_number"] == "65538"  # 0x00010002, as text
 
 
 class TestDeviceIdentity:

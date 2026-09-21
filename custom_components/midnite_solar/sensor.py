@@ -1131,7 +1131,13 @@ class ClassicStatusSensor(MidniteSolarSensor):
         self._attr_name = name
         self._attr_unique_id = f"{entry.entry_id}_{key.lower()}"
         self._attr_entity_registry_enabled_default = enabled
-        self._attr_entity_category = EntityCategory.DIAGNOSTIC if diagnostic else EntityCategory.CONFIG
+        # DIAGNOSTIC for all of them: real Home Assistant REFUSES a read-only
+        # sensor carrying the CONFIG category ("cannot be added as the entity
+        # category is set to config" - it is reserved for entities the user can
+        # act on). The first dev-HA boot dropped Battery Regulation Target
+        # entirely over this (2026-09-20); the test double had no such rule.
+        # The map's diagnostic flag now only annotates, it cannot demote.
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_native_unit_of_measurement = units
         self._attr_state_class = SensorStateClass.MEASUREMENT if units else None
         self._attr_suggested_display_precision = 1 if kind == "tenths" else 0

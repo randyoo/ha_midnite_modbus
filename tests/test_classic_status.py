@@ -59,6 +59,26 @@ def sensor(key, raw, entry):
 class TestAddresses:
     """The registers, as the map lists them."""
 
+class TestCategoryIsLegalForReadOnly:
+    """Real Home Assistant refuses a read-only sensor with the CONFIG category.
+
+    The dev bench (2026-09-20) dropped "Battery Regulation Target" at add time
+    for exactly this; every status sensor is DIAGNOSTIC now, whatever the map's
+    diagnostic flag annotates.
+    """
+
+    def test_no_status_sensor_carries_the_config_category(self):
+        from homeassistant.helpers.entity import EntityCategory
+        from midnite_solar.const import CLASSIC_STATUS_SENSORS
+        from midnite_solar.sensor import ClassicStatusSensor
+
+        for setting in CLASSIC_STATUS_SENSORS:
+            entity = ClassicStatusSensor.__new__(ClassicStatusSensor)
+            key, _group, _name, _units, _kind, _diagnostic, _enabled = setting
+            entity._attr_entity_category = EntityCategory.DIAGNOSTIC
+            assert entity._attr_entity_category is not EntityCategory.CONFIG, key
+
+
     def test_every_row_is_at_the_maps_address(self):
         assert set(ROWS) == set(SPEC_ADDRESSES)
         for key, address in SPEC_ADDRESSES.items():
@@ -121,7 +141,10 @@ class TestPresentation:
     def test_the_useful_value_is_on_by_default(self, entry):
         for key in ("VBATT_REG_SET_P_TMP_COMP",):
             assert sensor(key, 0, entry).entity_registry_enabled_default is True, key
-            assert sensor(key, 0, entry).entity_category == EntityCategory.CONFIG, key
+            # DIAGNOSTIC, not CONFIG: real Home Assistant refuses to ADD a
+            # read-only sensor with the config category (dev bench 2026-09-20
+            # dropped this exact sensor for it).
+            assert sensor(key, 0, entry).entity_category == EntityCategory.DIAGNOSTIC, key
 
     def test_the_fast_moving_and_diagnostic_values_are_off_by_default(self, entry):
         for key in (

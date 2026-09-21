@@ -167,7 +167,7 @@ class TestDeviceInfo:
             {"device_info": {address: value for address, value in zip(NAME_REGISTERS, MAP_EXAMPLE)}, "serial": {28673: 0x11, 28674: 0x22}},
         )
         info = HostNameText(coordinator, entry).device_info
-        assert info["serial_number"] == 0x00110022
+        assert info["serial_number"] == "1114146"  # 0x00110022; the registry takes text
 
     def test_the_platform_does_not_keep_its_own_copy_of_the_identity(self, entry):
         """It used to: 50 lines duplicated from base.py, without the serial."""

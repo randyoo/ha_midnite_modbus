@@ -33,11 +33,11 @@ ENTITIES_PER_PLATFORM = {
     "select": 7,
     "text": 1,
     "button": 7,  # + Set Classic Clock + Reboot Classic (from the AIR app)
-    "switch": 1,  # "Auto Save EEPROM" - the opt-in commit (§33)
+    "switch": 8,  # "Auto Save EEPROM" + 7 Enable-Flags toggles (AIR app parity)
 }
 # 68 before the clock work, + Classic Date + Classic Time + Set Classic Clock
 # (all on by default). The Reboot Classic button is a diagnostic and off.
-ENABLED_BY_DEFAULT = 71
+ENABLED_BY_DEFAULT = 78
 
 
 async def _build():

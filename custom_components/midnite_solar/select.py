@@ -389,33 +389,37 @@ class NominalBatteryVoltageSelect(MidniteSolarSettingSelect):
 
     @property
     def current_option(self) -> Optional[str]:
-        """Return the bank voltage the Classic reports."""
-        multiplier = register_value(
+        """Return the bank voltage the Classic reports.
+
+        The register's own value is the volts (48 means 48 V) - bench-confirmed
+        2026-09-21; see NOMINAL_BATTERY_VOLTAGES in const.py.
+        """
+        volts_raw = register_value(
             self.coordinator.data, "classic_status", REGISTER_MAP["VBATT_NOMINAL"]
         )
-        if multiplier is None:
+        if volts_raw is None:
             return None
-        volts = NOMINAL_BATTERY_VOLTAGES.get(multiplier)
+        volts = NOMINAL_BATTERY_VOLTAGES.get(volts_raw)
         if volts is None:
-            return f"Unset ({multiplier})"
+            return f"Unset ({volts_raw})"
         return f"{volts} V"
 
     async def async_select_option(self, option: str) -> None:
         """Write the multiplier that stands for the chosen voltage."""
-        multiplier = next(
+        volts = next(
             (
                 code
-                for code, volts in NOMINAL_BATTERY_VOLTAGES.items()
-                if f"{volts} V" == option
+                for code, v in NOMINAL_BATTERY_VOLTAGES.items()
+                if f"{v} V" == option
             ),
             None,
         )
-        if multiplier is None:
+        if volts is None:
             raise HomeAssistantError(
                 f"{option} is not a bank voltage the Classic can be told"
             )
         await self._async_write(
             REGISTER_MAP["VBATT_NOMINAL"],
-            multiplier,
+            volts,
             f"Nominal battery voltage {option}",
         )

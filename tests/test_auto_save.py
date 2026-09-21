@@ -63,11 +63,11 @@ class TestCommitIsGated:
     def test_select_write_does_not_commit_when_auto_save_is_off(self, entry):
         api = FakeApi()
         coordinator = FakeCoordinator(
-            Hass(), api, {"classic_status": {REGISTER_MAP["VBATT_NOMINAL"]: 4}},
+            Hass(), api, {"classic_status": {REGISTER_MAP["VBATT_NOMINAL"]: 48}},
             auto_save_eeprom=False,
         )
-        asyncio.run(NominalBatteryVoltageSelect(coordinator, entry).async_select_option("12 V"))
-        assert api.writes[0] == (REGISTER_MAP["VBATT_NOMINAL"], 1)
+        asyncio.run(NominalBatteryVoltageSelect(coordinator, entry).async_select_option("24 V"))
+        assert api.writes[0] == (REGISTER_MAP["VBATT_NOMINAL"], 24)
         assert COMMIT not in api.writes
 
     def test_aux_select_write_does_not_commit_when_auto_save_is_off(self, entry):

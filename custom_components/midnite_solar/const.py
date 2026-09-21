@@ -176,6 +176,9 @@ REGISTER_MAP = {
     # Bit 2 is the "AutoDlyReset" the app enables as the first half of its
     # Reboot (ConfigMenuLocal.as:4882); the other bits are the diversion,
     # shading, waste-not and similar feature enables (ClassicRegisterConversions.as:18-44).
+    # "Enable Flags 1" (4187) carries the protection enables the app puts in
+    # its Features panel; the rest of these bits the app passes through.
+    "ENABLE_FLAGS_1": 4187,
     "ENABLE_FLAGS_2": 4186,
 
     # The Classic's own clock, which the AIR app reads from the ordinary block
@@ -231,6 +234,30 @@ DEVICE_TYPES = {
     250: "Classic 250",
     251: "Classic 250 KS (120V battery capability)",
 }
+
+# The toggles the AIR app's Features panel actually writes
+# (ConfigMenuLocal.handleBtnFeaturesCommit, line 1014). The other bits of
+# 4186/4187 the app passes through unchanged, so the switches here preserve
+# them the same way; do not add entities for bits the app does not expose
+# (and note the app hard-codes PartialShading to true on EVERY commit - the
+# decompiled caller passes literal true for it, which we deliberately do not
+# copy).
+ENABLE_FLAG_TOGGLES = (
+    ("ground_fault", "Ground Fault Protection", "ENABLE_FLAGS_1", 0,
+     "Enables/disables ground fault protection; see the manual for the jumper setting"),
+    ("arc_fault", "Arc Fault Detection", "ENABLE_FLAGS_1", 1,
+     "Arc fault settings changes require a Classic reboot to take effect"),
+    ("night_auto_reset", "Night Auto Reset", "ENABLE_FLAGS_2", 2,
+     "Automatic failsafe reset at night; the reboot button enables this bit too"),
+    ("networked_batt_temp", "Networked Battery Sensor", "ENABLE_FLAGS_2", 5,
+     "Follows the master Classic's battery temperature sensor in a stacked network"),
+    ("low_max_mode", "Low-Max Mode", "ENABLE_FLAGS_2", 7,
+     "Low-max mode for low input voltage operation"),
+    ("insomnia_mode", "Insomnia Mode", "ENABLE_FLAGS_2", 12,
+     "Overrides time shutdown while there is still enough power to keep running"),
+    ("log_at_night", "Keep Logging at Night", "ENABLE_FLAGS_2", 14,
+     "Keep the Classic's datalogger running through the night"),
+)
 
 # Rest reasons from register 4275
 REST_REASONS = {
@@ -446,7 +473,13 @@ CLASSIC_STATUS_SENSORS = (
 # Register 4245 VbattNominal: "[4245] 12 * 1 thru 10 (120 Max for 250 KS)". The
 # register is a multiplier, so the bank voltage is twelve times it: ten values, not
 # a range. A user picks volts and the Classic gets the multiplier.
-NOMINAL_BATTERY_VOLTAGES = {multiplier: 12 * multiplier for multiplier in range(1, 11)}
+# The register's OWN value is the volts: the map's "[4245] 12 * 1 thru 10"
+# spells the legal values (12x1..12x10), not a multiplier the register holds.
+# Bench 2026-09-21: raw 4245 = 48 while 4115 measured 51.7 V, and the AIR app
+# displays 4245's raw value directly. An earlier version of this integration
+# keyed the table by the 1..10 multiplier and showed "Unset (48)" on a unit
+# configured for 48 V (FINDINGS section 39 follow-up).
+NOMINAL_BATTERY_VOLTAGES = {volts: volts for volts in range(12, 121, 12)}
 
 # The map's own words for these four values:
 #   "16385 | app version _ | Major: [16385](15…12) Minor: [16385](11…8)
@@ -512,6 +545,10 @@ EE_BACKED_REGISTERS = frozenset(
         REGISTER_MAP["CLASSIC_MODBUS_ADDR_EEPROM"],
         # 4245 VbattNominal, 4246 EndingAmps and 4249 RebulkVolts are (EE) too.
         REGISTER_MAP["VBATT_NOMINAL"],
+        # Both Enable Flags registers are (EE): the app's Features commit ends
+        # with CommitSettingsToEEPROM (ConfigMenuLocal.as:1029).
+        REGISTER_MAP["ENABLE_FLAGS_1"],
+        REGISTER_MAP["ENABLE_FLAGS_2"],
         REGISTER_MAP["ENDING_AMPS"],
         REGISTER_MAP["REBULK_VOLTS"],
         # Every Aux threshold is marked "(EE)" in the register map, so a change
@@ -630,6 +667,9 @@ REGISTER_GROUPS = {
     # Add settings registers for MPPT mode, Modbus port, etc.
     "settings": [
         REGISTER_MAP["MPPT_MODE"],
+        # The AIR app's Features-panel toggles (EnableFlagSwitch entities).
+        REGISTER_MAP["ENABLE_FLAGS_1"],
+        REGISTER_MAP["ENABLE_FLAGS_2"],
         # 4135 sits beside 4136/4137, so the block read already brings it.
         REGISTER_MAP["NITE_MINUTES_NO_PWR"],
         REGISTER_MAP["MODBUS_PORT_REGISTER"],

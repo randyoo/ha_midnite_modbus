@@ -79,10 +79,11 @@ class TestRegisterBlocks:
         """
         per_register = sum(len(set(r)) for r in REGISTER_GROUPS.values())
         blocks = sum(len(blocks_for(group)) for group in REGISTER_GROUPS)
-        # 120 registers in 24 blocks: the clock group (4214-4218) is 5
-        # consecutive registers that come back in the one block read it adds.
-        assert per_register == 120
-        assert blocks == 24
+        # 122 registers in 25 blocks: the clock group (4214-4218) is 5
+        # consecutive registers in one added block; the settings group gained
+        # the two Enable-Flags registers (4186-4187), one more block.
+        assert per_register == 122
+        assert blocks == 25
         assert blocks * 4 < per_register
 
     def test_the_modbus_address_register_is_read_on_its_own(self):

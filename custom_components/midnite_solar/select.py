@@ -27,7 +27,7 @@ from .const import (
 )
 from .coordinator import MidniteSolarUpdateCoordinator
 from .entity_writes import (
-    async_store_settings,
+    async_auto_save_if_enabled,
     async_verify_write,
     async_write_setting,
     register_value,
@@ -148,9 +148,9 @@ class MidniteSolarSettingSelect(MidniteSolarSelect):
     """Base for selects that write a setting the register map marks (EE)."""
 
     async def _async_write(self, address: int, value: int, label: str) -> None:
-        """Write the setting, store it in EEPROM, then refresh."""
+        """Write the setting, optionally commit to EEPROM, then refresh."""
         await async_write_setting(self.hass, self.coordinator.api, address, value, label)
-        await async_store_settings(self.hass, self.coordinator.api, label)
+        await async_auto_save_if_enabled(self.hass, self.coordinator, label)
         await async_verify_write(
             self.hass,
             self.coordinator.api,
@@ -179,7 +179,10 @@ class MPPTModeSelector(MidniteSolarSettingSelect):
             name for name in MPPT_MODES.values() if name != "RESERVED"
         ] + [MPPT_OFF]
         self._attr_entity_category = EntityCategory.DIAGNOSTIC  # Move to Diagnostics category
-        self._attr_entity_registry_enabled_default = False  # Disable by default
+        # The mode selector is a primary control (it is where MPPT gets turned
+        # off), and the charge-mode selector beside it was never hidden; a
+        # disabled-by-default one meant a fresh install could not see it.
+        self._attr_entity_registry_enabled_default = True
 
     @property
     def current_option(self) -> Optional[str]:
@@ -272,7 +275,7 @@ class AuxFieldSelect(MidniteSolarSelect):
             new_value,
             self.name,
         )
-        await async_store_settings(self.hass, self.coordinator.api, self.name)
+        await async_auto_save_if_enabled(self.hass, self.coordinator, self.name)
         await async_verify_write(
             self.hass,
             self.coordinator.api,
@@ -357,7 +360,9 @@ class Aux2StateSelect(AuxStateSelect):
         super().__init__(coordinator, entry)
         self._attr_name = "AUX 2 State"
         self._attr_unique_id = f"{entry.entry_id}_aux2_state_select"
-        self._attr_options = list(self._labels.values())
+        self._attr_options = [
+            name for code, name in self._labels.items() if code not in self._unselectable
+        ]
         self._attr_entity_category = EntityCategory.CONFIG
 
 
@@ -368,6 +373,10 @@ class NominalBatteryVoltageSelect(MidniteSolarSettingSelect):
     holds a multiplier, so the bank voltage is twelve times whatever is written.
     Offering a free-number field would invite a value the Classic would read as a
     different bank, so the options are the ten voltages that can be expressed.
+    The map notes "120 Max for 250 KS": the top option is only legal on that
+    model, and on the others the Classic itself is the authority that refuses
+    it (the write read-back will show the clamp) - the options list is not
+    filtered by model because the model is only known after the first poll.
     """
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):

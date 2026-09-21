@@ -97,6 +97,37 @@ class TestTenthsOfAVoltOrAmp:
     def test_tenths(self, entry, cls, key, raw, expected):
         assert one(cls, entry, "status", key, raw).native_value == expected
 
+    def test_a_discharge_reads_negative(self, entry):
+        """4117 is two's-complement tenths: -20.0 A is register 65336.
+
+        A sign test placed after the /10 can never fire (a register divided by 10
+        is at most 6553.5), so this reading used to be thrown away as "invalid".
+        """
+        assert one(BatteryCurrentSensor, entry, "status", "IBATT_DISPLAY_S", 65336) .native_value == pytest.approx(-20.0)
+
+    def test_a_large_battery_current_is_not_invented_away(self, entry):
+        """The map gives "[4117] /10 Amps" with no range; the old >200 A filter
+        silently dropped what a Classic 250 can legitimately report."""
+        assert one(BatteryCurrentSensor, entry, "status", "IBATT_DISPLAY_S", 2400).native_value == pytest.approx(240.0)
+
+    def test_pv_input_current_reads_negative(self, entry):
+        """4121 is the same two's-complement tenths as 4117."""
+        assert one(PVInputCurrentSensor, entry, "status", "PV_INPUT_CURRENT", 65336).native_value == pytest.approx(-20.0)
+
+    def test_a_large_pv_current_is_not_invented_away(self, entry):
+        assert one(PVInputCurrentSensor, entry, "status", "PV_INPUT_CURRENT", 1200).native_value == pytest.approx(120.0)
+
+    def test_no_current_is_dropped_for_a_ceiling_the_map_does_not_give(self, entry):
+        """The old ">200 A is invalid" filter was itself the invented range.
+
+        "([4117] /10) Amps" gives no limits, and FINDINGS' own rule is that a
+        range the document does not give must not gate a reading: a Classic 250
+        can legitimately pass 200 A, while a torn read at 3000 A is visible
+        nonsense the user can see - a silently missing value hides the very
+        problem the sensor exists to catch.
+        """
+        assert one(BatteryCurrentSensor, entry, "status", "IBATT_DISPLAY_S", 30000).native_value == pytest.approx(3000.0)
+
     def test_a_temperature_below_zero_reads_negative(self, entry):
         """Map: "([4132] /10) °C"; the Classic must be able to say it is freezing."""
         assert one(BatteryTemperatureSensor, entry, "temperatures", "BATT_TEMPERATURE", 0xFF9C).native_value == pytest.approx(-10.0)
@@ -143,17 +174,18 @@ class TestPlainCounts:
 class TestEnergyTotals:
     """The 32-bit totals: the map combines them and divides by nothing."""
 
-    def test_lifetime_energy_is_the_pair_with_no_divisor(self, entry):
-        """4126 4127: "(([4127] << 16) + [4126]) kWh"."""
+    def test_lifetime_energy_is_tenths_of_a_kilowatt_hour(self, entry):
+        """4126 4127: map says "[...] kWh" with no divisor, but the Classic's own
+        display shows a tenth (bench: 109917 -> 10991.7 kWh)."""
         values = {REGISTER_MAP["LIFETIME_KW_HOURS_1"]: 0x0001, REGISTER_MAP["LIFETIME_KW_HOURS_1"] + 1: 0x0000}
-        assert sensor(LifetimeEnergySensor, entry, "energy", values).native_value == 1.0
+        assert sensor(LifetimeEnergySensor, entry, "energy", values).native_value == pytest.approx(0.1)
 
     def test_the_high_word_counts(self, entry):
         values = {REGISTER_MAP["LIFETIME_KW_HOURS_1"]: 0xFFFF, REGISTER_MAP["LIFETIME_KW_HOURS_1"] + 1: 0x0001}
-        assert sensor(LifetimeEnergySensor, entry, "energy", values).native_value == 131071.0
+        assert sensor(LifetimeEnergySensor, entry, "energy", values).native_value == pytest.approx(13107.1)
 
     def test_lifetime_amp_hours_is_the_other_pair(self, entry):
-        """4128 4129: "(([4129] << 16) + [4128]) Amp Hours"."""
+        """4128 4129: "(([4129] << 16) + [4128]) Amp Hours" - no divisor (bench 202213)."""
         values = {REGISTER_MAP["LIFETIME_AMP_HOURS_1"]: 500, REGISTER_MAP["LIFETIME_AMP_HOURS_1"] + 1: 2}
         assert sensor(LifetimeAmpHoursSensor, entry, "energy", values).native_value == 2 * 65536 + 500
 
@@ -223,7 +255,7 @@ class TestMACAddress:
         return sensor(MACAddressSensor, entry, "device_info", values).native_value
 
     def test_the_highest_register_holds_the_first_two_octets(self):
-        assert self._mac(ConfigEntry(entry_id="e", title="t"), 0x0102, 0x0304, 0x00A1) == "00:A1:03:04:01:02"
+        assert self._mac(ConfigEntry(entry_id="e", title="t"), 0x0102, 0x0304, 0x00A1) == "00:a1:03:04:01:02"
 
     def test_a_realistic_classic_address(self):
         """Midnite's OUI is 00:00:00-ish; what matters is the byte order."""

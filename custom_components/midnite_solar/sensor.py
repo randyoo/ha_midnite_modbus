@@ -40,6 +40,7 @@ from .register_values import (
     TemperatureFilter,
     combine32,
     format_ipv4,
+    format_mac_from_registers,
     scaled_value,
     version_from_register,
 )
@@ -453,18 +454,20 @@ class BatteryCurrentSensor(MidniteSolarSensor):
             if status_data:
                 value = status_data.get(REGISTER_MAP["IBATT_DISPLAY_S"])
                 if value is not None:
-                    # Current can be negative (discharging)
-                    current_value = value / 10.0
-                    # Convert to signed value if needed
-                    if current_value > 32767:  # Check for negative values in unsigned register
-                        current_value = current_value - 65536
-                    
-                    # Validate current range (-200A to 200A is reasonable)
-                    if abs(current_value) > 200:
-                        _LOGGER.warning(f"Invalid battery current reading: {current_value}A. Ignoring.")
-                        return None
-                    
-                    return current_value
+                    # The Classic reports current as tenths in a two's-complement
+                    # 16-bit register, so it has to be read as signed BEFORE it is
+                    # divided: a raw register divided by 10 is at most 6553.5, so a
+                    # "> 32767" test placed after the divide can never fire and a
+                    # discharge reading (e.g. -20.0 A = register 65336) would be
+                    # thrown away as "invalid" every interval.
+                    #
+                    # No range check: the map gives "[4117] /10 Amps" with no range,
+                    # and an invented ceiling silently drops readings a Classic 250
+                    # can legitimately produce (the map's own rest reason 31 speaks
+                    # of battery current past 90 A, and 200.0 A is a ordinary
+                    # operating point). A discarded real value is worse than a
+                    # displayed absurd one; the display is the Classic's own truth.
+                    return scaled_value(value)
         return None
 
 
@@ -739,8 +742,11 @@ class LifetimeEnergySensor(MidniteSolarSensor):
                 low_value = energy_data.get(REGISTER_MAP["LIFETIME_KW_HOURS_1"])
                 high_value = energy_data.get(REGISTER_MAP["LIFETIME_KW_HOURS_1"] + 1)
                 if low_value is not None and high_value is not None:
-                    # The map gives "(([4127] << 16) + [4126]) kWh" with no divisor.
-                    return float(combine32(low_value, high_value))
+                    # The map's formula is "(([4127] << 16) + [4126]) kWh" with no
+                    # divisor, but the Classic's own display shows one decimal place
+                    # (bench: register 109917 reads as 10991.7 kWh). The register
+                    # holds tenths of a kWh; divide by ten, as the daily total does.
+                    return combine32(low_value, high_value) / 10.0
         return None
 
 
@@ -797,17 +803,11 @@ class PVInputCurrentSensor(MidniteSolarSensor):
             if status_data:
                 value = status_data.get(REGISTER_MAP["PV_INPUT_CURRENT"])
                 if value is not None:
-                    current_value = value / 10.0
-                    # Check for negative values
-                    if current_value > 32767:
-                        current_value = current_value - 65536
-                    
-                    # Validate current range (-100A to 100A is reasonable)
-                    if abs(current_value) > 100:
-                        _LOGGER.warning(f"Invalid PV input current reading: {current_value}A. Ignoring.")
-                        return None
-                    
-                    return current_value
+                    # Same two's-complement tenths as the battery current, and
+                    # same no-invented-range rule: the map gives "([4121] /10)"
+                    # with no limits, so nothing is discarded here. A reading is
+                    # shown as the Classic reports it.
+                    return scaled_value(value)
         return None
 
 
@@ -983,17 +983,10 @@ class MACAddressSensor(MidniteSolarSensor):
                 part2 = device_info_data.get(REGISTER_MAP["MAC_ADDRESS_PART_2"])
                 part3 = device_info_data.get(REGISTER_MAP["MAC_ADDRESS_PART_3"])
                 if part1 is not None and part2 is not None and part3 is not None:
-                    # MAC address format: [4108]MSB:[4108]LSB:[4107]MSB:[4107]LSB:[4106]MSB:[4106]LSB
-                    # Each register contains 2 bytes (16 bits)
-                    mac_bytes = [
-                        (part3 >> 8) & 0xFF,      # MSB of part3 (register 4108)
-                        part3 & 0xFF,              # LSB of part3 (register 4108)
-                        (part2 >> 8) & 0xFF,      # MSB of part2 (register 4107)
-                        part2 & 0xFF,              # LSB of part2 (register 4107)
-                        (part1 >> 8) & 0xFF,      # MSB of part1 (register 4106)
-                        part1 & 0xFF,              # LSB of part1 (register 4106)
-                    ]
-                    return ":".join(f"{byte:02X}" for byte in mac_bytes)
+                    # One decode path for the MAC (register_values), shared with
+                    # the config flow so a displayed MAC and a unique id can
+                    # never drift apart. Canonical form is lower case.
+                    return format_mac_from_registers(part1, part2, part3)
         return None
 
 
@@ -1025,11 +1018,12 @@ class ModbusPortSensor(MidniteSolarSensor):
 class NetworkAddressSensor(MidniteSolarSensor):
     """A network address held in two registers.
 
-    The map composes every one of these the same way, for example
-    "[20483]MSB . [20483]LSB . [20482]MSB . [20482]LSB": the higher register of
-    the pair carries the first two octets and each register reads high byte
-    first. In const.py each pair is `..._LOW_WORD` (the lower register, last two
-    octets) and `..._HIGH_WORD` (the higher register, first two octets).
+    The map composes every one of these as
+    "[20483]MSB . [20483]LSB . [20482]MSB . [20482]LSB", but a real Classic stores
+    it reversed (bench-confirmed): the lower register (the _LOW_WORD key) carries
+    the first two octets and each register reads low byte first. In const.py each
+    pair is `..._LOW_WORD` (the lower register, first two octets) and
+    `..._HIGH_WORD` (the higher register, last two). format_ipv4 does the reversal.
     """
 
     _low_key: str = ""
@@ -1125,8 +1119,9 @@ class ClassicStatusSensor(MidniteSolarSensor):
     """One of the Classic's own status values that no other entity reports.
 
     The scale comes from the register map's formula for that register: tenths for
-    the "([4nnn] /10)" rows, twelve times the register for the nominal bank voltage,
-    and the plain register for a code or a counter.
+    the "([4nnn] /10)" rows, and the plain register for a code or a counter. (The
+    nominal bank voltage 4245 is the NominalBatteryVoltageSelect now, not a sensor,
+    so there is no twelve-times case left here.)
     """
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any, setting):
@@ -1155,8 +1150,6 @@ class ClassicStatusSensor(MidniteSolarSensor):
             return None
         if self.kind == "tenths":
             return scaled_value(raw)
-        if self.kind == "nominal":
-            return float(12 * raw)
         return float(raw)
 
 

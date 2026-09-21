@@ -24,7 +24,7 @@ from homeassistant.core import Hass
 from midnite_solar.base import MidniteBaseEntityDescription
 from midnite_solar.const import DOMAIN, REGISTER_GROUPS, REGISTER_MAP
 
-PLATFORMS = ("sensor", "binary_sensor", "number", "select", "text", "button")
+PLATFORMS = ("sensor", "binary_sensor", "number", "select", "text", "button", "switch")
 
 ENTITIES_PER_PLATFORM = {
     "sensor": 45,
@@ -33,12 +33,15 @@ ENTITIES_PER_PLATFORM = {
     "select": 7,
     "text": 1,
     "button": 5,
+    "switch": 1,  # "Auto Save EEPROM" - the opt-in commit (§33)
 }
-ENABLED_BY_DEFAULT = 65
+# 65 as before, + Absorb Voltage and + MPPT Mode (the two primary controls that
+# were hidden behind an enable toggle), + the switch, which is on by default.
+ENABLED_BY_DEFAULT = 68
 
 
 async def _build():
-    """Set up all six platforms against a zeroed Classic."""
+    """Set up all seven platforms against a zeroed Classic."""
     hass = Hass()
     entry = ConfigEntry(entry_id="entry-1", title="Classic 200")
     groups = {
@@ -74,7 +77,7 @@ def entities(built):
 
 def value_of(platform, entity):
     """Ask an entity for whatever it shows, using that platform's property."""
-    if platform == "binary_sensor":
+    if platform in ("binary_sensor", "switch"):
         return entity.is_on
     if platform == "select":
         return entity.current_option
@@ -102,10 +105,10 @@ class TestCounts:
             made[platform] += 1
         assert made == ENTITIES_PER_PLATFORM
 
-    def test_the_integration_offers_145_entities(self, entities):
+    def test_the_integration_offers_146_entities(self, entities):
         assert len(entities) == sum(ENTITIES_PER_PLATFORM.values())
 
-    def test_65_of_them_are_on_without_being_asked_for(self, entities):
+    def test_68_of_them_are_on_without_being_asked_for(self, entities):
         enabled = [entity for _platform, entity in entities if entity.entity_registry_enabled_default]
         assert len(enabled) == ENABLED_BY_DEFAULT
 

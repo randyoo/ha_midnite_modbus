@@ -48,6 +48,7 @@ class FakeClient:
     def __init__(self, host, port=502, **kwargs):
         self.host = host
         self.port = port
+        self.kwargs = kwargs
         self.connected = False
         self.closed = False
         self.reads = []
@@ -76,12 +77,29 @@ class ErrorReadingClient(FakeClient):
         return FakeResult(error=True)
 
 
+class ExplodingReadClient(FakeClient):
+    """A socket that dies mid-read, the documented fate of a half-dead Classic."""
+
+    def read_holding_registers(self, address=0, count=1, **kwargs):
+        raise ConnectionResetError(104, "Connection reset by peer")
+
+
 class Classic200Client(FakeClient):
     """Answers the UNIT_ID read with a Classic 200, PCB 3."""
 
     def read_holding_registers(self, address=0, count=1, **kwargs):
         self.reads.append((address, count))
         return FakeResult(registers=[(3 << 8) | 200] + [0] * (count - 1))
+
+
+class MacAnsweringClient(FakeClient):
+    """Answers the MAC probe (wire 4105, registers 4106-4108) like the bench unit."""
+
+    def read_holding_registers(self, address=0, count=1, **kwargs):
+        self.reads.append((address, count))
+        if address == 4105 and count == 3:
+            return FakeResult(registers=[0xCCDD, 0x0F00, 0x601D])  # 60:1d:0f:00:cc:dd
+        return FakeResult(registers=[0] * count)
 
 
 class FakeResult:
@@ -177,8 +195,46 @@ class TestManualEntry:
         instance = flow()
         set_up_manually(instance)
         client = FakeClient.clients[-1]
-        assert client.reads == [(4100, 1)], "address 4100 zero-indexed is register 4101"
+        assert client.reads == [(4100, 1), (4105, 3)], (
+            "address 4100 zero-indexed is register 4101, then the MAC probe 4106-4108"
+        )
         assert client.closed, "the test connection is not left open"
+
+    def test_a_manual_entry_claims_the_mac_as_its_unique_id(self):
+        """Without one, a DHCP rediscovery cannot match the entry after a lease move."""
+        instance = flow(MacAnsweringClient)
+        outcome = set_up_manually(instance)
+        assert outcome["type"] == "create_entry"
+        assert instance.unique_id == "60:1d:0f:00:cc:dd"
+
+    def test_the_same_classic_on_another_address_is_not_added_twice(self):
+        """Same MAC behind a different host+port is still the same single device."""
+        existing = entry()
+        existing.unique_id = "60:1d:0f:00:cc:dd"
+        instance = flow(MacAnsweringClient, entries=[existing])
+        with pytest.raises(AbortFlow) as err:
+            set_up_manually(instance, host="192.168.88.77", port=5021)
+        assert err.value.reason == "already_configured"
+
+    def test_a_classic_that_hides_its_mac_is_still_added(self):
+        """Identification must never block a device that answers the verify read."""
+        instance = flow()  # the default fake answers the MAC probe with an error-free 0
+        outcome = set_up_manually(instance)
+        assert outcome["type"] == "create_entry"
+
+    def test_a_mac_read_that_raises_is_not_fatal_and_still_closes(self):
+        class ExplodingMacClient(FakeClient):
+            def read_holding_registers(self, address=0, count=1, **kwargs):
+                self.reads.append((address, count))
+                if address == 4105:
+                    raise ConnectionResetError(104, "Connection reset by peer")
+                return FakeResult(registers=[0] * count)
+
+        instance = flow(ExplodingMacClient)
+        outcome = set_up_manually(instance)
+        assert outcome["type"] == "create_entry"
+        assert instance.unique_id is None
+        assert FakeClient.clients[-1].closed
 
     def test_the_same_host_and_port_cannot_be_added_twice(self):
         instance = flow(entries=[entry()])
@@ -190,6 +246,12 @@ class TestManualEntry:
         instance = flow(entries=[entry(port=5021)])
         outcome = set_up_manually(instance, port=502)
         assert outcome["type"] == "create_entry"
+
+    def test_the_manual_connection_test_is_bounded_not_pymodbus_defaults(self):
+        """A half-dead port must not hold a config flow on 3 s x 3 retries."""
+        set_up_manually(flow())
+        client = FakeClient.clients[-1]
+        assert "timeout" in client.kwargs and client.kwargs["retries"] == 0
 
 
 class TestDhcpDiscovery:
@@ -242,6 +304,18 @@ class TestDhcpDiscovery:
     def test_the_form_is_pre_filled_with_what_discovery_found(self):
         outcome, _instance = self.discovery()
         assert outcome["description_placeholders"] == {"ip": HOST, "mac": MAC}
+
+    def test_a_discovery_read_that_raises_still_closes_the_socket(self):
+        """A half-dead 502 port that raises must not leak a file descriptor."""
+        outcome, _instance = self.discovery(ExplodingReadClient)
+        assert outcome["type"] == "form"
+        assert FakeClient.clients[-1].closed, "the discovery socket is closed even on error"
+
+    def test_the_discovery_client_is_bounded_not_pymodbus_defaults(self):
+        """The hub bounds every socket; discovery must not sit on 3 s x 3 retries."""
+        self.discovery()
+        client = FakeClient.clients[-1]
+        assert "timeout" in client.kwargs and client.kwargs["retries"] == 0
 
 
 class TestOptions:
@@ -299,6 +373,25 @@ class TestImport:
                 flow(entries=[entry()]).async_step_import({CONF_HOST: HOST, CONF_PORT: 502})
             )
         assert err.value.reason == "already_configured"
+
+    def test_an_imported_entry_claims_the_mac_as_its_unique_id(self):
+        """A YAML-made entry must follow a DHCP lease move like any other."""
+        instance = flow(MacAnsweringClient)
+        outcome = asyncio.run(
+            instance.async_step_import({CONF_HOST: HOST, CONF_PORT: 502})
+        )
+        assert outcome["type"] == "create_entry"
+        assert instance.unique_id == "60:1d:0f:00:cc:dd"
+
+    def test_importing_the_same_mac_from_a_yaml_duplicate_is_aborted(self):
+        existing = entry()
+        existing.unique_id = "60:1d:0f:00:cc:dd"
+        instance = flow(MacAnsweringClient, entries=[existing])
+        outcome = asyncio.run(
+            instance.async_step_import({CONF_HOST: "192.168.88.77", CONF_PORT: 5021})
+        )
+        assert outcome == {"type": "abort", "reason": "already_configured"}
+        assert FakeClient.clients[-1].closed, "the abort path still closes the socket"
 
 
 class TestReconfigure:

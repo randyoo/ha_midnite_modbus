@@ -65,6 +65,34 @@ class TestASuccessfulUpdate:
         assert api._serial == 0x12345678
 
 
+class TestTheRetryBudgetFitsTheCap:
+    """_safe_read cannot recall an executor thread when OP_TIMEOUT fires.
+
+    The abandoned thread keeps holding the hub lock and can swap the client
+    behind the next cycle, so the retry count the coordinator asks the hub for
+    must have a worst case that fits under the cap - not the hub's own default.
+    """
+
+    def test_the_worst_case_of_a_block_read_is_under_the_operation_cap(self):
+        import inspect
+
+        from midnite_solar.hub import MidniteHub
+
+        # One attempt against a half-dead port: full socket timeout, then a
+        # full reconnect (RECONNECT_DELAY plus a fresh connect that itself
+        # gets the full timeout), plus that attempt's backoff sleep.
+        per_attempt = MidniteHub.DEFAULT_TIMEOUT + MidniteHub.RECONNECT_DELAY + MidniteHub.DEFAULT_TIMEOUT
+        worst = sum(
+            per_attempt + 0.2 * (attempt + 1)
+            for attempt in range(coordinator_module.READ_RETRIES)
+        )
+        assert worst < coordinator_module.OP_TIMEOUT, f"{worst}s would outlive the {coordinator_module.OP_TIMEOUT}s cap"
+        hub_default = inspect.signature(MidniteHub.read_holding_registers).parameters["retries"].default
+        assert coordinator_module.READ_RETRIES < hub_default, (
+            "the coordinator must ask for fewer retries than the hub defaults to"
+        )
+
+
 class TestTheConnectionTest:
     """The first read decides whether the rest of the update is even attempted."""
 

@@ -89,17 +89,42 @@ def force_flag_write(flag_value: int) -> Tuple[int, int]:
     return FORCE_FLAG_BITS_HIGH_REGISTER, flag_value >> 16
 
 
-def format_ipv4(low: int, high: int) -> str:
-    """Format an IPv4 address held in two registers.
+def format_mac_from_registers(part1: int, part2: int, part3: int) -> str:
+    """Format the MAC address held in registers 4106, 4107 and 4108.
 
-    The register map composes the address as
-    "[20483]MSB . [20483]LSB . [20482]MSB . [20482]LSB", so the higher register
-    supplies the first octet and each register is read high byte first.
+    The map composes it "[4108]MSB : [4108]LSB : [4107]MSB : [4107]LSB :
+    [4106]MSB : [4106]LSB" - the highest register first, each register high
+    byte first. Bench-confirmed: the WIFI175 that prints 60:1D:0F:00:CC:DD
+    reads back part1=0xCCDD, part2=0x0F00, part3=0x601D. The result uses Home
+    Assistant's canonical form (lower case, colon separated) because unique
+    ids are compared as strings.
+    """
+    mac_bytes = [
+        (part3 >> 8) & 0xFF,
+        part3 & 0xFF,
+        (part2 >> 8) & 0xFF,
+        part2 & 0xFF,
+        (part1 >> 8) & 0xFF,
+        part1 & 0xFF,
+    ]
+    return ":".join(f"{byte:02x}" for byte in mac_bytes)
+
+
+def format_ipv4(low: int, high: int) -> str:
+    """Format an IPv4 address held in the two registers of one address pair.
+
+    The register map spells the composition "[20483]MSB . [20483]LSB . [20482]MSB .
+    [20482]LSB" - higher register first, each register high byte first. A real
+    Classic contradicts the document (bench-confirmed on 192.168.88.24): the LOWER
+    register (20482) holds the FIRST two octets and each register is read LOW byte
+    first, so 20482=0xA8C0 and 20483=0x1858 is 192.168.88.24. Following the document
+    literally renders that same unit as 24.88.168.192 - a fully reversed address.
+    The hardware wins, as it does wherever this map contradicts itself.
     """
     return ".".join(
         str(byte)
-        for word in (high, low)
-        for byte in ((word >> 8) & 0xFF, word & 0xFF)
+        for word in (low, high)
+        for byte in (word & 0xFF, (word >> 8) & 0xFF)
     )
 
 

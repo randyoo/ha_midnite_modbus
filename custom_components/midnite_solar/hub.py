@@ -53,6 +53,13 @@ class MidniteHub:
         "no connection",
         "remote end closed",
         "socket is closed",
+        # pymodbus surfaces a read timeout as ModbusIOException("...no response...").
+        # On this device - which drops idle connections - a socket that answers
+        # nothing is a dead socket, so it must reconnect rather than burn all its
+        # retries against the same half-open pipe (which also risks exceeding the
+        # coordinator's per-operation timeout).
+        "no response",
+        "timed out",
     )
 
     def __init__(self, host: str, port: int) -> None:
@@ -234,7 +241,24 @@ class MidniteHub:
                     if attempt < retries - 1:
                         time.sleep(0.2 * (attempt + 1))
                     continue
-                if not self._ensure_unlocked():
+                try:
+                    unlocked = self._ensure_unlocked()
+                except Exception as e:
+                    # The unlock write is a write too, and a socket the device has
+                    # already dropped can raise on it. Handle it like a failed
+                    # setting write - reconnect and try again - instead of letting
+                    # a bare connection error escape to the caller.
+                    last_result = e
+                    _LOGGER.warning(
+                        f"Attempt {attempt + 1} exception unlocking for write to {address}: {e}"
+                    )
+                    if self._is_connection_error(e):
+                        _LOGGER.debug("Connection-level error on unlock; full reconnect")
+                        self._reconnect()
+                    if attempt < retries - 1:
+                        time.sleep(0.2 * (attempt + 1))
+                    continue
+                if not unlocked:
                     raise WriteLockedError(
                         "The Classic write-protects Ethernet writes; the "
                         "serial number unlock has not succeeded yet"

@@ -247,13 +247,20 @@ class TestEveryNumberCommits:
 
     @staticmethod
     def number_classes():
-        """Every number class the integration defines."""
+        """Every number class the integration defines that can address a register.
+
+        WindPowerTableNumber (the shared base of the V and I tables) names no
+        table of its own - _table_first_register is 0 and no register 0 exists -
+        so it is the abstract middle of its family and not a buildable setting;
+        the two concrete table classes are swept instead.
+        """
         return [
             obj
             for obj in vars(number_module).values()
             if isinstance(obj, type)
             and issubclass(obj, MidniteSolarNumber)
             and obj is not MidniteSolarNumber
+            and getattr(obj, "_table_first_register", 1) != 0
         ]
 
     @staticmethod
@@ -264,13 +271,30 @@ class TestEveryNumberCommits:
         return cls(coordinator, entry)
 
     def test_all_number_classes_are_covered(self):
-        assert len(self.number_classes()) == 19
+        assert len(self.number_classes()) == 18
+
+    @staticmethod
+    def coordinator_with_tables_read(hass, api):
+        """Wind steps refuse to write an unread shared register (by design).
+
+        A sweep that only ever fills the "setpoints" group would have those
+        classes refuse before the commit, proving nothing about commits - so
+        the wind registers are given a read value here, honestly.
+        """
+        return FakeCoordinator(
+            hass,
+            api,
+            {
+                "setpoints": {},
+                "wind_power_curve": {address: 0x4342 for address in range(4301, 4317)},
+            },
+        )
 
     def test_every_ee_backed_setting_sends_a_commit(self, hass, entry):
         missing = []
         for cls in self.number_classes():
             api = FakeApi()
-            coordinator = make_coordinator(hass, api)
+            coordinator = self.coordinator_with_tables_read(hass, api)
             number = self.build(cls, coordinator, entry)
             asyncio.run(number._async_set_value(1))
             ee_backed = number.register_address in EE_BACKED_REGISTERS
@@ -283,7 +307,7 @@ class TestEveryNumberCommits:
     def test_commit_always_follows_the_setting(self, hass, entry):
         for cls in self.number_classes():
             api = FakeApi()
-            number = self.build(cls, make_coordinator(hass, api), entry)
+            number = self.build(cls, self.coordinator_with_tables_read(hass, api), entry)
             asyncio.run(number._async_set_value(1))
             if number.register_address in EE_BACKED_REGISTERS:
                 assert api.writes[1] == (4160, 0x0004), cls.__name__
@@ -389,6 +413,50 @@ class TestWindPowerTableSteps:
         coordinator = make_coordinator(hass, api, group="wind_power_curve", registers=dict(WIND_TABLE))
         number = WindPowerCurveVNumber(coordinator, entry, 3)
         assert (number.native_min_value, number.native_max_value, number.native_step) == (0, 255, 1)
+
+    def test_writing_before_the_register_is_read_refuses(self, hass, api, entry):
+        """Packing against an assumed 0 would zero the neighbour on the Classic.
+
+        The first poll may not have happened, or the wind block may have failed
+        this interval; in either case the shared register is unknown, and the
+        only safe write is none. (The Aux selects refuse the same thing.)
+        """
+        group = {}  # the group exists but the register was never read
+        coordinator = make_coordinator(hass, api, group="wind_power_curve", registers=group)
+        number = WindPowerCurveVNumber(coordinator, entry, 1)
+        with pytest.raises(HomeAssistantError):
+            asyncio.run(number.async_set_native_value(75))
+        assert api.writes == []
+
+    def test_writing_with_the_group_entirely_unread_refuses(self, hass, api, entry):
+        coordinator = FakeCoordinator(hass, api, {})
+        number = WindPowerCurveVNumber(coordinator, entry, 0)
+        with pytest.raises(HomeAssistantError):
+            asyncio.run(number.async_set_native_value(70))
+        assert api.writes == []
+
+    def test_readback_blames_only_this_steps_byte(self, hass, api, entry):
+        """The neighbour byte is not ours to vouch for.
+
+        The Classic kept step 0 (70); the MNGP changed step 1 in the same
+        register between the write and the read-back. A whole-register
+        comparison would report this good write as refused.
+        """
+        coordinator = make_coordinator(hass, api, group="wind_power_curve", registers=dict(WIND_TABLE))
+        number = WindPowerCurveVNumber(coordinator, entry, 0)
+        # Written: (68 << 8) | 70 = 0x4446. The device answers 0x4846: our low
+        # byte landed, the high byte moved from 68 to 72 behind us.
+        api.late_values[4301] = 0x4846
+        asyncio.run(number.async_set_native_value(70))
+        assert api.writes[0] == (4301, 0x4446)
+
+    def test_a_stale_readback_of_the_own_byte_is_still_refused(self, hass, api, entry):
+        """The write-protected Classic ignores the write: the byte says so."""
+        coordinator = make_coordinator(hass, api, group="wind_power_curve", registers=dict(WIND_TABLE))
+        number = WindPowerCurveVNumber(coordinator, entry, 0)
+        api.stale_read = True  # the Classic keeps the old register (0x4440)
+        with pytest.raises(HomeAssistantError):
+            asyncio.run(number.async_set_native_value(70))
 
 
 class TestForceChargeMode:

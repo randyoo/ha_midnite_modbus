@@ -7,6 +7,8 @@ from typing import Any, Optional
 
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
+from midnite_solar.const import REGISTER_GROUPS
+
 
 class ModbusResult:
     """Stands in for a pymodbus response."""
@@ -51,6 +53,12 @@ class FakeApi:
         # fallback can be exercised; and addresses that never answer at all.
         self.bad_blocks = bad_blocks or set()
         self.unreadable_registers = unreadable_registers or set()
+        # Registers where a read answers with a value OTHER than what was just
+        # written: a second tool (MNGP) changing the neighbour byte of a packed
+        # register between the write and the read-back. The wind tables need a
+        # double that can move beside them, or the suite cannot tell a shared
+        # register's neighbour from a refused write.
+        self.late_values: dict[int, int] = {}
         # The coordinator hands the serial number over after every update, because
         # the write-protect grant dies with the connection.
         self._serial = None
@@ -70,6 +78,8 @@ class FakeApi:
             return ModbusResult(error=True)
         if count == 1 and address in self.unreadable_registers:
             return ModbusResult(error=True)
+        if count == 1 and address in self.late_values:
+            return ModbusResult(registers=[self.late_values[address]])
         return ModbusResult(
             registers=[self.read_values.get(address + offset, 0) for offset in range(count)]
         )
@@ -92,11 +102,21 @@ class FakeApi:
 class FakeCoordinator(DataUpdateCoordinator):
     """Coordinator holding canned register data, keyed by group name."""
 
-    def __init__(self, hass, api: FakeApi, groups: Optional[dict[str, dict[int, int]]] = None):
+    def __init__(
+        self,
+        hass,
+        api: FakeApi,
+        groups: Optional[dict[str, dict[int, int]]] = None,
+        auto_save_eeprom: bool = True,
+    ):
         super().__init__(hass, logging.getLogger(__name__), name="midnite_solar")
         self.api = api
         self.data = {"data": groups or {}, "groups": groups or {}}
         self.refresh_requests = 0
+        # The double defaults the auto-save gate ON so the many commit-path tests
+        # stay valid; the production default (OFF) and the off-path are pinned by
+        # dedicated tests in test_auto_save.py.
+        self.auto_save_eeprom = auto_save_eeprom
 
     async def async_request_refresh(self):
         """A refresh brings back what the device reports now, as a real one does."""
@@ -107,9 +127,13 @@ class FakeCoordinator(DataUpdateCoordinator):
                     group[address] = self.api.read_values[address]
 
     def get_register_value(self, address: int) -> Any:
-        for group in self.data["data"].values():
-            if address in group:
-                return group[address]
+        # Mirror the real coordinator: an address only reads back from the group
+        # that actually polls it. A fake that searches every group would hide a
+        # wrong group name in an entity, and could hand back a value that the real
+        # device never polled for that register.
+        for group_name, registers in REGISTER_GROUPS.items():
+            if address in registers and group_name in self.data["data"]:
+                return self.data["data"][group_name].get(address)
         return None
 
     def group(self, name: str) -> dict[int, int]:

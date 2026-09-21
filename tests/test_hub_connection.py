@@ -101,7 +101,17 @@ class TestClientIsBuiltForASingleConnectionDevice:
 class TestConnectionErrorsAreToldApart:
     """A dead socket needs a new socket; a bad register does not."""
 
-    @pytest.mark.parametrize("errno", sorted(MidniteHub._CONN_ERRNOS))
+    # Pinned here as a literal, not read back from the production set: the point is
+    # to fail if an errno is dropped from MidniteHub._CONN_ERRNOS. Parametrizing the
+    # test over that same set is circular - deleting an entry would only delete the
+    # test case and stay green.
+    CONN_ERRNOS = [32, 103, 104, 105, 110, 111, 112, 113]
+
+    def test_the_listed_connection_errnos_are_exactly_these(self, monkeypatch):
+        make_hub(monkeypatch)
+        assert sorted(MidniteHub._CONN_ERRNOS) == self.CONN_ERRNOS
+
+    @pytest.mark.parametrize("errno", CONN_ERRNOS)
     def test_every_listed_errno_is_a_connection_error(self, monkeypatch, errno):
         hub = make_hub(monkeypatch)
         assert hub._is_connection_error(OSError(errno, "boom")) is True
@@ -167,6 +177,38 @@ class TestReading:
         hub = MidniteHub("192.168.88.53", 502)
         hub._client = Recorder()
         assert hub.read_holding_registers(4113, 1, retries=3) is None
+
+    def test_the_default_read_retries_are_five(self, monkeypatch):
+        """Nothing else pins the default; it is the knob that bounds a failing block.
+
+        Pin it so a future edit cannot quietly cut the number of Modbus
+        transactions a dead register is given before it is marked unavailable.
+        """
+        import inspect
+
+        default = inspect.signature(MidniteHub.read_holding_registers).parameters["retries"].default
+        assert default == 5
+
+    def test_a_read_that_times_out_reconnects(self, monkeypatch):
+        """pymodbus' "no response" ModbusIOException is a dead socket, not a bad register.
+
+        On a device that drops idle connections, matching neither errno nor the old
+        message fragments meant all retries ran against the same half-open pipe.
+        """
+
+        class TimesOut(Recorder):
+            def read_holding_registers(self, address=0, count=1, **kwargs):
+                from pymodbus.exceptions import ModbusIOException
+
+                raise ModbusIOException("Modbus Error: [Input/Output] no response")
+
+        hub = make_hub(monkeypatch, TimesOut)
+        hub._client = TimesOut()
+        hub._client.open = True
+        Recorder.log = []
+        assert hub.read_holding_registers(4113, 1, retries=2) is None
+        connects = [event for event in Recorder.log if event[0] == "connect"]
+        assert connects, "a read timeout must force a reconnect, not retry the dead pipe"
 
     def test_a_dead_socket_is_replaced_and_the_read_retried(self, monkeypatch):
         hub = make_hub(monkeypatch)
@@ -235,6 +277,38 @@ class TestWriting:
         result = hub.write_register(4149, 576, retries=2)
         assert result.isError() is True
         assert Recorder.writes.count((4148, 576)) == 2, "it tried twice and stopped"
+
+    def test_a_stale_socket_during_unlock_reconnects_instead_of_raising(self, monkeypatch):
+        """The unlock is a write too; a half-open socket must reconnect, not escape.
+
+        Before the fix the raw unlock write sat outside the guarded block, so the
+        first setting press after an idle drop failed with a bare connection error
+        instead of the reconnect the file promises.
+        """
+
+        class DiesOnFirstUnlock(Recorder):
+            raised = False
+
+            def write_register(self, address=0, value=0, **kwargs):
+                # Unlock registers on the wire are 20491/20492; fail the first one
+                # with a connection error, then behave normally.
+                if address in (20491, 20492) and not DiesOnFirstUnlock.raised:
+                    DiesOnFirstUnlock.raised = True
+                    raise ConnectionResetError(104, "Connection reset by peer")
+                Recorder.writes.append((address, value))
+                return Recorder.write_result
+
+        DiesOnFirstUnlock.raised = False
+        hub = make_hub(monkeypatch, DiesOnFirstUnlock)
+        hub._client = DiesOnFirstUnlock()
+        hub._client.open = True
+        Recorder.log = []
+        hub.set_serial_number(0x12345678)
+        result = hub.write_register(4149, 576, retries=3)
+        assert not result.isError()
+        assert (4148, 576) in Recorder.writes, "the setting landed after the reconnect"
+        connects = [event for event in Recorder.log if event[0] == "connect"]
+        assert connects, "the unlock failure forced a reconnect"
 
     def test_a_write_with_no_connection_at_all_says_so(self, monkeypatch):
         """Not a Modbus error - there is nothing to write to."""

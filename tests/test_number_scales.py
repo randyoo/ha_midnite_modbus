@@ -14,7 +14,7 @@ from fakes import FakeApi, FakeCoordinator
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Hass
 
-from midnite_solar.const import REGISTER_MAP
+from midnite_solar.const import REGISTER_GROUPS, REGISTER_MAP
 from midnite_solar.number import (
     AbsorbTimeNumber,
     AbsorbVoltageNumber,
@@ -53,9 +53,18 @@ def entry():
     return ConfigEntry(entry_id="entry-1", title="Classic 200")
 
 
+def group_of(address):
+    """The register group the real coordinator would have filled for this address."""
+    return next(
+        name for name, registers in REGISTER_GROUPS.items() if address in registers
+    )
+
+
 def build(cls, entry, address, raw, api=None):
     api = api or FakeApi()
-    coordinator = FakeCoordinator(Hass(), api, {"setpoints": {address: raw}})
+    # Put the raw register in the group the real coordinator polls it in, so the
+    # entity is exercised the way it runs - not through a group name it never sees.
+    coordinator = FakeCoordinator(Hass(), api, {group_of(address): {address: raw}})
     coordinator.hass = Hass()
     entity = cls(coordinator, entry)
     entity.hass = coordinator.hass

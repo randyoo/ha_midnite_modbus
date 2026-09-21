@@ -24,6 +24,7 @@ from register_values import (  # noqa: E402
     combine32,
     force_flag_write,
     format_ipv4,
+    format_mac_from_registers,
     pack_byte_pair,
     scaled_register,
     scaled_value,
@@ -59,9 +60,18 @@ class TestScaling:
     def test_scaled_register_rounds_tenths(self, value, raw):
         assert scaled_register(value) == raw
 
-    def test_register_conversion_avoids_float_truncation(self):
-        """57.6 * 10 is 575.9999999999999 in binary floats; must not become 575."""
-        assert scaled_register(28.3) == 283  # the register map's own example
+    def test_register_conversion_rounds_not_truncates(self):
+        """The docstring promises rounding; only a halfway value proves it.
+
+        57.6 * 10 happens to land on 576.0, so int() and round() agree there and a
+        truncating mutation survives. 28.35 * 10 is 283.5: truncating writes 283,
+        rounding writes 284. That is where the difference is visible.
+        """
+        assert scaled_register(28.35) == 284
+        assert int(28.35 * 10) == 283, "truncation really does go low - the test means something"
+        # Plain tenths still land exactly.
+        assert scaled_register(57.6) == 576
+        assert scaled_register(28.3) == 283
         assert scaled_register(48.0) == 480
 
     @pytest.mark.parametrize(("raw", "expected"), [(0, 0), (32767, 32767), (32768, -32768), (65535, -1)])
@@ -116,15 +126,38 @@ class TestForceFlagWord:
             force_flag_write(1 << 32)
 
 
-class TestIpv4:
-    """Register map: "[20483]MSB . [20483]LSB . [20482]MSB . [20482]LSB"."""
+class TestMacAddress:
+    """Map: "[4108]MSB:[4108]LSB:[4107]MSB:[4107]LSB:[4106]MSB:[4106]LSB"."""
 
-    def test_high_register_supplies_the_first_octet(self):
-        # 192.168.1.2 -> high register (20483) = 0xC0A8, low (20482) = 0x0102
-        assert format_ipv4(low=0x0102, high=0xC0A8) == "192.168.1.2"
+    def test_the_bench_mac_decodes_high_register_first(self):
+        """The WIFI175 that prints 60:1D:0F:00:CC:DD (192.168.88.24, 2026-09)."""
+        assert format_mac_from_registers(0xCCDD, 0x0F00, 0x601D) == "60:1d:0f:00:cc:dd"
+
+    def test_the_answer_is_canonical_for_unique_id_comparison(self):
+        """Home Assistant compares unique ids as strings: lower case, colons."""
+        mac = format_mac_from_registers(0xABCD, 0xEF01, 0x2345)
+        assert mac == "23:45:ef:01:ab:cd"
+
+
+class TestIpv4:
+    """A real Classic stores the address reversed from how the map prints it.
+
+    Bench-confirmed on 192.168.88.24: 20482=0xA8C0, 20483=0x1858. The lower-numbered
+    register holds the first two octets and each register reads low byte first; the
+    map's literal "[20483]MSB . ... . [20482]LSB" order renders the same unit as a
+    reversed 24.88.168.192.
+    """
+
+    def test_lower_register_supplies_the_first_octet(self):
+        # 192.168.1.2 -> lower register (20482) = 0xA8C0, higher (20483) = 0x0201
+        assert format_ipv4(low=0xA8C0, high=0x0201) == "192.168.1.2"
+
+    def test_the_bench_observed_address(self):
+        # The exact registers read back from 192.168.88.24.
+        assert format_ipv4(low=0xA8C0, high=0x1858) == "192.168.88.24"
 
     def test_dhcp_style_address(self):
-        assert format_ipv4(low=0x1C16, high=0xC0A8) == "192.168.28.22"
+        assert format_ipv4(low=0xA8C0, high=0x161C) == "192.168.28.22"
 
 
 class TestTemperatureFilter:

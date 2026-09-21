@@ -23,7 +23,7 @@ from midnite_solar import coordinator as coordinator_module
 from midnite_solar.const import CONF_SCAN_INTERVAL, DEFAULT_PORT, DOMAIN
 
 HOST = "192.168.88.53"
-PLATFORMS = {"sensor", "binary_sensor", "button", "number", "text", "select"}
+PLATFORMS = {"sensor", "binary_sensor", "button", "number", "text", "select", "switch"}
 
 
 class Hub(FakeApi):
@@ -42,6 +42,9 @@ class Hub(FakeApi):
     def connect(self):
         self.connects += 1
         return True
+
+    def disconnect(self):
+        self.disconnects += 1
 
 
 class RefusingHub(Hub):
@@ -110,7 +113,7 @@ class TestSetup:
         set_up(hass, entry())
         assert Hub.instances[0].connects == 1
 
-    def test_all_six_platforms_are_set_up(self):
+    def test_all_seven_platforms_are_set_up(self):
         hass = Hass()
         config_entry = entry()
         set_up(hass, config_entry)
@@ -239,3 +242,114 @@ class TestOptionsChange:
     def test_the_listener_reports_success(self):
         hass = Hass()
         assert asyncio.run(integration.update_listener(Hass(), entry())) is True
+
+
+class TestFailedSetupCleanup:
+    """A setup that fails leaves nothing holding the single-connection Classic."""
+
+    def test_a_refused_connection_closes_the_socket_it_made(self):
+        hass = Hass()
+        with pytest.raises(ConfigEntryNotReady):
+            set_up(hass, entry(), RefusingHub)
+        assert Hub.instances[0].disconnects == 1
+
+    def test_a_refused_connection_removes_the_coordinator_it_published(self):
+        hass = Hass()
+        with pytest.raises(ConfigEntryNotReady):
+            set_up(hass, entry(), RefusingHub)
+        assert hass.data.get(DOMAIN, {}) == {}
+
+    def test_a_device_that_answers_nothing_is_disconnected_afterwards(self):
+        """The socket connected, the first refresh failed - the socket must close."""
+        hass = Hass()
+        with pytest.raises(ConfigEntryNotReady):
+            set_up(hass, entry(), SilentHub)
+        hub = Hub.instances[0]
+        assert hub.connects == 1
+        assert hub.disconnects == 1
+        assert hass.data.get(DOMAIN, {}) == {}
+
+    def test_a_second_setup_after_a_failure_gets_a_fresh_connection(self):
+        """The retry must not stack a second socket on the abandoned one."""
+        hass = Hass()
+        with pytest.raises(ConfigEntryNotReady):
+            set_up(hass, entry(), SilentHub)
+        assert Hub.instances[-1].disconnects == 1, "the failed attempt's hub was closed"
+        # The Classic recovers; the retry now succeeds.
+        assert set_up(hass, entry()) is True
+        assert len(Hub.instances) == 2, "a new coordinator/hub for the retry"
+        assert Hub.instances[-1].connects == 1
+
+
+class TestUpdateListenerLifecycle:
+    """The update listener is registered once and undone on unload."""
+
+    def test_the_listener_is_undone_on_unload(self):
+        """add_update_listener accumulates with no dedupe, so it must be unwrapped."""
+        hass = Hass()
+        config_entry = entry()
+        set_up(hass, config_entry)
+        assert len(config_entry._update_listeners) == 1
+        assert len(config_entry._on_unload) == 1
+        # HA runs the on-unload callbacks when the entry unloads or reloads.
+        config_entry.async_test_unload()
+        assert config_entry._update_listeners == []
+
+    def test_a_reload_does_not_accumulate_another_listener(self):
+        """Reload = unload (run cleanups) + setup; the listener count must stay 1."""
+        hass = Hass()
+        config_entry = entry()
+        set_up(hass, config_entry)
+        config_entry.async_test_unload()
+        set_up(hass, config_entry)
+        assert len(config_entry._update_listeners) == 1
+
+    def test_a_host_change_with_the_interval_unchanged_does_not_reload(self):
+        """DHCP/reconfigure already reload themselves; the listener must not double up.
+
+        A single-connection Classic cannot take two concurrent reloads.
+        """
+        hass = Hass()
+        config_entry = entry()
+        set_up(hass, config_entry)
+        coordinator = hass.data[DOMAIN][config_entry.entry_id]
+        assert coordinator.interval == 15
+        # Same scan interval, different host.
+        config_entry.options = {CONF_SCAN_INTERVAL: 15}
+        asyncio.run(integration.update_listener(hass, config_entry))
+        assert hass.config_entries.reloads == []
+
+    def test_a_scan_interval_change_still_reloads(self):
+        hass = Hass()
+        config_entry = entry()
+        set_up(hass, config_entry)
+        config_entry.options = {CONF_SCAN_INTERVAL: 30}
+        asyncio.run(integration.update_listener(hass, config_entry))
+        assert hass.config_entries.reloads == [config_entry.entry_id]
+
+
+class TestUnloadRobustness:
+    """The unload must clean up even when it does not go cleanly."""
+
+    def test_a_second_unload_does_not_error(self):
+        """A double unload must not KeyError out of the hass.data pop."""
+        hass = Hass()
+        config_entry = entry()
+        set_up(hass, config_entry)
+        assert asyncio.run(integration.async_unload_entry(hass, config_entry)) is True
+        assert asyncio.run(integration.async_unload_entry(hass, config_entry)) is not None
+
+    def test_a_failed_platform_unload_still_shuts_the_coordinator_down(self):
+        """A live coordinator left behind would poll the single-connection device."""
+        hass = Hass()
+        config_entry = entry()
+        set_up(hass, config_entry)
+        coordinator = hass.data[DOMAIN][config_entry.entry_id]
+
+        async def fail_unload(entry, platforms):
+            return False
+
+        hass.config_entries.async_unload_platforms = fail_unload
+        asyncio.run(integration.async_unload_entry(hass, config_entry))
+        assert coordinator.shutdowns == 1
+        assert config_entry.entry_id not in hass.data[DOMAIN]

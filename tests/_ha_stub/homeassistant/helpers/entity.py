@@ -71,5 +71,8 @@ class Entity:
     async def async_update(self):
         """No-op refresh hook."""
 
+    def async_write_ha_state(self):
+        """Push the entity's state, as Home Assistant does (no-op in the double)."""
+
 
 EntityCategoryValue = Any

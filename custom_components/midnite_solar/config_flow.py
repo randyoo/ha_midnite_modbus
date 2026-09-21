@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import inspect
 import logging
 from typing import Any
 
@@ -10,7 +9,7 @@ from pymodbus.client import ModbusTcpClient
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFlow
-from homeassistant.const import CONF_HOST, CONF_NAME, CONF_PORT
+from homeassistant.const import CONF_HOST, CONF_PORT
 try:
     # Try new import path first (Home Assistant 2025.12+)
     from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
@@ -19,8 +18,56 @@ except ImportError:
     from homeassistant.components.dhcp import DhcpServiceInfo
 
 from .const import DEFAULT_PORT, DOMAIN, DEFAULT_SCAN_INTERVAL, CONF_SCAN_INTERVAL
+from .register_values import format_mac_from_registers
 
 _LOGGER = logging.getLogger(__name__)
+
+# Bounded timeout for the one-off read a discovery/config/import step makes to
+# identify or verify a device, so no flow ever sits on a dead 502 port for the
+# pymodbus default (3 s, and 3 s x 3 retries once retries are left on).
+DISCOVERY_TIMEOUT = 3.0
+
+# The MAC address registers 4106-4108, the same three the MAC sensor reads.
+# A manual entry claims this as its unique id so a later DHCP discovery of the
+# same Classic matches the entry instead of offering a duplicate card.
+MAC_WIRE_ADDRESS = 4105  # zero-indexed register 4106
+MAC_REGISTER_COUNT = 3
+
+
+def _probe_client(host: str, port: int) -> ModbusTcpClient:
+    """A one-off probe client with the hub's bounded-socket policy.
+
+    Every flow socket goes through here: the pymodbus defaults (3 s timeout
+    with 3 retries) would let a half-dead Classic hold a config flow ~12 s per
+    read, and a flow is not allowed to linger on a single-connection device.
+    """
+    return ModbusTcpClient(
+        host,
+        port=port,
+        timeout=DISCOVERY_TIMEOUT,
+        retries=0,
+    )
+
+
+def _read_mac(client: ModbusTcpClient):
+    """Read registers 4106-4108 and return the canonical MAC, or None.
+
+    None - including a raising read - means the device answered the
+    verification read but not the MAC probe. That must not veto the entry:
+    identification is a bonus on a connection already proven, and a socket
+    that dies on the SECOND read still leaves a Classic that demonstrably
+    answers the first one.
+    """
+    try:
+        result = client.read_holding_registers(
+            address=MAC_WIRE_ADDRESS, count=MAC_REGISTER_COUNT
+        )
+    except Exception:
+        _LOGGER.debug("MAC probe raised; entry proceeds without a unique id", exc_info=True)
+        return None
+    if result is None or result.isError() or len(result.registers) < MAC_REGISTER_COUNT:
+        return None
+    return format_mac_from_registers(*result.registers)
 
 
 class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -35,13 +82,11 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_dhcp(self, discovery_info: DhcpServiceInfo) -> ConfigFlowResult:
         """Handle DHCP discovery."""
-        _LOGGER.info("========================================")
-        _LOGGER.info("DHCP DISCOVERY TRIGGERED!")
-        _LOGGER.info(f"Device IP: {discovery_info.ip}")
-        _LOGGER.info(f"MAC Address: {discovery_info.macaddress}")
-        if hasattr(discovery_info, 'hostname'):
-            _LOGGER.info(f"Hostname: {discovery_info.hostname}")
-        _LOGGER.info("========================================")
+        _LOGGER.info(
+            "DHCP discovery: Classic candidate at %s (MAC %s)",
+            discovery_info.ip,
+            discovery_info.macaddress,
+        )
         
         # Format the MAC address properly for unique ID using Home Assistant's standard format
         from homeassistant.helpers.device_registry import format_mac
@@ -87,38 +132,38 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
         
         # Try to read device model from the device for better identification in UI
         try:
-            _LOGGER.warning(f"Attempting to read device model from {discovery_info.ip}...")
-            client = ModbusTcpClient(discovery_info.ip, port=DEFAULT_PORT)
-            connected = await self.hass.async_add_executor_job(client.connect)
-            if connected:
-                _LOGGER.warning(f"Successfully connected to {discovery_info.ip}, reading model info...")
-                # Read UNIT_ID register to get device type
-                result = await self.hass.async_add_executor_job(
-                    lambda: client.read_holding_registers(address=4100, count=2)
-                )
-                client.close()
-                
-                if result and not result.isError():
-                    # Register 4101 contains device type in LSB
-                    unit_id = result.registers[0] if len(result.registers) > 0 else None
-                    if unit_id is not None:
-                        from .const import DEVICE_TYPES
-                        device_type = unit_id & 0xFF  # Get LSB (unit type)
-                        model_name = DEVICE_TYPES.get(device_type, f"Midnite Device ({device_type})")
-                        _LOGGER.warning(f"Discovered device model: {model_name}")
-                        # Set the model as the name for badge display
-                        self.context["title_placeholders"]["name"] = model_name
+            _LOGGER.info("Reading device model from discovered %s", discovery_info.ip)
+            client = _probe_client(discovery_info.ip, DEFAULT_PORT)
+            try:
+                connected = await self.hass.async_add_executor_job(client.connect)
+                if connected:
+                    # Read UNIT_ID register to get device type
+                    result = await self.hass.async_add_executor_job(
+                        lambda: client.read_holding_registers(address=4100, count=2)
+                    )
+
+                    if result and not result.isError():
+                        # Register 4101 contains device type in LSB
+                        unit_id = result.registers[0] if len(result.registers) > 0 else None
+                        if unit_id is not None:
+                            from .const import DEVICE_TYPES
+                            device_type = unit_id & 0xFF  # Get LSB (unit type)
+                            model_name = DEVICE_TYPES.get(device_type, f"Midnite Device ({device_type})")
+                            _LOGGER.info("Discovered device model: %s", model_name)
+                            # Set the model as the name for badge display
+                            self.context["title_placeholders"]["name"] = model_name
+                        else:
+                            _LOGGER.info("Could not read UNIT_ID register - result.registers is empty")
                     else:
-                        _LOGGER.warning("Could not read UNIT_ID register - result.registers is empty")
+                        _LOGGER.info("Failed to read device registers: %s", result)
                 else:
-                    _LOGGER.warning(f"Failed to read device registers: {result}. IsError={result.isError() if result else 'N/A'}")
-            else:
-                _LOGGER.warning(f"Could not connect to device at {discovery_info.ip} for model identification")
+                    _LOGGER.info("Could not connect to device at %s for model identification", discovery_info.ip)
+            finally:
+                # close() in finally: if the read raises, the discovery socket is
+                # still given back, so one unlucky DHCP callback leaks no fd.
+                client.close()
         except Exception as e:
-            _LOGGER.warning(f"Error reading device model during discovery: {e}", exc_info=True)
-        
-        # Log the final title placeholder for debugging
-        _LOGGER.warning(f"Discovery badge will display: '{self.context['title_placeholders']['name']}'")
+            _LOGGER.warning("Error reading device model during discovery: %s", e, exc_info=True)
         
         # Show user confirmation with pre-filled IP and port
         return self.async_show_form(
@@ -133,19 +178,11 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Handle the initial step (manual or DHCP discovery)."""
-        _LOGGER.info("========================================")
-        _LOGGER.info("async_step_user CALLED")
-        _LOGGER.info(f"user_input: {user_input}")
-        
         # Check if we came from DHCP discovery
         discovered = hasattr(self, 'discovery_info') and self.discovery_info is not None
-        if discovered:
-            _LOGGER.info("✓ Called from DHCP DISCOVERY")
-            _LOGGER.info(f"  MAC: {self.discovery_info.macaddress}")
-            _LOGGER.info(f"  IP: {self.discovery_info.ip}")
-        else:
-            _LOGGER.info("✓ Called from MANUAL entry")
-        _LOGGER.info("========================================")
+        _LOGGER.info(
+            "User step from %s discovery", "DHCP" if discovered else "manual entry"
+        )
         
         errors: dict[str, str] = {}
         
@@ -175,14 +212,12 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
                 {CONF_HOST: user_input[CONF_HOST], CONF_PORT: user_input.get(CONF_PORT, DEFAULT_PORT)}
             )
             
-            # Debug: Log pymodbus version and API signature
-            import pymodbus
-            _LOGGER.info(f"PyModbus version: {pymodbus.__version__}")
-            sig = inspect.signature(ModbusTcpClient.read_holding_registers)
-            _LOGGER.info(f"read_holding_registers signature: {sig}")
-            
-            # Test connection
-            client = ModbusTcpClient(user_input[CONF_HOST], port=user_input[CONF_PORT])
+            # Test connection, bounded like every other flow socket and closed
+            # in finally so a read that raises (the documented fate of a
+            # half-dead 502 port) cannot leak the socket.
+            mac = None
+            probed = False
+            client = _probe_client(user_input[CONF_HOST], user_input.get(CONF_PORT, DEFAULT_PORT))
             try:
                 connected = await self.hass.async_add_executor_job(client.connect)
                 if not connected:
@@ -194,18 +229,40 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
                     )
                     if result.isError():
                         errors["base"] = "cannot_read"
-                    
-                client.close()
+                    elif not discovered:
+                        # A manual entry claims the Classic's MAC as its unique
+                        # id (read registers 4106-4108 in the same session).
+                        # Without one, a later DHCP discovery of the same device
+                        # cannot match it - only host+port blocked a duplicate -
+                        # so a lease move surfaced a second "add this device?"
+                        # card for a Classic that was already set up.
+                        probed = True
+                        mac = await self.hass.async_add_executor_job(_read_mac, client)
             except Exception as ex:
                 _LOGGER.exception("Unexpected exception during connection test")
                 errors["base"] = "unknown"
+            finally:
+                client.close()
+
+            # The duplicate-by-MAC check runs after the finally, not inside the
+            # test above: its AbortFlow would otherwise be caught by that broad
+            # except and mis-reported as "unknown".
+            if not errors and probed:
+                if mac is None:
+                    _LOGGER.info(
+                        "%s did not report its MAC - the entry will have no "
+                        "unique id and cannot be matched by discovery",
+                        user_input[CONF_HOST],
+                    )
+                elif await self.async_set_unique_id(mac) is not None:
+                    self._abort_if_unique_id_configured()
             
             if not errors:
                 # Determine title based on discovery or manual entry
                 if discovered and self.discovery_info:
                     title = f"Midnite Solar @ {user_input[CONF_HOST]}"
                 else:
-                    title = user_input.get(CONF_NAME, f"Midnite Solar @ {user_input[CONF_HOST]}")
+                    title = f"Midnite Solar @ {user_input[CONF_HOST]}"
                 
                 # Separate scan_interval from data to store in options
                 entry_data = {
@@ -225,20 +282,14 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
         # Show appropriate form based on discovery status
         if discovered and self.discovery_info:
             # For DHCP discovery, show a confirmation dialog with device details
-            _LOGGER.info("========================================")
-            _LOGGER.info("SHOWING DISCOVERY CONFIRMATION FORM")
-            _LOGGER.info(f"Device IP: {self.discovery_info.ip}")
-            _LOGGER.info("User should see a 'Discovered' card in UI")
-            _LOGGER.info("========================================")
-            
-            # Create data schema with pre-filled values for DHCP discovery
+            # and pre-filled values.
             data_schema = vol.Schema({
                 vol.Required(CONF_HOST, default=self.discovery_info.ip): str,
                 vol.Required(CONF_PORT, default=DEFAULT_PORT): int,
                 vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): int,
             })
             
-            result = self.async_show_form(
+            return self.async_show_form(
                 step_id="user",
                 data_schema=data_schema,
                 description_placeholders={
@@ -247,14 +298,9 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
                 },
                 errors=errors,
             )
-            return result
         else:
-            # For manual entry, show the full configuration form
-            _LOGGER.info("========================================")
-            _LOGGER.info("SHOWING MANUAL CONFIGURATION FORM")
-            _LOGGER.info("User should see full config form in UI")
-            _LOGGER.info("========================================")
-            result = self.async_show_form(
+            # For manual entry, show the full configuration form.
+            return self.async_show_form(
                 step_id="user",
                 data_schema=vol.Schema({
                     vol.Required(CONF_HOST): str,
@@ -263,7 +309,6 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
                 }),
                 errors=errors,
             )
-            return result
 
 
     async def async_step_import(self, user_input: dict[str, Any]) -> ConfigFlowResult:
@@ -272,7 +317,7 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
             {CONF_HOST: user_input[CONF_HOST], CONF_PORT: user_input[CONF_PORT]}
         )
         
-        client = ModbusTcpClient(user_input[CONF_HOST], port=user_input[CONF_PORT])
+        client = _probe_client(user_input[CONF_HOST], user_input[CONF_PORT])
         try:
             connected = await self.hass.async_add_executor_job(client.connect)
             if not connected:
@@ -285,18 +330,26 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
             if result.isError():
                 return self.async_abort(reason="cannot_read")
             
-            client.close()
+            # Imported entries claim the MAC unique id too, so a YAML-created
+            # entry follows a DHCP lease move like any other.
+            mac = await self.hass.async_add_executor_job(_read_mac, client)
+            if mac is not None:
+                if await self.async_set_unique_id(mac) is not None:
+                    return self.async_abort(reason="already_configured")
+            return self.async_create_entry(
+                title=f"Midnite Solar @ {user_input[CONF_HOST]}",
+                data={
+                    CONF_HOST: user_input[CONF_HOST],
+                    CONF_PORT: user_input.get(CONF_PORT, DEFAULT_PORT),
+                },
+            )
         except Exception:
             _LOGGER.exception("Unexpected exception during import connection test")
             return self.async_abort(reason="unknown")
-
-        return self.async_create_entry(
-            title=f"Midnite Solar @ {user_input[CONF_HOST]}",
-            data={
-                CONF_HOST: user_input[CONF_HOST],
-                CONF_PORT: user_input.get(CONF_PORT, DEFAULT_PORT),
-            },
-        )
+        finally:
+            # The aborts above leave this finally on every path: a read that
+            # raises must not strand the socket on a single-connection device.
+            client.close()
 
     async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Handle reconfiguration of an existing entry."""
@@ -304,6 +357,12 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
         
         if user_input is not None:
             # Update the config entry with new data
+            #
+            # An entry created before manual entries claimed a MAC has no
+            # unique id at all; Home Assistant's mismatch check compares the
+            # two (None != None is False, so it does not abort) and this flow
+            # does not fabricate one - the repair is to delete and re-add, or
+            # accept the discovery card the next time DHCP sees the Classic.
             await self.async_set_unique_id(config_entry.unique_id)
             self._abort_if_unique_id_mismatch()
             
@@ -346,7 +405,7 @@ class MidniteSolarOptionsFlow(OptionsFlow):
 
     `__init__.py` reads this option and `update_listener` reloads the entry when
     it changes, but until now there was no options flow: the step that looked like
-    one called a method Home Assistant does not have, so it could only ever raise
+    one called a method Home Assistant does not do, so it could only ever raise
     and the interval stayed at its default.
     """
 

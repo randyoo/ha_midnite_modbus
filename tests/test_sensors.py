@@ -118,23 +118,33 @@ class TestScalingFixes:
         sensor_obj, _ = sensor(hass, entry, SlidingCurrentLimitSensor, "settings", {4152: 12})
         assert sensor_obj.native_value == 12.0
 
-    def test_lifetime_energy_is_kilowatt_hours(self, hass, entry):
-        """Spec: "(([4127] << 16) + [4126]) kWh"."""
+    def test_lifetime_energy_is_tenths_of_kilowatt_hours(self, hass, entry):
+        """Map formula has no divisor, but the Classic's display shows one decimal
+        place: bench-confirmed register 109917 reads as 10991.7 kWh, so it is tenths."""
         sensor_obj, _ = sensor(hass, entry, LifetimeEnergySensor, "energy", {4126: 12345, 4127: 0})
-        assert sensor_obj.native_value == 12345.0
+        assert sensor_obj.native_value == 1234.5
 
     def test_lifetime_energy_uses_the_high_word(self, hass, entry):
         sensor_obj, _ = sensor(hass, entry, LifetimeEnergySensor, "energy", {4126: 1, 4127: 1})
-        assert sensor_obj.native_value == 65537.0
+        assert sensor_obj.native_value == pytest.approx(6553.7)
+
+    def test_the_bench_lifetime_energy(self, hass, entry):
+        """The exact registers read back from the live Classic: 10991.7 kWh."""
+        sensor_obj, _ = sensor(hass, entry, LifetimeEnergySensor, "energy", {4126: 0xAD5D, 4127: 0x0001})
+        assert sensor_obj.native_value == pytest.approx(10991.7)
 
     def test_lifetime_amp_hours_is_amp_hours(self, hass, entry):
-        """Spec: "(([4129] << 16) + [4128]) Amp Hours"."""
+        """Spec: "(([4129] << 16) + [4128]) Amp Hours" - no divisor (bench: 202213 Ah)."""
         sensor_obj, _ = sensor(hass, entry, LifetimeAmpHoursSensor, "energy", {4128: 4321, 4129: 2})
         assert sensor_obj.native_value == (2 << 16) + 4321
 
 
 class TestNetworkAddresses:
-    """Spec: "[20483]MSB . [20483]LSB . [20482]MSB . [20482]LSB"."""
+    """A real Classic stores the address reversed from how the map prints it.
+
+    Bench-confirmed (192.168.88.24): 20482=0xA8C0, 20483=0x1858 - the lower register
+    holds the first two octets and each register is read low byte first.
+    """
 
     @pytest.mark.parametrize(
         ("cls", "low_address"),
@@ -146,22 +156,22 @@ class TestNetworkAddresses:
             (DNSSensor2, 20490),
         ],
     )
-    def test_high_register_supplies_the_first_octet(self, hass, entry, cls, low_address):
-        registers = {low_address: 0x5818, low_address + 1: 0xC0A8}
+    def test_lower_register_supplies_the_first_octet(self, hass, entry, cls, low_address):
+        registers = {low_address: 0xA8C0, low_address + 1: 0x1858}
         sensor_obj, _ = sensor(hass, entry, cls, "network", registers)
         assert sensor_obj.native_value == "192.168.88.24"
 
-    def test_the_running_copy_had_the_octets_reversed(self, hass, entry):
-        """192.168.88.24 must never be reported as 24.88.168.192."""
-        sensor_obj, _ = sensor(hass, entry, IPAddressSensor, "network", {20482: 0x5818, 20483: 0xC0A8})
-        assert sensor_obj.native_value != "24.88.168.192"
+    def test_the_octets_are_never_reversed(self, hass, entry):
+        """The map's literal order would report 192.168.88.24 as 24.88.168.192."""
+        sensor_obj, _ = sensor(hass, entry, IPAddressSensor, "network", {20482: 0xA8C0, 20483: 0x1858})
         assert sensor_obj.native_value == "192.168.88.24"
+        assert sensor_obj.native_value != "24.88.168.192"
 
     @pytest.mark.parametrize(
         ("low", "high", "expected"),
         [
-            (0x0001, 0x7F00, "127.0.0.1"),
-            (0x0101, 0xA9FE, "169.254.1.1"),
+            (0x007F, 0x0100, "127.0.0.1"),
+            (0xFEA9, 0x0101, "169.254.1.1"),
             (0x0000, 0x0000, "0.0.0.0"),
         ],
     )

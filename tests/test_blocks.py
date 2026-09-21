@@ -49,9 +49,18 @@ class TestRegisterBlocks:
         assert register_blocks([4101, 4101 + MAX_BLOCK_GAP]) == [(4101, 4101 + MAX_BLOCK_GAP)]
 
     def test_a_block_never_exceeds_the_span(self):
+        # Pin against an absolute register count, not MAX_BLOCK_SPAN itself: a test
+        # that compares to the constant under test cannot notice the constant being
+        # raised (the reason for the cap is the card's 125-register limit, and we
+        # want a real ceiling). A 100-register run forces the cap to fire.
+        assert MAX_BLOCK_SPAN <= 32
         for group in REGISTER_GROUPS:
             for first, last in blocks_for(group):
-                assert last - first + 1 <= MAX_BLOCK_SPAN, group
+                assert last - first + 1 <= 32, group
+        long_run = register_blocks(list(range(5000, 5100)))
+        assert long_run and all(
+            last - first + 1 <= 32 for first, last in long_run
+        ), "a run longer than the cap is actually split"
 
     def test_every_wanted_register_is_covered_exactly_once(self):
         for group, registers in REGISTER_GROUPS.items():
@@ -63,7 +72,7 @@ class TestRegisterBlocks:
             assert len(covered) == len(set(covered)), group
 
     def test_the_request_count_drops_by_an_order_of_magnitude(self):
-        """The whole reason for this: one request per register was ~97 an interval.
+        """The whole reason for this: one request per register was ~93 an interval.
 
         The two numbers are pinned so adding a register cannot quietly undo the
         blocking: a new register should land in a block that is already read.
@@ -77,6 +86,26 @@ class TestRegisterBlocks:
     def test_the_modbus_address_register_is_read_on_its_own(self):
         """4326 is the Classic's own Modbus address, 160 registers past 4163."""
         assert (4326, 4326) in blocks_for("eeprom_settings")
+
+    def test_the_eeprom_block_spans_the_write_only_force_flags(self):
+        """Bench-confirmed: a read spanning W registers 4160/4161 comes back whole.
+
+        A holding-register read of 4154..4163 on a real Classic answered with all
+        ten registers, so there is no reason to split the block and a new request.
+        """
+        eeprom = blocks_for("eeprom_settings")
+        assert (4154, 4163) in eeprom
+        assert register_blocks([4159, 4162]) == [(4159, 4162)]
+
+    def test_the_read_hostile_unlock_registers_are_never_in_a_block(self):
+        """20492/20493 reject a read; they are write-only and no group polls them."""
+        unlock = {REGISTER_MAP["UNLOCK_SERIAL_MSB"], REGISTER_MAP["UNLOCK_SERIAL_LSB"]}
+        for group, registers in REGISTER_GROUPS.items():
+            assert not unlock & set(registers), f"{group} polls an unlock register"
+            for first, last in blocks_for(group):
+                assert not any(first <= u <= last for u in unlock), (
+                    f"{group} block {first}-{last} would read an unlock register"
+                )
 
 
 class TestBlockReads:

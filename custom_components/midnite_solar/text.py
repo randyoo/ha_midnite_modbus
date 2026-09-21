@@ -16,7 +16,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN, REGISTER_MAP
 from .coordinator import MidniteSolarUpdateCoordinator
 from .entity_writes import (
-    async_store_settings,
+    async_auto_save_if_enabled,
     async_verify_write,
     async_write_setting,
 )
@@ -141,8 +141,8 @@ class HostNameText(MidniteSolarText):
             await async_write_setting(
                 self.hass, self.coordinator.api, address, register_value, self.name
             )
-        # "(EE)": the name has to be committed to EEPROM or it is gone on restart.
-        await async_store_settings(self.hass, self.coordinator.api, self.name)
+        # "(EE)": committed to EEPROM only if auto-save is on; else it reverts on restart.
+        await async_auto_save_if_enabled(self.hass, self.coordinator, self.name)
         for address, register_value in zip(NAME_REGISTERS, registers):
             await async_verify_write(
                 self.hass,

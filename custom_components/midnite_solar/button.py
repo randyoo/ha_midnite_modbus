@@ -82,12 +82,18 @@ class MidniteSolarButton(CoordinatorEntity[MidniteSolarUpdateCoordinator], Butto
 
 
 class ForceEEpromUpdateButton(MidniteSolarButton):
-    """Button to force an EEPROM update."""
+    """Button to commit every pending setting to EEPROM now.
+
+    The counterpart to the "Auto Save EEPROM" switch: with auto-save off, a
+    set-point change is applied but volatile, and pressing this writes all pending
+    (EE) registers to EEPROM in one ForceEEpromUpdate so they survive a restart.
+    """
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the button."""
         super().__init__(coordinator, entry, "ForceEEpromUpdate")
-        self._attr_name = "Force EEPROM Update"
+        self._attr_name = "Save to EEPROM now"
+        # unique_id kept as the original so an upgrade does not orphan the entity.
         self._attr_unique_id = f"{entry.entry_id}_force_eeprom_update"
 
 

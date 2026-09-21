@@ -7,13 +7,6 @@ import logging
 from datetime import timedelta
 from typing import Any, Dict, List, Optional
 
-import pymodbus
-
-if "3.7.0" <= pymodbus.__version__ <= "3.7.4":
-    from pymodbus.pdu.register_read_message import ReadHoldingRegistersResponse
-else:
-    from pymodbus.pdu.register_message import ReadHoldingRegistersResponse
-
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.update_coordinator import (
@@ -27,8 +20,9 @@ from .register_values import serial_from_registers
 
 _LOGGER = logging.getLogger(__name__)
 
-# One register per request means 86 requests per interval on a Classic that has a
-# single Modbus connection and is known to get out of sorts when it is pushed.
+# One register per request means 115 requests per interval (the register groups
+# total 115 addresses) on a Classic that has a single Modbus connection and is
+# known to get out of sorts when it is pushed.
 # The SNMP card answers up to 125 registers in one request, so neighbouring
 # registers are read as blocks and these caps stay far inside that.
 MAX_BLOCK_SPAN = 32
@@ -41,6 +35,12 @@ def register_blocks(registers) -> list:
     A gap longer than MAX_BLOCK_GAP starts a new block, so a register the card
     will not answer cannot sit between two settings we want and black out the
     block around it. A block never grows past MAX_BLOCK_SPAN registers.
+
+    A block may straddle registers the map marks write-only or RESERVED (the
+    eeprom block spans the Force Flag Bits 4160/4161, for instance): a bench read
+    of this hardware confirmed a holding-register read across those addresses
+    comes back whole. The only registers that reject a read are the unlock
+    registers 20492/20493, and no polled group ever covers them.
     """
     ordered = sorted(set(registers))
     if not ordered:
@@ -61,6 +61,15 @@ def register_blocks(registers) -> list:
 OP_TIMEOUT = 20.0
 # Hard cap (seconds) for the connection reset performed after a wedged op.
 RESET_TIMEOUT = 5.0
+# Retries for the reads this coordinator issues. The hub's own default (5) does
+# NOT fit the cap above: one attempt against a half-dead port can burn its full
+# socket timeout (3 s) plus a full reconnect (2 s delay + a 3 s connect), about
+# 8.4 s with backoff - and 5 such attempts are ~42 s, past OP_TIMEOUT. When the
+# cap fires the executor thread cannot be recalled: it keeps holding the hub
+# lock and may swap the client behind the next cycle. So the calls here state a
+# retry count whose worst case fits under the cap (2 x 8.4 s < 20 s) instead of
+# inheriting it, and the test suite pins that arithmetic.
+READ_RETRIES = 2
 
 
 class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
@@ -86,6 +95,11 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
         self.api = MidniteHub(host, port)
         self.interval = interval
         self.device_info = {}
+        # Whether a set-point write should also commit to EEPROM. Off by default:
+        # the ForceEEpromUpdate commit writes every pending (EE) register at once,
+        # so it is opt-in via the "Auto Save EEPROM" switch, with the "Save to
+        # EEPROM now" button for one-off commits. Reset to off on reload/restart.
+        self.auto_save_eeprom = False
 
     async def _async_update_data(self) -> Dict[str, Any]:
         """Fetch all device and sensor data from api."""
@@ -199,7 +213,7 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
 
         for first, last in register_blocks(sorted_regs):
             span = last - first + 1
-            block = await self._safe_read(first, span, retries=5)
+            block = await self._safe_read(first, span, retries=READ_RETRIES)
             if block is not None and not block.isError() and len(block.registers) == span:
                 for offset, value in enumerate(block.registers):
                     address = first + offset
@@ -218,7 +232,7 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
                 span,
             )
             for register in [r for r in sorted_regs if first <= r <= last]:
-                single = await self._safe_read(register, 1, retries=5)
+                single = await self._safe_read(register, 1, retries=READ_RETRIES)
                 if single is not None and not single.isError():
                     result_data[register] = single.registers[0]
                 else:

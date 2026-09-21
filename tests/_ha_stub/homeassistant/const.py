@@ -42,6 +42,7 @@ class Platform(str, Enum):
     SELECT = "select"
     TEXT = "text"
     BUTTON = "button"
+    SWITCH = "switch"
 
 
 PERCENTAGE = "%"

@@ -278,6 +278,35 @@ class TestAuxStateSelects:
         assert aux1.current_option == "Off"
         assert aux2.current_option == "On"
 
+    def test_aux2_state_offers_only_the_three_user_states(self, entry):
+        """Aux 2 used to offer "Unimplemented", which its select_option always rejected."""
+        aux2, _ = selector(Aux2StateSelect, entry, {AUX_REGISTER: aux_value()})
+        assert aux2.options == ["Off", "Auto", "On"]
+        assert "Unimplemented" not in aux2.options
+
+    @pytest.mark.parametrize("cls", [Aux1StateSelect, Aux2StateSelect])
+    def test_every_offered_state_option_is_selectable(self, entry, cls):
+        """The gap the sweep missed: it checked the state shown, never that each
+        option in the dropdown can actually be chosen without raising."""
+        selector_obj, _ = selector(cls, entry, {AUX_REGISTER: aux_value()})
+        for option in selector_obj.options:
+            asyncio.run(selector_obj.async_select_option(option))
+
+    @pytest.mark.parametrize("cls", [Aux1StateSelect, Aux2StateSelect])
+    def test_an_unimplemented_state_reports_unknown_to_home_assistant(self, entry, cls):
+        """Real HA's SelectEntity.state is None for a current_option outside options.
+
+        "Unimplemented" is deliberately display-only, so on a real dashboard the
+        entity shows `unknown`, not the string - the suite must record that the
+        string lives in current_option, not in the rendered state.
+        """
+        mode_field = "aux1_mode" if cls is Aux1StateSelect else "aux2_mode"
+        selector_obj, _ = selector(
+            cls, entry, {AUX_REGISTER: aux_value(**{mode_field: 3})}
+        )
+        assert selector_obj.current_option == "Unimplemented"
+        assert selector_obj.state is None
+
     def test_forcing_aux1_on_leaves_the_functions_and_aux2_alone(self, entry):
         start = aux_value(aux1_function=1, aux1_mode=1, aux2_function=7, aux2_mode=1)
         selector_obj, api = selector(Aux1StateSelect, entry, {AUX_REGISTER: start})
@@ -319,9 +348,13 @@ class TestAuxStateSelects:
 class TestOptionsAreRealOptions:
     """A selector must not show a value it will not let you choose.
 
-    Home Assistant renders current_option as the selected entry of the option
-    list, so a value outside that list is a widget with nothing matching it. Three
-    cases are deliberately display-only and are allowed:
+    This sweep checks current_option, which is where the integration puts what the
+    Classic reports. It is not the same thing as the rendered `state`: Home
+    Assistant's final SelectEntity.state is None for any current_option outside the
+    option list, so the display-only forms below show as `unknown` on a real
+    dashboard rather than as that text. That is accepted - the point of this sweep
+    is that no *selectable* value is ever displayed as if it were an option. Three
+    display-only forms are allowed:
 
     - "Unknown (0x…)" and "Unset (n)": a code the table has no name for.
     - "Unimplemented": Table 4165-1 gives value 3 that name, and no user can ask

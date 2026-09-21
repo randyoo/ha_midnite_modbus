@@ -40,9 +40,13 @@ This custom integration provides support for Midnite Solar Classic charge contro
 - **Force Float**: Force the device into float mode
 - **Force Bulk**: Force the device into bulk mode
 - **Force Equalize**: Force the device into equalize mode
-- **Force EEPROM Update**: Save current settings to non-volatile memory
+- **Save to EEPROM now**: Write all pending settings to non-volatile memory now
+- **Discard Unsaved Settings**: Re-read the EEPROM, dropping any change not yet saved
 - **Reset Faults**: Clear any active faults
 - **Reset Flags**: Reset system flags
+
+### Switches
+- **Auto Save EEPROM** (off by default): when on, every setting change is committed to EEPROM automatically; when off, changes are volatile until you press "Save to EEPROM now".
 
 ### Numbers (Configurable Parameters)
 - **Absorb Voltage Setpoint**: Set the absorb voltage in volts

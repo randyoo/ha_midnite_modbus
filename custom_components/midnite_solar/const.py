@@ -6,7 +6,9 @@ DEFAULT_PORT = 502
 CONF_SCAN_INTERVAL = "scan_interval"
 DEFAULT_SCAN_INTERVAL = 15
 
-# Register addresses from registers.json
+# Register numbers as given by the Classic MODBUS register map (see
+# spec/register_map.txt); checked row by row. The registers.json files this list
+# originally came from are untrustworthy - see FINDINGS.md.
 REGISTER_MAP = {
     # Base information
     "UNIT_ID": 4101,
@@ -102,12 +104,15 @@ REGISTER_MAP = {
     "WIND_POWER_TABLE_I_REG_6": 4315,
     "WIND_POWER_TABLE_I_REG_7": 4316,
     
-    # Network configuration
+    # Network configuration. Each address is two registers. The map's text prints
+    # them "20482 20483 | IP Address | [20483].[20483] MSB LSB . [20482].[20482] MSB
+    # LSB" (high word, high byte first), but a real Classic stores the address the
+    # other way round (bench-confirmed): the LOWER-numbered register (the _LOW_WORD
+    # key) holds the FIRST two octets and each register is read LOW byte first. So
+    # _LOW_WORD = the lower register = the first two octets; _HIGH_WORD = the higher
+    # register = the last two. See register_values.format_ipv4 for the reversal and
+    # why the hardware beats the document here.
     "IP_SETTINGS_FLAGS": 20481,
-    # The map gives each network address as two registers and prints the format
-    # with the high word first: "20482 20483 | IP Address |
-    # [20483].[20483] MSB LSB . [20482].[20482] MSB LSB". HIGH_WORD therefore holds
-    # the first two octets of the address and LOW_WORD the last two.
     "IP_ADDRESS_LOW_WORD": 20482,
     "IP_ADDRESS_HIGH_WORD": 20483,
     "GATEWAY_ADDRESS_LOW_WORD": 20484,
@@ -354,6 +359,22 @@ NO_READBACK_REGISTERS = frozenset(
     }
 )
 
+# Which registers reject a READ. An earlier note here claimed reading any
+# write-only register answered with a Modbus protocol error, and used that to split
+# block reads so none straddled one. A bench read of a real Classic refuted that: a
+# holding-register read spanning the write-only Force Flag Bits (4154 through 4163,
+# across 4160/4161), and reads of 4160 and 4161 on their own and of the RESERVED
+# registers 4105/4140/4170/4171/4273/4274, all came back whole. So blocks may span
+# W and RESERVED registers - the request-count optimization holds and no block fails
+# every interval, which was the fear behind finding 5.
+#
+# The ONE registers that genuinely reject a read are the unlock registers
+# 20492/20493 ("W Serial Number (Unlock Code)"), which this integration only ever
+# WRITES and never reads - and the polled "network" block stops at 20491, so no
+# block read can reach them. The read-back of the Force Flags after a write is still
+# skipped (they are in NO_READBACK_REGISTERS above) because a write-only register
+# holds no readable echo of what was just written, not because the read errors.
+
 # Registers the register map marks "(EE)". The map says: "When you see (EE),
 # this means that register value is saved to EEprom whenever the Force write to
 # EEprom is set and sent to the Classic. When write to EEprom is requested, ALL
@@ -371,8 +392,9 @@ NO_READBACK_REGISTERS = frozenset(
 #
 # (REGISTER_MAP key, group, name, units, kind, diagnostic, enabled by default)
 #
-# kind is "tenths" for the map's "([4nnn] /10) x" formulas, "nominal" for register
-# 4245 ("[4245] 12 * 1 thru 10"), and "raw" for a plain code or counter.
+# kind is "tenths" for the map's "([4nnn] /10) x" formulas and "raw" for a plain
+# code or counter. (Register 4245 used to be a "nominal" sensor here; it is the
+# NominalBatteryVoltageSelect now, so no row of this tuple is "nominal".)
 #
 # The map's rows for 4276 and 4277 read "([4376] /10)" and "([4377] /10)", which is
 # a typo in the document: it has no registers 4376 or 4377. The value shown is the

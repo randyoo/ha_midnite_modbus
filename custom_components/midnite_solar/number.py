@@ -28,7 +28,7 @@ from .const import (
     REGISTER_MAP,
 )
 from .coordinator import MidniteSolarUpdateCoordinator
-from .entity_writes import async_store_settings, async_verify_write, async_write_setting
+from .entity_writes import async_auto_save_if_enabled, async_verify_write, async_write_setting
 from .register_values import (
     byte_of,
     force_flag_write,
@@ -160,7 +160,12 @@ class MidniteSolarNumber(CoordinatorEntity[MidniteSolarUpdateCoordinator], Numbe
             self.hass, self.coordinator.api, self.register_address, register_value, self.name
         )
         if self.register_address in EE_BACKED_REGISTERS:
-            await async_store_settings(self.hass, self.coordinator.api, self.name)
+            await async_auto_save_if_enabled(self.hass, self.coordinator, self.name)
+        await self._verify_write(register_value)
+        await self.coordinator.async_request_refresh()
+
+    async def _verify_write(self, register_value: int) -> None:
+        """Read the register back; the display formats it the user's units."""
         await async_verify_write(
             self.hass,
             self.coordinator.api,
@@ -169,7 +174,6 @@ class MidniteSolarNumber(CoordinatorEntity[MidniteSolarUpdateCoordinator], Numbe
             self.name,
             lambda raw: f"{self._from_register_value(raw)} {self.native_unit_of_measurement or ''}".strip(),
         )
-        await self.coordinator.async_request_refresh()
 
 
 class AbsorbVoltageNumber(MidniteSolarNumber):
@@ -188,7 +192,11 @@ class AbsorbVoltageNumber(MidniteSolarNumber):
         self._attr_native_min_value = 10.0
         self._attr_native_max_value = 65.0
         self._attr_native_step = 0.1
-        self._attr_entity_registry_enabled_default = False  # Disable by default
+        # The set point this integration exists to reach (the "absorb never
+        # worked" report is about exactly this register); hiding it behind an
+        # enable toggle while Float and Equalize are on was a UX inversion.
+        self._attr_entity_registry_enabled_default = True
+
 
 class WindPowerTableNumber(MidniteSolarNumber):
     """One voltage or current step of a wind power table.
@@ -227,13 +235,42 @@ class WindPowerTableNumber(MidniteSolarNumber):
 
     def _to_register_value(self, value: float) -> int:
         """Return the register value that changes only this step."""
-        current = self.coordinator.get_register_value(self.register_address) or 0
+        current = self.coordinator.get_register_value(self.register_address)
+        if current is None:
+            # Same refusal as the Aux selects: the register is shared with the
+            # neighbouring step, and packing against an assumed 0 would WRITE
+            # that 0 - clobbering a step the user never touched - whenever the
+            # wind block has not been read (before the first poll, or after a
+            # failed group read). Better to refuse than to corrupt.
+            raise HomeAssistantError(
+                f"The wind power table register {self.register_address} has not been "
+                f"read yet, so step {self.step} cannot be set without zeroing the "
+                "step that shares its register"
+            )
         try:
             return pack_byte_pair(current, self.step & 1, int(value))
         except ValueError as e:
             raise HomeAssistantError(
                 f"Wind power table steps are 0 to 255, got {value}"
             ) from e
+
+    async def _verify_write(self, register_value: int) -> None:
+        """Read back only the byte this step owns.
+
+        The neighbour byte is not ours to vouch for: the MNGP or another tool
+        may have changed it between the read that built this packed value and
+        the read-back. Blaming it would report a good write as refused.
+        """
+        index = self.step & 1
+        await async_verify_write(
+            self.hass,
+            self.coordinator.api,
+            self.register_address,
+            register_value,
+            self.name,
+            lambda raw: f"{byte_of(raw, index)} {self.native_unit_of_measurement or ''}".strip(),
+            compare=lambda kept, written: byte_of(kept, index) == byte_of(written, index),
+        )
 
 
 class WindPowerCurveVNumber(WindPowerTableNumber):
@@ -449,7 +486,7 @@ class AbsorbTimeNumber(MidniteSolarNumber):
         self._attr_native_step = 1  # 1 minute increments
         self.is_time_value = True  # Don't divide by 10
         self._attr_has_entity_name = True
-        self._attr_precision = 0  # Display whole numbers only
+        self._attr_suggested_display_precision = 0  # Whole minutes only
         self._attr_entity_category = EntityCategory.CONFIG
 class EqualizeTimeNumber(MidniteSolarNumber):
     """Number to set equalize time."""
@@ -472,7 +509,7 @@ class EqualizeTimeNumber(MidniteSolarNumber):
         self._attr_native_step = 1  # 1 minute increments
         self.is_time_value = True  # Don't divide by 10
         self._attr_has_entity_name = True
-        self._attr_precision = 0  # Display whole numbers only
+        self._attr_suggested_display_precision = 0  # Whole minutes only
         self._attr_entity_category = EntityCategory.CONFIG
 class EqualizeIntervalDaysNumber(MidniteSolarNumber):
     """Number to set equalize interval in days."""

@@ -130,7 +130,7 @@ class InfoFlagBinarySensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], Bin
         return info_flag_set(flags, INFO_FLAGS[self._flag])
 
     @property
-    def extra_state_attributes(self) -> dict[str, int]:
+    def extra_state_attributes(self) -> dict[str, Optional[int]]:
         """Return the raw flag words, so a flag can be decoded without HA."""
         flags = self.info_flags
         return {"info_flags": flags if flags is not None else None}
@@ -159,6 +159,7 @@ class NetworkFlagBinarySensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], 
         self._attr_name = name
         self._attr_unique_id = f"{entry.entry_id}_network_flag_{flag.lower()}"
         self._attr_entity_registry_enabled_default = enabled
+
     @property
     def device_info(self):
         """Return the device info the base class builds for every platform."""

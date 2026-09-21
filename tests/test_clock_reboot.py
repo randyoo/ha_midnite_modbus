@@ -70,16 +70,19 @@ class TestClockPayload:
         payload = clock_file_payload(as_dt(**NOW))
         assert payload[9] == 14          # hour
         assert payload[10] == 30         # minute
-        assert payload[11] == 5          # second
+        assert payload[11] == 0          # seconds byte: always 0 (see below)
         assert payload[12] == (2026 >> 8) & 0xFF
         assert payload[13] == 2026 & 0xFF
         assert payload[14] == 9          # month
         assert payload[15] == 21         # day
 
-    def test_the_app_uses_zero_seconds(self):
-        # The AIR UI never sets seconds; our payload carries them, but the
-        # Classic ignores them, so this only pins that we do not crash.
-        assert clock_file_payload(as_dt(**NOW))[11] == 5
+    def test_seconds_byte_is_always_zero(self):
+        # TimeToFileWrite's caller passes literal 0, and on the bench unit a
+        # write carrying live seconds was rolled back ~10 s later while the
+        # app's seconds-0 write stuck (FINDINGS section 39). This byte is
+        # parity with the app, not a seconds field.
+        assert clock_file_payload(as_dt(**NOW))[11] == 0
+        assert clock_file_payload(as_dt(**{**NOW, "second": 59}))[11] == 0
 
 
 class TestClockRead:

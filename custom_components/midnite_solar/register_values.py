@@ -277,7 +277,12 @@ def clock_file_payload(now) -> list:
     payload = [0] * 20
     payload[9] = now.hour & 0x1F
     payload[10] = now.minute & 0x3F
-    payload[11] = now.second & 0x3F
+    # Always 0, exactly like TimeToFileWrite (its caller passes literal 0 - the
+    # UI has no seconds field). On the bench unit a write carrying live
+    # seconds was accepted then ROLLED BACK ~10 s later, while the app's
+    # seconds-0 write stuck; the byte may be a manual-set marker rather than
+    # seconds. Do not "fix" this to now.second (FINDINGS section 39).
+    payload[11] = 0
     payload[12] = now.year >> 8 & 0xFF
     payload[13] = now.year & 0xFF
     payload[14] = now.month & 0x0F

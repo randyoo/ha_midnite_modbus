@@ -23,6 +23,7 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util import dt as dt_util
 
 from .const import (
     CHARGE_STAGES,
@@ -1266,7 +1267,20 @@ class ClassicDateSensor(MidniteSolarSensor):
 
 
 class ClassicTimeSensor(MidniteSolarSensor):
-    """The Classic's own time of day, from its clock registers."""
+    """The Classic's own clock, as a proper TIMESTAMP sensor.
+
+    Home Assistant 2026.9 has no `SensorDeviceClass.TIME` - referencing one
+    raised AttributeError while the sensor platform built its entity list,
+    dropping EVERY sensor at once (only restored-state placeholders remained).
+    What the docs bless for "the time set on a device" is TIMESTAMP with a
+    datetime: real HA 2026.9 rejects a naive one ("Invalid datetime ...
+    missing timezone information"), stores the state in UTC and renders it in
+    the user's zone. The CTIME words are naive LOCAL wall time (the same thing
+    the Classic's own LCD shows, with no timezone - FINDINGS 40), so they are
+    tagged with Home Assistant's own zone and the display shows exactly what
+    the LCD does. The calendar day also has its own Classic Date sensor
+    (DATE class, plain date value - the correct declaration for a date).
+    """
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
@@ -1274,16 +1288,17 @@ class ClassicTimeSensor(MidniteSolarSensor):
         self._attr_name = "Classic Time"
         self._attr_unique_id = f"{entry.entry_id}_classic_time"
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
-        # No device class: Home Assistant 2026.9 has no `SensorDeviceClass.TIME`
-        # (referencing one raised AttributeError while the sensor platform built
-        # its entity list, which dropped EVERY sensor at once - the whole sensor
-        # platform silently vanished and only restored-state placeholders
-        # remained), and `datetime.time` is not a valid native_value type either.
-        # The date lives on the Classic Date sensor; this shows time of day.
+        self._attr_device_class = SensorDeviceClass.TIMESTAMP
+        self._attr_icon = "mdi:clock-outline"
 
     @property
     def native_value(self):
-        """Return the Classic's time of day, or None if its clock is not sensible."""
+        """The Classic's clock as an aware datetime; HA requires the timezone.
+
+        `dt_util.now()` is HA's own clock: aware in the instance's zone, so
+        its `astimezone().tzinfo` is exactly the zone the frontend will render
+        in. Tagging (not shifting) keeps the wall time the device shows.
+        """
         clock = self._group("clock")
         moment = clock_from_registers(
             self._register(clock, "CTIME_SECONDS_MINUTES"),
@@ -1291,4 +1306,6 @@ class ClassicTimeSensor(MidniteSolarSensor):
             self._register(clock, "CTIME_DAY_MONTH"),
             self._register(clock, "CTIME_YEAR"),
         )
-        return moment.strftime("%H:%M:%S") if moment else None
+        if moment is None:
+            return None
+        return moment.replace(tzinfo=dt_util.now().astimezone().tzinfo)

@@ -553,6 +553,9 @@ class AuxThresholdNumber(MidniteSolarNumber):
         self._attr_native_unit_of_measurement = units
         self._attr_mode = NumberMode.BOX
         self._attr_entity_category = EntityCategory.CONFIG
+        # Aux wiring is an installer detail; the thresholds are opt-in
+        # furniture, not the dashboard (user ruling 2026-09-22).
+        self._attr_entity_registry_enabled_default = False  # Disable by default
         self.register_address = REGISTER_MAP[key]
         # A millisecond register holds plain counts; a volt register holds tenths.
         self.is_raw_value = not tenths

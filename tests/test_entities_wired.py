@@ -22,7 +22,12 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Hass
 
 from midnite_solar.base import MidniteBaseEntityDescription
-from midnite_solar.const import DOMAIN, REGISTER_GROUPS, REGISTER_MAP
+from midnite_solar.const import (
+    AUX_THRESHOLD_SETTINGS,
+    DOMAIN,
+    REGISTER_GROUPS,
+    REGISTER_MAP,
+)
 
 PLATFORMS = ("sensor", "binary_sensor", "number", "select", "text", "button", "switch")
 
@@ -37,7 +42,9 @@ ENTITIES_PER_PLATFORM = {
 }
 # 68 before the clock work, + Classic Date + Classic Time + Set Classic Clock
 # (all on by default). The Reboot Classic button is a diagnostic and off.
-ENABLED_BY_DEFAULT = 78
+# 2026-09-22: the 13 Aux threshold numbers and the 2 Aux state selects are
+# installer furniture; they went back to off-by-default (78 - 15 = 63).
+ENABLED_BY_DEFAULT = 63
 
 
 async def _build():
@@ -118,9 +125,37 @@ class TestCounts:
     def test_the_integration_offers_146_entities(self, entities):
         assert len(entities) == sum(ENTITIES_PER_PLATFORM.values())
 
-    def test_68_of_them_are_on_without_being_asked_for(self, entities):
+    def test_63_of_them_are_on_without_being_asked_for(self, entities):
         enabled = [entity for _platform, entity in entities if entity.entity_registry_enabled_default]
         assert len(enabled) == ENABLED_BY_DEFAULT
+
+
+class TestAuxConfigIsQuiet:
+    """Aux wiring is an installer detail, not dashboard furniture.
+
+    The 13 Aux threshold numbers and the 2 Aux state selects must come up
+    off-by-default (user ruling 2026-09-22); the Aux function selects were
+    already diagnostic-quiet.
+    """
+
+    def _unique_ids(self, entities):
+        return {entity.unique_id for _platform, entity in entities}
+
+    def test_the_aux_threshold_numbers_are_off_by_default(self, entities):
+        expected = {
+            f"entry-1_{key.lower()}" for key, *_ in AUX_THRESHOLD_SETTINGS
+        }
+        assert expected <= self._unique_ids(entities), "all 13 thresholds are built"
+        for platform, entity in entities:
+            if entity.unique_id in expected:
+                assert not entity.entity_registry_enabled_default, (
+                    f"{entity.unique_id} must be off until the installer enables it"
+                )
+
+    def test_the_aux_state_selects_are_off_by_default(self, entities):
+        for platform, entity in entities:
+            if entity.unique_id in ("entry-1_aux1_state_select", "entry-1_aux2_state_select"):
+                assert not entity.entity_registry_enabled_default
 
 
 class TestIdentity:

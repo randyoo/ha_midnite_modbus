@@ -348,6 +348,7 @@ class Aux1StateSelect(AuxStateSelect):
             name for code, name in self._labels.items() if code not in self._unselectable
         ]
         self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_entity_registry_enabled_default = False  # Disable by default
 
 
 class Aux2StateSelect(AuxStateSelect):
@@ -364,6 +365,7 @@ class Aux2StateSelect(AuxStateSelect):
             name for code, name in self._labels.items() if code not in self._unselectable
         ]
         self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_entity_registry_enabled_default = False  # Disable by default
 
 
 class NominalBatteryVoltageSelect(MidniteSolarSettingSelect):

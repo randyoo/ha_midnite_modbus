@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import asyncio
 
+import pytest
+
 from fakes import FakeApi, FakeCoordinator
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Hass
@@ -94,3 +96,56 @@ class TestConfigEntryUnloadModel:
         # A second unload runs nothing: the queue was drained, as HA's is.
         entry.async_test_unload()
         assert ran == [1]
+
+
+class TestBridgeDoubles:
+    """The bridge's doubles are held to real behaviour too: an easier fake
+    than aiohttp/zeroconf would test the double, not the bridge."""
+
+    def test_view_responses_serialise_eagerly_like_a_real_response(self):
+        """aiohttp builds its body at self.json time; a body it could not
+        send must fail in the test the way it fails on the wire."""
+        from homeassistant.components.http import HomeAssistantView
+
+        view = HomeAssistantView()
+        assert view.json({"ok": True}, status_code=400).status == 400
+        with pytest.raises(TypeError):
+            view.json({"bad": object()})
+
+    def test_the_view_base_answers_unauthenticated_until_told_otherwise(self):
+        """Real HomeAssistantView.requires_auth defaults False - so the
+        bridge's own True (pinned in test_bridge_api.py) has to SET it."""
+        from homeassistant.components.http import HomeAssistantView
+
+        assert HomeAssistantView.requires_auth is False
+
+    def test_the_zeroconf_double_records_exactly_the_used_surface(self):
+        """BridgeAdvertiser only ever calls these four; a fifth call site
+        would raise AttributeError here rather than silently pass."""
+        import zeroconf
+
+        client = zeroconf.Zeroconf()
+        info = zeroconf.ServiceInfo("_t._tcp.local.", "n._t._tcp.local.")
+        client.register_service(info)
+        client.unregister_service(info)
+        client.close()
+        assert client.registered == [info]
+        assert client.unregistered == [info]
+        assert client.closed is True
+
+    def test_a_bad_request_body_raises_like_json_parsing_does(self):
+        from fakes import FakeRequest
+
+        request = FakeRequest(None, FakeRequest.BAD)
+        with pytest.raises(ValueError):
+            asyncio.run(request.json())
+
+    def test_internal_reads_record_the_retries_they_were_given(self):
+        """The sweep's bounded retry budget is a contract; a fake that
+        dropped the number could not show the sweep exceeding it."""
+        from fakes import RecordingInternalApi
+
+        api = RecordingInternalApi(payload=b"\x01" * 64)
+        result = api.read_internal(5, 64, 3 << 10, 2)
+        assert api.internal_reads == [(5, 64, 3 << 10, 2)]
+        assert len(result.payload) == 64

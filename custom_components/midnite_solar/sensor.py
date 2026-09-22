@@ -1274,11 +1274,16 @@ class ClassicTimeSensor(MidniteSolarSensor):
         self._attr_name = "Classic Time"
         self._attr_unique_id = f"{entry.entry_id}_classic_time"
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
-        self._attr_device_class = SensorDeviceClass.TIME
+        # No device class: Home Assistant 2026.9 has no `SensorDeviceClass.TIME`
+        # (referencing one raised AttributeError while the sensor platform built
+        # its entity list, which dropped EVERY sensor at once - the whole sensor
+        # platform silently vanished and only restored-state placeholders
+        # remained), and `datetime.time` is not a valid native_value type either.
+        # The date lives on the Classic Date sensor; this shows time of day.
 
     @property
     def native_value(self):
-        """Return the Classic's time, or None if its clock is not sensible."""
+        """Return the Classic's time of day, or None if its clock is not sensible."""
         clock = self._group("clock")
         moment = clock_from_registers(
             self._register(clock, "CTIME_SECONDS_MINUTES"),
@@ -1286,4 +1291,4 @@ class ClassicTimeSensor(MidniteSolarSensor):
             self._register(clock, "CTIME_DAY_MONTH"),
             self._register(clock, "CTIME_YEAR"),
         )
-        return moment.time() if moment else None
+        return moment.strftime("%H:%M:%S") if moment else None

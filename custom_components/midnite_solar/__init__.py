@@ -8,7 +8,15 @@ from homeassistant.const import CONF_HOST, CONF_PORT, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 
-from .const import CONF_SCAN_INTERVAL, DEFAULT_PORT, DEFAULT_SCAN_INTERVAL, DOMAIN
+from .bridge import async_start_bridge, async_stop_bridge
+from .const import (
+    CONF_BRIDGE_ENABLED,
+    CONF_SCAN_INTERVAL,
+    DEFAULT_BRIDGE_ENABLED,
+    DEFAULT_PORT,
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+)
 from .coordinator import MidniteSolarUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -64,6 +72,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await hass.config_entries.async_forward_entry_setups(entry, _PLATFORMS)
 
+    # The bridge (LAN API + mDNS record) comes up after the first refresh so
+    # the identity it advertises is the Classic's own, and only when the
+    # options say so; the record is withdrawn on every teardown path.
+    bridge_enabled = bool(entry.options.get(CONF_BRIDGE_ENABLED, DEFAULT_BRIDGE_ENABLED))
+    coordinator.bridge_enabled = bridge_enabled
+    if bridge_enabled:
+        await async_start_bridge(hass, entry, coordinator)
+
     # Register update listener to handle options changes, and undo it on unload.
     # add_update_listener appends to a list with no dedupe, so an unwrapped listener
     # accumulates one per reload and every later entry update fires all of them.
@@ -99,6 +115,14 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # coordinator up whether or not the platforms reported success - otherwise a
     # failed platform unload leaves a live coordinator polling the single-connection
     # Classic forever.
+    # Withdraw the advertisement before the socket closes, so no client is
+    # sent to an address that just went quiet. Guarded: an entry that never
+    # started its bridge has nothing to withdraw.
+    try:
+        await async_stop_bridge(hass, entry)
+    except Exception as e:
+        _LOGGER.error("Error stopping the bridge: %s", e)
+
     coordinator = hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
     if coordinator is not None:
         _LOGGER.info("Disconnecting from Modbus device...")
@@ -122,18 +146,26 @@ async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Handle options updates."""
     coordinator = hass.data.get(DOMAIN, {}).get(entry.entry_id)
     new_interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-    # Reload only for the change this integration actually acts on. The listener
-    # fires on every async_update_entry - including the ones the DHCP and
-    # reconfigure flows make while they are already reloading the entry themselves.
-    # Reloading on those too turns a single address change into concurrent reloads
-    # of a single-connection Classic.
-    if coordinator is not None and getattr(coordinator, "interval", None) == new_interval:
+    new_bridge = bool(entry.options.get(CONF_BRIDGE_ENABLED, DEFAULT_BRIDGE_ENABLED))
+    # Reload only for the changes this integration actually acts on: the poll
+    # interval and the bridge toggle. The listener fires on every
+    # async_update_entry - including the ones the DHCP and reconfigure flows
+    # make while they are already reloading the entry themselves. Reloading on
+    # those too turns a single address change into concurrent reloads of a
+    # single-connection Classic.
+    if (
+        coordinator is not None
+        and getattr(coordinator, "interval", None) == new_interval
+        and getattr(coordinator, "bridge_enabled", DEFAULT_BRIDGE_ENABLED) == new_bridge
+    ):
         _LOGGER.debug(
-            "Config entry updated but the scan interval (%s s) is unchanged; not reloading",
+            "Config entry updated but neither the scan interval (%s s) nor the "
+            "bridge (%s) changed; not reloading",
             new_interval,
+            new_bridge,
         )
         return True
 
-    _LOGGER.info("Scan interval updated, reloading Midnite Solar integration")
+    _LOGGER.info("Options updated, reloading Midnite Solar integration")
     await hass.config_entries.async_reload(entry.entry_id)
     return True

@@ -154,3 +154,48 @@ class FakeCoordinator(DataUpdateCoordinator):
 
     def group(self, name: str) -> dict[int, int]:
         return self.data["data"].setdefault(name, {})
+
+
+class FakeRequest:
+    """Stands in for the aiohttp request the bridge views are called with.
+
+    The view coroutines are driven directly (no server, no socket), the way
+    every other double here works; `body=BAD` models a request whose body is
+    not JSON, which is the one aiohttp behaviour the views branch on.
+    """
+
+    BAD = object()
+
+    def __init__(self, hass, body=None):
+        self.app = {"hass": hass}
+        self._body = body
+
+    async def json(self):
+        if self._body is FakeRequest.BAD:
+            raise ValueError("not JSON")
+        return self._body
+
+
+class RecordingInternalApi(FakeApi):
+    """FakeApi whose private function-104 reads ANSWER, with a canned payload.
+
+    The base FakeApi answers internal reads with an empty payload (nothing
+    to decode); the datalogger sweep tests need days that decode, so it hands
+    back the same payload for every read unless `fail_addresses` says which
+    file addresses answer with a Modbus exception (a day slot not there).
+    """
+
+    def __init__(self, payload: bytes = b"", fail_addresses=None, **kwargs):
+        super().__init__(**kwargs)
+        self.payload = payload
+        self.fail_addresses = set(fail_addresses or ())
+        self.internal_results = None
+
+    def read_internal(self, device, length, address=0, retries: int = 5):
+        # Records the RETRIES too: the sweep's bounded retry budget is the
+        # contract under test, and a base FakeApi read never carries one.
+        self.internal_reads.append((device, length, address, retries))
+        result = ModbusResult(error=address in self.fail_addresses)
+        result.payload = b"" if address in self.fail_addresses else self.payload
+        self.internal_results = result
+        return result

@@ -12,13 +12,13 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-from homeassistant.config_entries import AbortFlow, ConfigEntry
+from homeassistant.config_entries import AbortFlow, ConfigEntry, ConfigFlow
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import Hass
 from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 
 from midnite_solar import config_flow as flow_module
-from midnite_solar.config_flow import MidniteSolarConfigFlow, async_get_options_flow
+from midnite_solar.config_flow import MidniteSolarConfigFlow
 from midnite_solar.const import (
     CONF_SCAN_INTERVAL,
     DEFAULT_PORT,
@@ -319,26 +319,38 @@ class TestDhcpDiscovery:
 
 
 class TestOptions:
+    def test_home_assistant_offers_the_options_flow(self):
+        """HA decides `supports_options` via the CLASS method, not a module-level
+        function: `async_supports_options_flow` returns True only when
+        `async_get_options_flow` is overridden on the ConfigFlow subclass. A
+        module-level `async_get_options_flow` (the old shape) is invisible to
+        that check, so HA reports `supports_options=False`, hides the options
+        UI, and the Flutter app's enable-the-bridge step never appears.
+        Locked here because the test double had no such gate (2026-09-22).
+        """
+        assert MidniteSolarConfigFlow.async_get_options_flow is not ConfigFlow.async_get_options_flow
+        assert MidniteSolarConfigFlow.async_supports_options_flow(entry()) is True
+
     def test_the_options_flow_carries_the_entry_being_edited(self):
         existing = entry(options={CONF_SCAN_INTERVAL: 30})
-        handler = asyncio.run(async_get_options_flow(existing))
-        assert handler.config_entry is existing
+        handler = MidniteSolarConfigFlow.async_get_options_flow(existing)
+        assert handler._entry is existing
 
     def test_the_form_defaults_to_the_current_interval(self):
         existing = entry(options={CONF_SCAN_INTERVAL: 30})
-        handler = asyncio.run(async_get_options_flow(existing))
+        handler = MidniteSolarConfigFlow.async_get_options_flow(existing)
         outcome = asyncio.run(handler.async_step_init(None))
         assert outcome["type"] == "form"
         assert outcome["step_id"] == "init"
         assert default_for(outcome, CONF_SCAN_INTERVAL) == 30
 
     def test_the_default_when_nothing_was_set(self):
-        handler = asyncio.run(async_get_options_flow(entry(options={})))
+        handler = MidniteSolarConfigFlow.async_get_options_flow(entry(options={}))
         outcome = asyncio.run(handler.async_step_init(None))
         assert default_for(outcome, CONF_SCAN_INTERVAL) == DEFAULT_SCAN_INTERVAL
 
     def test_the_chosen_interval_is_stored_as_an_option(self):
-        handler = asyncio.run(async_get_options_flow(entry()))
+        handler = MidniteSolarConfigFlow.async_get_options_flow(entry())
         outcome = asyncio.run(handler.async_step_init({CONF_SCAN_INTERVAL: 60}))
         assert outcome["type"] == "create_entry"
         assert outcome["data"] == {CONF_SCAN_INTERVAL: 60}

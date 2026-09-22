@@ -6,6 +6,41 @@ DEFAULT_PORT = 502
 CONF_SCAN_INTERVAL = "scan_interval"
 DEFAULT_SCAN_INTERVAL = 15
 
+# The bridge: this integration as the Classic's one Modbus client, serving a
+# LAN API on Home Assistant's own HTTP port so a desktop app (or anything
+# else) can watch and write without ever touching the single-connection
+# WIFI175 itself. Off by default - it is a LAN-reachable path that can write
+# to the MPPT, so the user opts in; requests carry a Home Assistant access
+# token like every other /api call.
+CONF_BRIDGE_ENABLED = "bridge_enabled"
+DEFAULT_BRIDGE_ENABLED = False
+# Carried in every API answer and in the mDNS record; bumped when the JSON
+# contract changes.
+BRIDGE_API_VERSION = 1
+# The API is served under Home Assistant's existing port (the HAOS firewall
+# already opens it and auth is inherited); the mDNS service is how a desktop
+# app finds that address without being told.
+BRIDGE_URL_PREFIX = "/api/midnite/{entry_id}"
+BRIDGE_MDNS_TYPE = "_midnite-bridge._tcp.local."
+BRIDGE_MDNS_NAME = "Midnite Bridge"
+# The mDNS record is how a client SHOULD find the bridge, but two platforms
+# eat it: HAOS's firewall drops inbound 5353 (so the record never reaches a
+# querier) and Apple's responder shares 5353 with SO_REUSEPORT, load-balancing
+# answers away from a raw client socket. The beacon is the fallback that no
+# firewall is in the way of: Home Assistant BROADCASTS this JSON datagram to
+# udp/4627 (next to the Classic's own udp/4626 announce) every interval, and a
+# client just binds the port and listens - inbound-to-client, which is allowed
+# everywhere, and no platform channel. Same contract on macOS/Linux/Windows/
+# Android/iOS. `t` is the type tag so a listener can ignore other tools'
+# packets on the port.
+BRIDGE_BEACON_PORT = 4627
+BRIDGE_BEACON_INTERVAL = 5.0
+BRIDGE_BEACON_TYPE = "midnite-bridge"
+# Where the views and the advertiser live in hass.data between setup/unload.
+BRIDGE_VIEWS_KEY = "midnite_solar_bridge_views"
+BRIDGE_ADS_KEY = "midnite_solar_bridge_ads"
+
+
 # Register numbers as given by the Classic MODBUS register map (see
 # spec/register_map.txt); checked row by row. The registers.json files this list
 # originally came from are untrustworthy - see FINDINGS.md.
@@ -191,6 +226,28 @@ REGISTER_MAP = {
     "CTIME_YEAR": 4217,
     "CTIME2": 4218,
 }
+
+# What the bridge API must never write, whatever a client asks for.
+BRIDGE_FORBIDDEN_WRITES = frozenset(
+    {
+        # The unlock registers are the hub's own handshake: it writes them
+        # with the serial it read from 28673/28674, and the grant is what
+        # makes every other write land. A client that wrote one by hand
+        # would not get an error - it would just silently stop being able
+        # to write anything else.
+        REGISTER_MAP["UNLOCK_SERIAL_MSB"],
+        REGISTER_MAP["UNLOCK_SERIAL_LSB"],
+    }
+    # The app's "untouchables" - registers even the AIR app never writes
+    # (ClassicDataDictionary.as:1881-1884, PROTOCOL.md section 8).
+    | {4188, 4189, 4190, 4193, 4194, 4195, 4196, 4201, 4300, 4394, 4399}
+    # Every WIFI175 network register 20481-20491: a write there can move the
+    # address the Classic answers on and drop the very connection the client
+    # is using (the app's own "Classic will disconnect" alert). Not a casual
+    # LAN-API target; keep it in the integration where the consequence is
+    # understood.
+    | set(range(20481, 20492))
+)
 
 # The private "internal file" commands the AIR app uses on the same port.
 # See private_pdu.py and air-app-reverse/PROTOCOL.md for the frame.

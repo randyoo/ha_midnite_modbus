@@ -2,6 +2,19 @@
 
 import inspect
 
+from homeassistant.components.http import Http
+
+
+def callback(func):
+    """Stand-in for Home Assistant's `@callback`.
+
+    The real decorator only marks a function as an event-loop callback (and
+    asserts it in debug mode); it returns the function unchanged, so integrations
+    can use it on sync methods. `config_flow.async_get_options_flow` carries it,
+    so the double must provide it.
+    """
+    return func
+
 
 class ConfigEntries:
     """The part of Home Assistant that owns config entries.
@@ -53,6 +66,9 @@ class Hass:
         # the coordinator under hass.data[DOMAIN][entry_id].
         self.data = {}
         self.config_entries = ConfigEntries(self)
+        # Real Home Assistant always runs the http component; the bridge's
+        # views register on it, and the double only records them.
+        self.http = Http()
 
     async def async_add_executor_job(self, target, *args):
         """Run the blocking Modbus call inline and remember it.

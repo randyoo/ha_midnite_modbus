@@ -56,6 +56,29 @@ class ConfigFlow:
         self._entries = []
         self._reconfigure_entry = None
 
+    @staticmethod
+    def async_get_options_flow(config_entry):
+        """Base options-flow hook; real Home Assistant raises UnknownHandler.
+
+        Integrations override this ON THE CLASS. Home Assistant's
+        `supports_options` is `handler.async_supports_options_flow(entry)`, which
+        only reports True when this hook is overridden on the subclass, so the
+        double must carry the base method for the check to mean anything.
+        """
+        raise NotImplementedError("this handler has no options flow")
+
+    @classmethod
+    def async_supports_options_flow(cls, config_entry):
+        """Mirror real Home Assistant's parity gate (config_entries.py, 2026.9).
+
+        `supports_options` is decided here, by class identity, NOT by the presence
+        of a module-level `async_get_options_flow`. An integration that only has
+        the module-level function passes a double without this gate yet reports
+        `supports_options=False` in real Home Assistant - the bug that hid the
+        bridge toggle from the Flutter app (2026-09-22).
+        """
+        return cls.async_get_options_flow is not ConfigFlow.async_get_options_flow
+
     def _async_current_entries(self):
         """The entries Home Assistant already has for this domain."""
         return list(self._entries)
@@ -129,10 +152,23 @@ class ConfigFlow:
 
 
 class OptionsFlow:
-    """Minimal options flow base class."""
+    """Minimal options flow base class.
+
+    Home Assistant 2026.9 makes `config_entry` a READ-ONLY property (resolved
+    from `handler`). Assigning `self.config_entry = config_entry` in `__init__`
+    therefore raises "property has no setter" in real Home Assistant - the exact
+    cause of the options dialog's HTTP 500 (2026-09-22). The double reproduces
+    that property trap so the bug can never come back unnoticed: any integration
+    that assigns to `config_entry` now fails the suite the same way it fails
+    live. Read it back here only via a subclass that stored its own attribute.
+    """
 
     def __init__(self, *args, **kwargs):
-        self.config_entry = kwargs.get("config_entry") or (args[0] if args else None)
+        self._stub_entry = kwargs.get("config_entry") or (args[0] if args else None)
+
+    @property
+    def config_entry(self):
+        return getattr(self, "_stub_entry", None)
 
     async def async_step_init(self, user_input=None):
         raise NotImplementedError

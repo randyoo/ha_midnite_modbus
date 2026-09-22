@@ -8,8 +8,9 @@ from typing import Any
 from pymodbus.client import ModbusTcpClient
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFlow
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.const import CONF_HOST, CONF_PORT
+from homeassistant.core import callback
 try:
     # Try new import path first (Home Assistant 2025.12+)
     from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
@@ -17,7 +18,14 @@ except ImportError:
     # Fallback to old import path for older versions
     from homeassistant.components.dhcp import DhcpServiceInfo
 
-from .const import DEFAULT_PORT, DOMAIN, DEFAULT_SCAN_INTERVAL, CONF_SCAN_INTERVAL
+from .const import (
+    CONF_BRIDGE_ENABLED,
+    CONF_SCAN_INTERVAL,
+    DEFAULT_BRIDGE_ENABLED,
+    DEFAULT_PORT,
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+)
 from .register_values import format_mac_from_registers
 
 _LOGGER = logging.getLogger(__name__)
@@ -371,7 +379,11 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
                 CONF_HOST: user_input[CONF_HOST],
                 CONF_PORT: user_input.get(CONF_PORT, DEFAULT_PORT),
             }
-            entry_options = {}
+            # Reconfigure's form shows address, not options, so it starts from
+            # the entry's CURRENT options and overwrites only what the form
+            # carries. Rebuilding the dict from nothing would silently switch
+            # an enabled bridge off the next time someone moved an IP.
+            entry_options = dict(config_entry.options)
             if CONF_SCAN_INTERVAL in user_input:
                 entry_options[CONF_SCAN_INTERVAL] = user_input[CONF_SCAN_INTERVAL]
             
@@ -400,21 +412,46 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
             data_schema=data_schema,
         )
 
-class MidniteSolarOptionsFlow(OptionsFlow):
-    """Change how often the Classic is polled.
+    @staticmethod
+    @callback
+    def async_get_options_flow(
+        config_entry: ConfigEntry,
+    ) -> MidniteSolarOptionsFlow:
+        """Home Assistant 2026.x calls THIS (on the class) to offer the options
+        form and to decide `supports_options`. A module-level function of the
+        same name is invisible to it - the check is
+        `cls.async_get_options_flow is not ConfigFlow.async_get_options_flow` -
+        so an integration that only has the module-level form reports
+        `supports_options=False` and the bridge toggle never appears. Bench
+        2026-09-22: exactly this left the Flutter app's bridge option missing.
+        """
+        return MidniteSolarOptionsFlow(config_entry)
 
-    `__init__.py` reads this option and `update_listener` reloads the entry when
-    it changes, but until now there was no options flow: the step that looked like
-    one called a method Home Assistant does not do, so it could only ever raise
-    and the interval stayed at its default.
+
+class MidniteSolarOptionsFlow(OptionsFlow):
+    """Change how often the Classic is polled, and whether the bridge is up.
+
+    `__init__.py` reads these options and `update_listener` reloads the entry
+    when they change, but until now there was no options flow: the step that
+    looked like one called a method Home Assistant does not do, so it could
+    only ever raise and the interval stayed at its default.
     """
 
     def __init__(self, config_entry):
-        """Keep the entry whose options are being edited."""
-        self.config_entry = config_entry
+        """Hold the entry whose options are being edited.
+
+        Home Assistant 2026.9 makes `OptionsFlow.config_entry` a READ-ONLY
+        property resolved from `handler`; assigning to it in `__init__` raised
+        "property has no setter", which surfaced as an HTTP 500 the instant the
+        options dialog opened (and a dead "enable the bridge" step in the Flutter
+        app). Storing the entry under our own attribute is the fix; it is only
+        read here for the form defaults, and HA still writes the finished
+        options through its own handler lookup.
+        """
+        self._entry = config_entry
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Show or store the scan interval."""
+        """Show or store the scan interval and the bridge switch."""
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
@@ -424,15 +461,21 @@ class MidniteSolarOptionsFlow(OptionsFlow):
                 {
                     vol.Optional(
                         CONF_SCAN_INTERVAL,
-                        default=self.config_entry.options.get(
+                        default=self._entry.options.get(
                             CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
                         ),
                     ): int,
+                    # Off by default: the bridge is a token-guarded write path
+                    # to the MPPT that other LAN tools can reach.
+                    vol.Optional(
+                        CONF_BRIDGE_ENABLED,
+                        default=self._entry.options.get(
+                            CONF_BRIDGE_ENABLED, DEFAULT_BRIDGE_ENABLED
+                        ),
+                    ): bool,
                 }
             ),
         )
 
 
-async def async_get_options_flow(config_entry):
-    """Home Assistant calls this to offer the options form."""
-    return MidniteSolarOptionsFlow(config_entry)
+

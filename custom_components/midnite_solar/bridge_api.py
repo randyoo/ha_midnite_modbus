@@ -17,7 +17,7 @@ The seconds and weekday the Classic's clock carries are not settable (the
 firmware derives them, and the payload's seconds byte is a manual-set
 marker, not a value - see register_values.clock_file_payload), so the clock
 call takes no seconds field and the Classic may still republish its own
-time a moment later (FINDINGS section 40: the WIFI175 owns the clock).
+time a moment later (FINDINGS section 40: the Classic Ethernet stack owns the clock).
 """
 
 from __future__ import annotations
@@ -171,6 +171,30 @@ class MidniteRebootView(MidniteBridgeView):
         return self.json(answer)
 
 
+class MidniteEepromSaveView(MidniteBridgeView):
+    """POST - "Save to EEPROM now": one ForceEEpromUpdate, no setting sent.
+
+    With the auto-save switch off, pending (EE) settings only survive a
+    restart when something commits them; this is that something, exactly
+    like the HA button the register map's flag was designed for.
+    """
+
+    url = f"{BRIDGE_URL_PREFIX}/save"
+    name = "api:midnite:save"
+
+    async def post(self, request: Any, entry_id: str):
+        coordinator = self.coordinator_for(request, entry_id)
+        if coordinator is None:
+            return self.missing_entry(entry_id)
+        try:
+            answer = await bridge.async_bridge_eeprom_save(
+                request.app["hass"], coordinator
+            )
+        except HomeAssistantError as e:
+            return self.refused(e)
+        return self.json(answer)
+
+
 class MidniteDataloggerView(MidniteBridgeView):
     """GET - the last swept days (empty until the first refresh)."""
 
@@ -208,6 +232,7 @@ BRIDGE_VIEWS = (
     MidniteWriteView,
     MidniteClockView,
     MidniteRebootView,
+    MidniteEepromSaveView,
     MidniteDataloggerView,
     MidniteDataloggerRefreshView,
 )

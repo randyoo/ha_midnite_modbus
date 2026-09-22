@@ -119,14 +119,14 @@ class TestRegistration:
         }
         assert kinds["state"] is True
         assert kinds["datalogger"] is True
-        for writer in ("write", "clock", "reboot", "datalogger/refresh"):
+        for writer in ("write", "clock", "reboot", "save", "datalogger/refresh"):
             assert asyncio.iscoroutinefunction(view_for(hass, writer).post)
 
     def test_an_entry_that_never_set_up_answers_404_everywhere(self):
         hass, _coordinator = installed()
         for suffix in ("state", "datalogger"):
             assert get(hass, suffix, entry_id="ghost").status == 404
-        for suffix in ("write", "clock", "reboot", "datalogger/refresh"):
+        for suffix in ("write", "clock", "reboot", "save", "datalogger/refresh"):
             assert post(hass, suffix, {}, entry_id="ghost").status == 404
 
 
@@ -212,6 +212,17 @@ class TestRebootView:
             (REGISTER_MAP["ENABLE_FLAGS_2"], 0x04),
             (REGISTER_MAP["FORCE_FLAG_BITS"], 0x100),
         ]
+
+
+class TestEepromSaveView:
+    def test_the_save_is_one_force_flag_and_an_ack(self):
+        hass, coordinator = installed()
+        response = post(hass, "save", {})
+        assert response.status == 200
+        assert response.body["committed"] is True
+        # ForceEEpromUpdate is bit 2: 0x4 into the LOW word (4160), chosen by
+        # force_flag_write, not hardcoded - and it is the ONLY write.
+        assert coordinator.api.writes == [(REGISTER_MAP["FORCE_FLAG_BITS"], 0x4)]
 
 
 class TestDataloggerViews:

@@ -14,8 +14,7 @@
 
 # Midnite Solar Integration for Home Assistant
 
-Support for Midnite Solar Classic charge controllers over Modbus TCP (WIFI175 /
-Ethernet module), including the private commands the official Midnite Solar AIR
+Support for Midnite Solar Classic charge controllers over Modbus TCP (via its built-in Ethernet module), including the private commands the official Midnite Solar AIR
 desktop app uses: set the Classic's clock, reboot it, and the enable-flag
 toggles from its Features panel.
 
@@ -71,7 +70,7 @@ means a 48 V bank). The text entity sets the unit name (up to 8 characters).
 
 ## The Classic's clock — know before you press the button
 
-The AIR app's "write time" command works over Modbus — and **the WIFI175 card
+The AIR app's "write time" command works over Modbus — and **the Classic's Ethernet port card
 owns the time**. On our bench unit both the official app's write and this
 integration's write landed and ran at correct rate for ~30 s, then the card
 re-published its own timezone-shifted time and the clock snapped back. Fixing
@@ -82,7 +81,7 @@ FINDINGS section 40, air-app-reverse/PROTOCOL.md section 4.2.)
 
 ## One connection at a time
 
-The WIFI175 accepts extra TCP connections but its Modbus bridge is
+The Classic's Ethernet port accepts extra TCP connections but its Modbus bridge is
 latest-wins: only one polling client can use it cleanly. Keep other tools
 (scripts, a second Home Assistant) off the Classic while this integration
 polls - or let them not touch it at all: the bridge API below serves the
@@ -93,7 +92,7 @@ same data to anything else through Home Assistant.
 Because only one Modbus client can hold the Classic, the integration can act
 as that one client *for* everything else: enable **Enable bridge API** in the
 integration's options and it serves a small JSON API on Home Assistant's own
-HTTP port. Nothing else ever needs to touch the WIFI175.
+HTTP port. Nothing else ever needs to touch the Classic's Ethernet port.
 
 - Off by default, and every call needs a Home Assistant access token like
   any other `/api` call: create a **long-lived access token** on your
@@ -114,8 +113,9 @@ With entry id `ENTRY` (visible in the integration's URL):
 |---|---|
 | `GET /api/midnite/ENTRY/state` | the last poll: raw registers by group, register-name table, unit name/MAC/model/serial, the Classic's clock and firmware, the EEPROM commit mode. No Modbus traffic - poll it as often as you like |
 | `POST /api/midnite/ENTRY/write` | `{"register": name-or-number, "value": int, "commit": bool}` - the same write-with-read-back-check the entities do; `commit: true` also sends ForceEEpromUpdate for this write |
-| `POST /api/midnite/ENTRY/clock` | `{"time": "ISO 8601"}` - the AIR app's private file-write; seconds and weekday are not settable, and the WIFI175 may republish its own time minutes later (see FINDINGS) |
+| `POST /api/midnite/ENTRY/clock` | `{"time": "ISO 8601"}` - the AIR app's private file-write; seconds and weekday are not settable, and the Classic's Ethernet port may republish its own time minutes later (see FINDINGS) |
 | `POST /api/midnite/ENTRY/reboot` | the app's "Bully Menu"; the Classic drops the connection as it restarts |
+| `POST /api/midnite/ENTRY/save` | "Save to EEPROM now": one ForceEEpromUpdate committing every pending (EE) setting at once - the same button Home Assistant's UI has; never a side effect of reading |
 | `GET /api/midnite/ENTRY/datalogger` | the last swept days from the Classic's own datalogger |
 | `POST /api/midnite/ENTRY/datalogger/refresh` | reads its whole stored year (96 paced private reads on the shared connection - takes seconds) |
 
@@ -123,7 +123,7 @@ Register values are the RAW integers the register map scales by tenths -
 the client divides, exactly like the AIR app's own conversions. Some
 registers are refused outright: the unlock registers 20492/20493 (they are
 the Modbus handshake itself), the app's "untouchables", and the whole
-WIFI175 network block - a write there would move the very address the
+the Classic's Ethernet port network block - a write there would move the very address the
 client is calling.
 
 ## Installation
@@ -144,13 +144,13 @@ it without typing an address.
 
 ## Requirements
 
-- A Midnite Solar Classic with a WIFI175 (or equivalent Modbus TCP path)
+- A Midnite Solar Classic with a the Classic's Ethernet port (or equivalent Modbus TCP path)
 - Network connectivity to the Classic; port 502 open between HA and the device
 - Python 3.13+ / pymodbus 3.15 (managed by the integration's manifest)
 
 ## Technical notes
 
-- **Wire unit id is always 1** on the socket; the WIFI175 ignores it. The
+- **Wire unit id is always 1** on the socket; the Classic's Ethernet port ignores it. The
   Classic's own Modbus address (4326) is for its serial/other Modbus ports.
 - **Ethernet write-protect:** the Classic ignores setting writes until its
   serial number is written to the unlock registers (20492/20493). The

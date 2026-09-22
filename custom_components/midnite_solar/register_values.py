@@ -95,7 +95,7 @@ def format_mac_from_registers(part1: int, part2: int, part3: int) -> str:
 
     The map composes it "[4108]MSB : [4108]LSB : [4107]MSB : [4107]LSB :
     [4106]MSB : [4106]LSB" - the highest register first, each register high
-    byte first. Bench-confirmed: the WIFI175 that prints 60:1D:0F:00:CC:DD
+    byte first. Bench-confirmed: the Classic's Ethernet port that prints 60:1D:0F:00:CC:DD
     reads back part1=0xCCDD, part2=0x0F00, part3=0x601D. The result uses Home
     Assistant's canonical form (lower case, colon separated) because unique
     ids are compared as strings.

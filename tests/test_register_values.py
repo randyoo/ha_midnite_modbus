@@ -130,7 +130,7 @@ class TestMacAddress:
     """Map: "[4108]MSB:[4108]LSB:[4107]MSB:[4107]LSB:[4106]MSB:[4106]LSB"."""
 
     def test_the_bench_mac_decodes_high_register_first(self):
-        """The WIFI175 that prints 60:1D:0F:00:CC:DD (192.168.88.24, 2026-09)."""
+        """The Classic's Ethernet port that prints 60:1D:0F:00:CC:DD (192.168.88.24, 2026-09)."""
         assert format_mac_from_registers(0xCCDD, 0x0F00, 0x601D) == "60:1d:0f:00:cc:dd"
 
     def test_the_answer_is_canonical_for_unique_id_comparison(self):

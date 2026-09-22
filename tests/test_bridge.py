@@ -1,6 +1,6 @@
 """The bridge engine: the snapshot, the write path, and the mDNS record.
 
-The bridge exists because the WIFI175 serves ONE Modbus client and this
+The bridge exists because the Classic's Ethernet port serves ONE Modbus client and this
 integration is that client: everything else - the future desktop app first
 of all - gets in through these functions instead of the socket. So the
 contract pinned here is the API's contract: the snapshot shape, the same
@@ -381,9 +381,9 @@ class TestStartStop:
     def test_the_views_are_registered_once_per_home_assistant(self):
         hass = Hass()
         assert ensure_bridge_views(hass) is True
-        assert len(hass.http.views) == 6
+        assert len(hass.http.views) == 7
         assert ensure_bridge_views(hass) is False
-        assert len(hass.http.views) == 6
+        assert len(hass.http.views) == 7
 
     def test_start_advertises_and_remembers_the_bridge_for_the_entry(self):
         hass, coordinator = a_classic()
@@ -402,7 +402,7 @@ class TestStartStop:
         # No advertisement, but the entry's bridge is still stored (so the
         # teardown below has something to undo) and views are up.
         assert hass.data[BRIDGE_ADS_KEY][ENTRY_ID] is not None
-        assert len(hass.http.views) == 6
+        assert len(hass.http.views) == 7
 
     def test_stop_withdraws_and_is_safe_a_second_time(self):
         hass, coordinator = a_classic()

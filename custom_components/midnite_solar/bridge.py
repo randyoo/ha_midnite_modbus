@@ -1,6 +1,6 @@
 """The bridge engine: watching and writing the Classic through Home Assistant.
 
-The WIFI175 serves one Modbus client at a time and this integration is that
+The Classic's Ethernet port serves one Modbus client at a time and this integration is that
 client, so no other tool may hold the socket. The bridge is how anything else
 gets its data: the coordinator keeps owning the connection, and the HTTP
 views in bridge_api.py serve one-liners over these functions. The logic lives
@@ -39,6 +39,7 @@ from .const import (
     BRIDGE_MDNS_TYPE,
     BRIDGE_VIEWS_KEY,
     DEVICE_TYPES,
+    FORCE_FLAGS,
     REGISTER_MAP,
 )
 from .datalogger import Datalogger, async_sweep
@@ -53,6 +54,7 @@ from .entity_writes import (
 from .register_values import (
     clock_from_registers,
     combine32,
+    force_flag_write,
     format_mac_from_registers,
     version_from_register,
 )
@@ -232,6 +234,23 @@ async def async_bridge_reboot(hass: Any, coordinator: Any) -> Dict[str, Any]:
     return {"reboot": "sent", "note": "the Classic drops the connection as it restarts"}
 
 
+async def async_bridge_eeprom_save(hass: Any, coordinator: Any) -> Dict[str, Any]:
+    """Commit every pending (EE) setting with one ForceEEpromUpdate.
+
+    The bridge's mirror of HA's "Save to EEPROM now" button: with the
+    auto-save switch off this is the only way a written setting survives a
+    restart. Honest about its one sharp edge - the commit writes ALL pending
+    (EE) registers at once (that is what Table 4160-1's flag does), so it is
+    a deliberate press, never a side effect of reading.
+    """
+    register, word = force_flag_write(1 << FORCE_FLAGS["ForceEEpromUpdate"])
+    await async_write_setting(
+        hass, coordinator.api, register, word, "Save to EEPROM now"
+    )
+    await coordinator.async_request_refresh()
+    return {"committed": True}
+
+
 def bridge_datalogger(coordinator: Any) -> Datalogger:
     """The per-entry datalogger store, created empty on first use."""
     store = getattr(coordinator, "datalogger", None)
@@ -336,7 +355,7 @@ class BridgeAdvertiser:
 
     def service_name(self) -> str:
         """An instance name unique on the LAN: unit name where known, and
-        the WIFI175 MAC (the entry's unique id) as the discriminator, so two
+        the Ethernet MAC (the entry's unique id) as the discriminator, so two
         Homes serving Classics never collide on one record."""
         identity = bridge_identity(self._coordinator)
         tail = identity.get("mac") or self._entry.entry_id

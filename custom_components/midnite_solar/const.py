@@ -9,7 +9,7 @@ DEFAULT_SCAN_INTERVAL = 15
 # The bridge: this integration as the Classic's one Modbus client, serving a
 # LAN API on Home Assistant's own HTTP port so a desktop app (or anything
 # else) can watch and write without ever touching the single-connection
-# WIFI175 itself. Off by default - it is a LAN-reachable path that can write
+# the Classic's Ethernet port itself. Off by default - it is a LAN-reachable path that can write
 # to the MPPT, so the user opts in; requests carry a Home Assistant access
 # token like every other /api call.
 CONF_BRIDGE_ENABLED = "bridge_enabled"
@@ -241,7 +241,7 @@ BRIDGE_FORBIDDEN_WRITES = frozenset(
     # The app's "untouchables" - registers even the AIR app never writes
     # (ClassicDataDictionary.as:1881-1884, PROTOCOL.md section 8).
     | {4188, 4189, 4190, 4193, 4194, 4195, 4196, 4201, 4300, 4394, 4399}
-    # Every WIFI175 network register 20481-20491: a write there can move the
+    # Every Classic Ethernet network register 20481-20491: a write there can move the
     # address the Classic answers on and drop the very connection the client
     # is using (the app's own "Classic will disconnect" alert). Not a casual
     # LAN-API target; keep it in the integration where the consequence is

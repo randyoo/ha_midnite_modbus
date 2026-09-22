@@ -84,8 +84,47 @@ FINDINGS section 40, air-app-reverse/PROTOCOL.md section 4.2.)
 
 The WIFI175 accepts extra TCP connections but its Modbus bridge is
 latest-wins: only one polling client can use it cleanly. Keep other tools
-(the AIR app, scripts, a second Home Assistant) off the Classic while this
-integration polls.
+(scripts, a second Home Assistant) off the Classic while this integration
+polls - or let them not touch it at all: the bridge API below serves the
+same data to anything else through Home Assistant.
+
+## The bridge API (desktop apps, dashboards, scripts)
+
+Because only one Modbus client can hold the Classic, the integration can act
+as that one client *for* everything else: enable **Enable bridge API** in the
+integration's options and it serves a small JSON API on Home Assistant's own
+HTTP port. Nothing else ever needs to touch the WIFI175.
+
+- Off by default, and every call needs a Home Assistant access token like
+  any other `/api` call: create a **long-lived access token** on your
+  profile page and send it as `Authorization: Bearer <token>`.
+- A desktop app finds the bridge by itself. The integration advertises the
+  mDNS service `_midnite-bridge._tcp.local.` and - because HAOS's firewall
+  drops inbound 5353 and Apple's responder shares that port and
+  load-balances answers away from any raw client - it *also* beats a UDP
+  beacon on port 4627 every five seconds carrying the same facts (address,
+  port, API version, entry id, the Classic's address) plus unit name and
+  model. The beacon is inbound-to-client, which no firewall blocks, so it
+  works identically on macOS, Linux, Windows, Android and iOS; mDNS stays
+  as the bonus for networks where it works.
+
+With entry id `ENTRY` (visible in the integration's URL):
+
+| Call | What it does |
+|---|---|
+| `GET /api/midnite/ENTRY/state` | the last poll: raw registers by group, register-name table, unit name/MAC/model/serial, the Classic's clock and firmware, the EEPROM commit mode. No Modbus traffic - poll it as often as you like |
+| `POST /api/midnite/ENTRY/write` | `{"register": name-or-number, "value": int, "commit": bool}` - the same write-with-read-back-check the entities do; `commit: true` also sends ForceEEpromUpdate for this write |
+| `POST /api/midnite/ENTRY/clock` | `{"time": "ISO 8601"}` - the AIR app's private file-write; seconds and weekday are not settable, and the WIFI175 may republish its own time minutes later (see FINDINGS) |
+| `POST /api/midnite/ENTRY/reboot` | the app's "Bully Menu"; the Classic drops the connection as it restarts |
+| `GET /api/midnite/ENTRY/datalogger` | the last swept days from the Classic's own datalogger |
+| `POST /api/midnite/ENTRY/datalogger/refresh` | reads its whole stored year (96 paced private reads on the shared connection - takes seconds) |
+
+Register values are the RAW integers the register map scales by tenths -
+the client divides, exactly like the AIR app's own conversions. Some
+registers are refused outright: the unlock registers 20492/20493 (they are
+the Modbus handshake itself), the app's "untouchables", and the whole
+WIFI175 network block - a write there would move the very address the
+client is calling.
 
 ## Installation
 

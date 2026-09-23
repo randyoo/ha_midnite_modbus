@@ -429,9 +429,10 @@ class TestEepromSaveView:
 
 class TestDataloggerViews:
     def swept_api(self, monkeypatch):
-        # 2026-09-11 in the bench-verified packing: day 5 bits, month 4
-        # (FINDINGS 41 - not the AIR app's 4-bit day).
-        dates = [((2026 - 2000) << 9) | (9 << 5) | 11] + [0] * 31
+        # 2026-09-11 in the anchored packing: month 4 bits low, day 5 next
+        # (FINDINGS 46 - the app's parseTsLow field NAMES are swapped, its
+        # bit ops are the layout).
+        dates = [((2026 - 2000) << 9) | (11 << 4) | 9] + [0] * 31
         payload = bytearray(64)
         for n, value in enumerate(dates):
             payload[62 - 2 * n] = value & 0xFF

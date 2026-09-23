@@ -54,10 +54,11 @@ def newest_first_payload(values: list) -> bytes:
 
 
 def date_raw(day: datetime.date) -> int:
-    """Pack a date the way the BENCH says the Classic packs it (FINDINGS 41):
-    day in 5 bits, month in the next 4, year-2000 above - NOT the app's
-    4-bit parse, which the hardware refuted."""
-    return ((day.year - 2000) & 0x7F) << 9 | (day.month & 0x0F) << 5 | day.day & 0x1F
+    """Pack a date the way the ring is ANCHORED to pack it (FINDINGS 46):
+    month in 4 bits, day in the next 5, year-2000 above - the app's
+    parseTsLow bit ops, whose local-variable NAMES are swapped but whose
+    printed m/d/yyyy reads correctly (0x3559 -> "9/21/2026")."""
+    return ((day.year - 2000) & 0x7F) << 9 | (day.day & 0x1F) << 4 | day.month & 0x0F
 
 
 class TestDayAddress:
@@ -98,29 +99,51 @@ class TestDateQuirks:
     def test_an_empty_slot_decodes_to_no_day(self):
         assert decode_date(0) is None
 
-    def test_the_bench_layout_reads_days_past_15(self):
-        """Real values from the 2026-09-22 sweep (FINDINGS 41).
+    def test_the_anchored_layout_reads_the_bench_week(self):
+        """Real values, real dates (FINDINGS 46 - supersedes 41's split).
 
-        The AIR app's 4-bit day parse turns each of these into an
-        impossible month; the hardware packs day(5) month(4) year(7), and
-        the whole answered ring - a factory-era year of 2000 dates included
-        - reads as a calendar only this way. These are exactly the days the
-        AIR app itself showed as garbage.
+        These three raws answered the prod ring on 2026-09-23 and decode to
+        2026-09-21/22/23: the three days the bench KNOWS the Classic ran
+        (§41's sweep day, §44's clock-experiment day, the deploy day) with
+        energies to match. §41 read them as 2026-10-25/11-09/11-25 - dates
+        the user's own power history says never happened.
         """
-        assert decode_date(0x3559) == datetime.date(2026, 10, 25)
-        assert decode_date(0x3569) == datetime.date(2026, 11, 9)
-        assert decode_date(0x107) == datetime.date(2000, 8, 7)
-        assert decode_date(0x198) == datetime.date(2000, 12, 24)
-        # The app's own parse, kept here to show WHAT it breaks with:
-        app_day, app_month = 0x3559 & 0xF, (0x3559 >> 4) & 0x1F
-        assert (app_day, app_month) == (9, 21)  # month 21: garbage days
+        assert decode_date(0x3559) == datetime.date(2026, 9, 21)
+        assert decode_date(0x3569) == datetime.date(2026, 9, 22)
+        assert decode_date(0x3579) == datetime.date(2026, 9, 23)
+        # What §41 read as "2000-08-07": the same raw is month 7, day 16.
+        assert decode_date(0x107) == datetime.date(2000, 7, 16)
+        assert decode_date(0x198) == datetime.date(2000, 8, 25)
 
-    def test_unwritten_slots_stay_fossils_not_dates(self):
-        """The sweep's answered-but-never-dated RAM (month nibbles 13-15
-        beside a day) decodes to an absent day. The Classic answers EVERY
-        slot - absence is a decode verdict, never a Modbus exception."""
-        for fossil in (0x1F8, 0x1E8, 0x1D8, 0x1C8, 0x1B8):
-            assert decode_date(fossil) is None
+    def test_the_app_displays_m_d_y_through_swapped_names(self):
+        """parseTsLow's VARIABLES are misnamed, its DISPLAY is not.
+
+        It extracts low-nibble as _loc2_ "day" and the next five as _loc3_
+        "month", then prints _loc2_/_loc3_/year: for 0x3559 that prints
+        "9/21/2026", which read as month/day IS the anchored date. This is
+        why the official app always showed these days right and why
+        trusting its variable names (§41) flipped the widths backwards.
+        """
+        low_nibble, next_five = 0x3559 & 0xF, (0x3559 >> 4) & 0x1F
+        assert (low_nibble, next_five) == (9, 21)
+        displayed = f"{low_nibble}/{next_five}/2026"
+        assert displayed == "9/21/2026"
+        assert datetime.datetime.strptime(displayed, "%m/%d/%Y").date() == (
+            datetime.date(2026, 9, 21)
+        )
+
+    def test_the_41_fossils_are_real_august_days(self):
+        """§41 rejected these five as "month nibbles 13-15 beside a day".
+        Under the anchored layout they are the month-8 low nibble with
+        days 27..31 of 2000 - consecutive real run days it was discarding.
+        Absence is still only a decode verdict: the Classic answers EVERY
+        slot; and a day that cannot exist (Feb 30) still decodes to None."""
+        for raw, day in zip(
+            (0x1F8, 0x1E8, 0x1D8, 0x1C8, 0x1B8),
+            (31, 30, 29, 28, 27),
+        ):
+            assert decode_date(raw) == datetime.date(2000, 8, day)
+        assert decode_date((30 << 4) | 2) is None  # 2000-02-30 cannot exist
 
     def test_float_time_splits_like_the_app(self):
         assert decode_float_time(3725) == {"hours": 1, "minutes": 2}

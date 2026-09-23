@@ -11,9 +11,11 @@ tested without a device; only `async_sweep` touches the hub, and it does so
 one paced read at a time (see the retry arithmetic pinned in
 tests/test_datalogger.py).
 
-Bench verdict (2026-09-22, FINDINGS section 41) on the open quirks: the cat-3
-day field is FIVE bits - the app's 4-bit parse garbles every day past the
-15th, and decode_date follows the hardware instead. And no slot in the whole
+Bench verdict (2026-09-22, FINDINGS section 41; date layout CORRECTED
+2026-09-23 by FINDINGS section 46): the cat-3 date packs MONTH in 4 low bits,
+DAY in the next 5, year-2000 above - the app's parseTsLow NAMES the fields
+backwards but its printed m/d/yyyy is right, and the anchor dates
+2026-09-21/22/23 prove the layout. decode_date follows that. And no slot in the whole
 384-slot window ever answered with a Modbus exception: unwritten slots come
 back as stale RAM whose date fails to decode, so "exception means absent"
 still stands as the rule (the app decoded such a response as data and showed
@@ -104,26 +106,29 @@ def unpack_newest_first(payload: bytes) -> Optional[list]:
 
 
 def decode_date(raw: int) -> Optional[datetime.date]:
-    """The category-3 date: day in 5 bits, month in the next 4, year above.
+    """The category-3 date: MONTH in 4 bits, DAY in the next 5, year above.
 
-    The AIR app parses "day = v & 0xF; month = v >> 4 & 0x1F"
-    (`DataMenu.as:1402-1408`) - and the hardware refutes it, the same way it
-    refutes the document's IP-octet order: a bench sweep on 2026-09-22 read
-    the WHOLE slot window (384 slots answered, no exception, FINDINGS 41)
-    and the only layout that reads it as a calendar is day(5) month(4)
-    year(7): a factory-era year of days (2000-01-07 through 2000-12-24, one
-    slot per day from a Classic whose clock was never set) plus 2026 days
-    with the day past the 15th - e.g. 0x3559 = 2026-10-25. The app's 4-bit
-    day turns every such day into a month-21 nonsense date, which is how
-    the app itself shows garbage days. Do NOT "fix" this back to the
-    document's literal text; the hardware wins.
+    The packing is month(4)@0 day(5)@4 year(7)@9 - the AIR app's own bit
+    ops (`parseTsLow`, `DataMenu.as:1402-1408`) with its variable NAMES
+    corrected: it extracts the low nibble as "day" and the next five as
+    "month", then prints them as day + "/" + month + "/" + year, so its
+    DISPLAY reads m/d/yyyy and comes out right (0x3559 prints
+    "9/21/2026" = September 21 2026). §41 trusted those variable names and
+    reversed the field widths; the reversal rested on dates that FINDINGS
+    45/46 later proved mis-decodes of this same layout.
 
-    A slot holding RAM it never date-stamped (the sweep saw month nibbles
-    of 13-15 beside day 24, e.g. 0x1F8) decodes to None: an absent day, not
-    a lie.
+    The ground-truth anchor, first real dates this ring ever had: the raws
+    0x3559/0x3569/0x3579 decode to 2026-09-21/22/23 - the three days the
+    bench KNOWS this Classic ran (the §41 sweep, the §44 clock experiment,
+    the 2026-09-23 deploy day, energies to match) - and the y2k entries
+    become consecutive daily runs (2000-07-02..25, 2000-08-02..25) with
+    solar-plausible 5-8 kWh, not §41's "pairs twice a month". Even §41's
+    five "undated RAM fossils" 0x1F8..0x1B8 are real: 2000-08-27..31.
+    A day over 31 cannot exist in 5 bits; Feb 30 and an empty slot
+    (month nibble 0) decode to None: an absent day, not a lie.
     """
-    day = raw & 0x1F
-    month = (raw >> 5) & 0x0F
+    month = raw & 0x0F
+    day = (raw >> 4) & 0x1F
     year = 2000 + ((raw >> 9) & 0x7F)
     try:
         return datetime.date(year, month, day)

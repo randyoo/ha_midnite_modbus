@@ -17,11 +17,13 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+from types import SimpleNamespace
 
 import pytest
 from fakes import FakeApi, RecordingInternalApi
 from homeassistant.core import Hass
 
+from midnite_solar import bridge as bridge_module
 from midnite_solar import datalogger
 from midnite_solar.coordinator import OP_TIMEOUT
 from midnite_solar.datalogger import (
@@ -242,3 +244,44 @@ class TestSweep:
         """The gap is real and nonzero: 96 back-to-back reads would starve
         the coordinator's own poll against the one hub lock."""
         assert datalogger.READ_GAP_SECONDS > 0
+
+    def test_the_sweep_flags_the_store_for_its_whole_run(self, monkeypatch):
+        # The bridge answers GET /datalogger with `sweeping` while a sweep
+        # runs, so a client tells "chart loading" from "nothing logged";
+        # the flag is also the single-flight token for the next test.
+        seen = []
+
+        class FlagSpy(RecordingInternalApi):
+            def read_internal(self, *args):
+                seen.append(store.sweeping)
+                return super().read_internal(*args)
+
+        monkeypatch.setattr(datalogger, "READ_GAP_SECONDS", 0)
+        store = Datalogger()
+        # The store the bridge uses must be THIS store - else the spy
+        # watches a different object than the one the flag is raised on.
+        coordinator = SimpleNamespace(api=FlagSpy(payload=b"\x00" * 64), datalogger=store)
+        assert store.as_dict()["sweeping"] is False
+        answer = asyncio.run(
+            bridge_module.async_bridge_datalogger(Hass(), coordinator)
+        )
+        assert len(seen) == SWEEP_BLOCKS * len(SWEEP_CATEGORIES)
+        assert all(seen), "the flag must stand for every read of the sweep"
+        # The answer that COMPLETES the sweep is written after the flag
+        # fell: nobody is told "still loading" about data already in hand.
+        assert answer["sweeping"] is False
+
+    def test_a_caller_joining_a_running_sweep_stamps_nothing(self):
+        # Mid-sweep, a second caller (the background collector, or another
+        # PIN-gated refresh) gets the cache AS IT STANDS, flagged - joining
+        # the pass, never stampeding a second one onto the one connection.
+        api = RecordingInternalApi(payload=b"\x00" * 64)
+        store = Datalogger()
+        store.sweeping = True
+        coordinator = SimpleNamespace(api=api, datalogger=store)
+        answer = asyncio.run(
+            bridge_module.async_bridge_datalogger(Hass(), coordinator)
+        )
+        assert answer["sweeping"] is True
+        assert api.internal_reads == [], "the joiner put reads on the wire"
+        assert store.sweeping is True, "the joiner must not clear the flag"

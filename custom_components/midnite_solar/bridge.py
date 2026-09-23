@@ -15,6 +15,7 @@ default, and an unconfigured entry refuses writes until a real PIN is set.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import socket
@@ -42,6 +43,7 @@ from .const import (
     BRIDGE_MDNS_TYPE,
     BRIDGE_VIEWS_KEY,
     DEFAULT_WRITE_PIN,
+    DOMAIN,
     DEVICE_TYPES,
     FORCE_FLAGS,
     PIN_LENGTH,
@@ -377,9 +379,68 @@ def bridge_datalogger(coordinator: Any) -> Datalogger:
     return store
 
 
+# The background collector's rhythm. The bridge sweeps its OWN cache so a
+# watching client's chart fills without anyone asking (and without a PIN:
+# this is our read on our connection, on our schedule). The first pass
+# waits out the entry's startup polls; after that the ring is re-read
+# hourly, which is far more often than the Classic's day ring grows.
+SWEEP_WARM_SECONDS = 5.0
+SWEEP_RESWEEP_SECONDS = 3600.0
+
+
 async def async_bridge_datalogger(hass: Any, coordinator: Any) -> Dict[str, Any]:
-    """Run the full device-5 sweep and answer with what it found."""
-    return await async_sweep(hass, coordinator.api, bridge_datalogger(coordinator))
+    """One device-5 sweep at a time: run it now, or join the one running.
+
+    The store's `sweeping` flag is the single-flight token: a caller that
+    arrives while a sweep is in flight (the background collector's, or
+    another PIN-gated refresh's) gets the cache AS IT STANDS - still
+    flagged `sweeping` - instead of stampeding a second 96-read pass onto
+    this single-connection device. The client's own reload loop picks up
+    the finished answer; nobody hammers the wire twice.
+    """
+    store = bridge_datalogger(coordinator)
+    if store.sweeping:
+        return store.as_dict()
+    store.sweeping = True
+    try:
+        await async_sweep(hass, coordinator.api, store)
+    finally:
+        # The flag falls BEFORE the answer is written, so the caller that
+        # just completed a sweep is never told "still loading" about data
+        # that is already in hand. A cancelled pass lands here too.
+        store.sweeping = False
+    return store.as_dict()
+
+
+def async_start_sweeper(hass: Any, coordinator: Any) -> None:
+    """Arm this entry's background datalogger collector (idempotent)."""
+    if getattr(coordinator, "logger_sweeper", None) is not None:
+        return
+    coordinator.logger_sweeper = hass.async_create_task(
+        async_sweeper_loop(hass, coordinator)
+    )
+
+
+async def async_sweeper_loop(hass: Any, coordinator: Any) -> None:
+    """Sweep the bridge's own datalogger cache, unasked, for its lifetime.
+
+    A failed pass is logged and retried on the next beat; the cache keeps
+    answering from what it holds meanwhile. Stopping is `async_stop_bridge`
+    cancelling the task - the sweep's own `finally` clears the flag, so a
+    cancelled pass leaves no phantom "sweeping" behind.
+    """
+    await asyncio.sleep(SWEEP_WARM_SECONDS)
+    while True:
+        try:
+            await async_bridge_datalogger(hass, coordinator)
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            _LOGGER.warning(
+                "The bridge's background datalogger sweep failed; retrying later: %s",
+                e,
+            )
+        await asyncio.sleep(SWEEP_RESWEEP_SECONDS)
 
 
 def beacon_payload(
@@ -638,10 +699,23 @@ async def async_start_bridge(hass: Any, entry: Any, coordinator: Any) -> None:
     except Exception as e:
         _LOGGER.warning("The bridge API is up but not advertised on the LAN: %s", e)
     hass.data.setdefault(BRIDGE_ADS_KEY, {})[entry.entry_id] = advertiser
+    # The bridge also collects its own chart data: from here on the cache
+    # fills without any client asking (the GET stays open, the POST
+    # refresh stays the PIN-gated "now, please").
+    async_start_sweeper(hass, coordinator)
 
 
 async def async_stop_bridge(hass: Any, entry: Any) -> bool:
-    """Withdraw this entry's advertisement; the views stay (entry-agnostic)."""
+    """Withdraw this entry's advertisement and stop its sweeper; the
+    views stay (entry-agnostic)."""
+    # The collector first: it is the one thing here that could still be
+    # mid-read on the wire. Cancel it; the sweep's `finally` clears the
+    # `sweeping` flag even into a CancelledError.
+    coordinator = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+    sweeper = getattr(coordinator, "logger_sweeper", None) if coordinator else None
+    if sweeper is not None:
+        sweeper.cancel()
+        coordinator.logger_sweeper = None
     advertiser = hass.data.get(BRIDGE_ADS_KEY, {}).pop(entry.entry_id, None)
     if advertiser is None:
         return False

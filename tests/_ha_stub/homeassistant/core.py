@@ -1,5 +1,6 @@
 """Home Assistant core objects used by the integration."""
 
+import asyncio
 import inspect
 
 from homeassistant.components.http import Http
@@ -84,8 +85,16 @@ class Hass:
         return result
 
     def async_create_task(self, coro):
-        """Return the coroutine so tests can await it themselves."""
-        return coro
+        """Schedule a real asyncio Task, the way Home Assistant does.
+
+        An integration's lifetime task (the bridge's datalogger collector)
+        must be cancel()'d and done()-checkable, so returning the bare
+        coroutine was a lie the day the integration grew one. Tests start
+        under asyncio.run; the case's loop cancels whatever is still parked
+        when it ends, so a lifetime task cannot leak or put wire traffic
+        into an assertion - the collector parks on its warm-up sleep.
+        """
+        return asyncio.ensure_future(coro)
 
 
 HomeAssistant = Hass

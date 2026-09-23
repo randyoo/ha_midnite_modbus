@@ -151,6 +151,14 @@ class Datalogger:
         # day slot -> {"date": date, category fields...}
         self.slots: Dict[int, Dict[str, Any]] = {}
         self.sweep: Optional[Dict[str, Any]] = None
+        # True from the instant a sweep starts until it lands (the sweep
+        # itself is the only writer). It is the single-flight token AND the
+        # API's "chart loading" answer: while set, GET /datalogger says
+        # `sweeping` so a watching client waits honestly instead of
+        # painting an empty cache, and a second caller JOINS the running
+        # sweep instead of stampeding a second one onto this
+        # single-connection device.
+        self.sweeping = False
 
     def merge_read(self, block: int, category: int, payload: bytes) -> bool:
         """Fold one category's 32-day read into the store.
@@ -196,7 +204,12 @@ class Datalogger:
             day.update({k: v for k, v in record.items() if k != "date"})
         days = [{"date": iso, **fields} for iso, fields in by_date.items()]
         days.sort(key=lambda day: day["date"], reverse=True)
-        return {"api_version": BRIDGE_API_VERSION, "days": days, "sweep": self.sweep}
+        return {
+            "api_version": BRIDGE_API_VERSION,
+            "days": days,
+            "sweep": self.sweep,
+            "sweeping": self.sweeping,
+        }
 
 
 async def async_sweep(hass: Any, api: Any, store: Datalogger) -> Dict[str, Any]:

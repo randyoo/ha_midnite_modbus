@@ -265,7 +265,12 @@ class MidniteEepromSaveView(MidniteBridgeView):
 
 
 class MidniteDataloggerView(MidniteBridgeView):
-    """GET - the last swept days (empty until the first refresh)."""
+    """GET - the last swept days, plus the `sweeping` flag.
+
+    Open and cheap by design: the bridge sweeps this cache itself in the
+    background, so a watching client can fill its chart on connect without
+    a PIN, without ever POSTing, and without touching the wire.
+    """
 
     url = f"{BRIDGE_URL_PREFIX}/datalogger"
     name = "api:midnite:datalogger"
@@ -287,7 +292,11 @@ class MidniteDataloggerRefreshView(MidniteBridgeView):
     would let any LAN device stall the live poll and every write by spamming
     it - which is a way to change the Classic's behaviour without writing a
     register. So it is PIN-gated like a write, not open like the cheap state
-    read. The datalogger GET (the cache) stays open.
+    read. The datalogger GET (the cache) stays open - and nobody needs to
+    POST this at all for the chart to fill: the bridge's own background
+    collector keeps the cache fresh. A POST that arrives while a sweep is
+    already in flight JOINS it (answers the cache, flagged `sweeping`)
+    instead of stampeding a second pass onto the one connection.
     """
 
     url = f"{BRIDGE_URL_PREFIX}/datalogger/refresh"

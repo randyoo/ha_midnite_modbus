@@ -59,6 +59,21 @@ class _NoPin:
 NO_PIN = _NoPin()
 
 
+class _FakeMonotonic:
+    """A stand-in for the `time` module INSIDE bridge.py (its only time call
+    is check_write_pin's time.monotonic), so a test can spend the lockout
+    ladder in wrist-seconds without disturbing asyncio's own clock."""
+
+    def __init__(self, start: float = 10_000.0) -> None:
+        self.now = start
+
+    def monotonic(self) -> float:
+        return self.now
+
+    def advance(self, seconds: float) -> None:
+        self.now += seconds
+
+
 class Hub(FakeApi):
     """The lifecycle double from test_setup_lifecycle, minus the registry."""
 
@@ -283,6 +298,49 @@ class TestWritePinGate:
         assert ok.status == 200
         assert api.writes, "after the wait the right PIN must reach the device"
 
+    def test_ten_wrong_guesses_inside_a_minute_never_land_and_the_right_pin_waits(
+        self, monkeypatch
+    ):
+        """The anti-brute-force property pinned end to end: ten WRONG guesses
+        arrive inside 60 s at a spammer's pace, and they buy almost NOTHING.
+
+        Only a guess that shows up AFTER the previous wait has run is ever
+        compared (three 401s out of ten); every guess during a wait gets the
+        identical silent 429 and is not even counted, so brute-forcing costs
+        hours, not minutes. Then the CORRECT PIN arrives mid-wait and gets
+        the same 429 - during the wait the bridge compares nothing, which is
+        what denies the spammer the one non-429 answer that WOULD be the
+        PIN - and it only reaches the Classic once the armed rung has run.
+
+        The guesses are spent against this harness's dummy SET_PIN; the
+        production bridge's live PIN is deliberately nowhere in this repo.
+        """
+        api = FakeApi()
+        hass, _coordinator = installed(api=api)
+        clock = _FakeMonotonic()
+        monkeypatch.setattr(bridge_module, "time", clock)
+        statuses = []
+        for n in range(10):
+            clock.advance(5.0)  # ten guesses, all inside 50 s
+            response = post(hass, "pin", {"pin": f"{n:06d}"}, pin=NO_PIN)
+            statuses.append(response.status)
+            assert api.writes == [], f"guess {n} touched the device"
+        # Rungs 5 s + 15 s let guesses 2 and 4 be compared; the third
+        # comparison arms the 60 s rung, and the rest of the volley is
+        # silence. That ladder IS the rate limit.
+        assert statuses == [401, 401, 429, 429, 401, 429, 429, 429, 429, 429]
+        # The correct PIN inside that 60 s wait: refused like a wrong one,
+        # and no write slips through on its say-so.
+        refused = post(hass, "write", {"register": ABSORB, "value": 576})
+        assert refused.status == 429
+        assert "retry_after" in refused.body
+        assert api.writes == []
+        # Out the other side of the armed rung, the right PIN finally lands.
+        clock.advance(refused.body["retry_after"] + 0.1)
+        landed = post(hass, "write", {"register": ABSORB, "value": 576})
+        assert landed.status == 200
+        assert api.writes == [(ABSORB, 576)]
+
 
 class TestWriteView:
     def test_a_write_by_name_answers_with_the_register_it_landed_on(self):
@@ -387,6 +445,29 @@ class TestDataloggerViews:
         assert response.status == 200
         assert response.body["days"] == []
         assert response.body["sweep"] is None
+        assert response.body["sweeping"] is False
+
+    def test_the_open_get_admits_a_sweep_is_in_flight(self):
+        """The background collector's pass says "chart loading" through the
+        OPEN read - the client waits without asking (or PINning) anything."""
+        hass, coordinator = installed()
+        get(hass, "datalogger")  # materialises the store like any first read
+        coordinator.datalogger.sweeping = True
+        response = get(hass, "datalogger")
+        assert response.status == 200
+        assert response.body["sweeping"] is True
+
+    def test_a_refresh_joining_the_collector_answers_flagged(self, monkeypatch):
+        # POST while a sweep runs: answered from the cache, flagged, and
+        # the wire stays quiet - one sweep at a time on this device.
+        api = self.swept_api(monkeypatch)
+        hass, coordinator = installed(api=api)
+        get(hass, "datalogger")
+        coordinator.datalogger.sweeping = True
+        response = post(hass, "datalogger/refresh", {})
+        assert response.status == 200
+        assert response.body["sweeping"] is True
+        assert api.internal_reads == []
 
     def test_a_refresh_sweeps_and_answers_the_days(self, monkeypatch):
         api = self.swept_api(monkeypatch)
@@ -434,6 +515,22 @@ class TestBridgeLifecycle:
         instance = zeroconf.Zeroconf.instances[0]
         asyncio.run(integration.async_unload_entry(hass, entry))
         assert instance.closed is True
+
+    def test_the_bridge_gets_its_background_sweeper(self):
+        """Bridge on: the entry grows a collector task that no client asked
+        for - the chart fills itself. Unload cancels it."""
+        hass, entry = self.set_up({CONF_BRIDGE_ENABLED: True})
+        coordinator = hass.data[DOMAIN][ENTRY_ID]
+        assert isinstance(coordinator.logger_sweeper, asyncio.Task)
+        asyncio.run(integration.async_unload_entry(hass, entry))
+        assert coordinator.logger_sweeper is None
+
+    def test_a_bridgeless_entry_sweeps_nothing(self):
+        """Bridge off (the default): no collector task - a plain HA install
+        puts no extra sweep traffic on the Classic."""
+        hass, entry = self.set_up({})
+        coordinator = hass.data[DOMAIN][ENTRY_ID]
+        assert getattr(coordinator, "logger_sweeper", None) is None
 
     def test_toggling_the_bridge_option_reloads_the_entry(self):
         """The bridge applies on reload; the listener must notice the toggle."""

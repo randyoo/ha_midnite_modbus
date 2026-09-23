@@ -47,6 +47,7 @@ from midnite_solar.const import (
     CLOCK_FILE_ADDRESS,
     CLOCK_FILE_DEVICE,
     DEFAULT_WRITE_PIN,
+    DOMAIN,
     FORCE_FLAGS,
     PIN_LOCKOUT_STEPS,
     REGISTER_MAP,
@@ -408,6 +409,32 @@ class TestStartStop:
         assert hass.data[BRIDGE_ADS_KEY][ENTRY_ID] is not None
         assert coordinator.datalogger is not None
         assert len(zeroconf.Zeroconf.instances[0].registered) == 1
+
+    def test_the_bridge_collects_its_own_datalogger_cache(self):
+        """Views open means the cache fills itself: a background collector
+        rides the entry's bridge. It parks on its warm-up sleep (no reads
+        yet - the startup polls own the wire first), and the stop cancels
+        it instead of leaking a task onto the loop. Start and stop share
+        ONE asyncio.run: a task born in a finished loop is cancelled by
+        that loop's teardown, which would say nothing about the stop."""
+        hass, coordinator = a_classic()
+        # async_stop_bridge finds the coordinator the way Home Assistant
+        # stores it - the same seat installed() gives the API tests.
+        hass.data.setdefault(DOMAIN, {})[ENTRY_ID] = coordinator
+
+        async def start_then_stop():
+            await async_start_bridge(hass, an_entry(), coordinator)
+            sweeper = coordinator.logger_sweeper
+            assert isinstance(sweeper, asyncio.Task)
+            await asyncio.sleep(0)  # the collector takes its first beat
+            assert not sweeper.done(), "it must park on the warm-up, not run"
+            assert coordinator.api.internal_reads == [], "warm-up put reads on the wire"
+            await async_stop_bridge(hass, an_entry())
+            return sweeper
+
+        sweeper = asyncio.run(start_then_stop())
+        assert sweeper.cancelled()
+        assert coordinator.logger_sweeper is None
 
     def test_a_lan_without_mdns_still_gets_the_api(self, monkeypatch):
         def no_route(self):

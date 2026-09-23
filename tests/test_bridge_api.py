@@ -71,12 +71,19 @@ class Hub(FakeApi):
         return True
 
 
-def installed(api=None, auto_save=False):
-    """A set-up entry with its coordinator and registered views."""
+# A real, configured 6-digit PIN: the harness sets it so the many non-gate
+# tests exercise the write path, not the "no PIN set yet" refusal. It is NOT
+# the all-zeros placeholder (which would leave writes disabled).
+SET_PIN = "135790"
+
+
+def installed(api=None, auto_save=False, pin=SET_PIN):
+    """A set-up entry (writes armed with SET_PIN) and its registered views."""
     hass = Hass()
     coordinator = FakeCoordinator(
         hass, api or FakeApi(), identity_groups(), auto_save_eeprom=auto_save
     )
+    coordinator.write_pin = pin
     hass.data.setdefault(DOMAIN, {})[ENTRY_ID] = coordinator
     ensure_bridge_views(hass)
     return hass, coordinator
@@ -87,8 +94,8 @@ def view_for(hass, suffix):
     return next(view for view in hass.http.views if view.url == wanted)
 
 
-def post(hass, suffix, body, entry_id=ENTRY_ID, pin=DEFAULT_WRITE_PIN):
-    """Drive a POST. By default it carries the RIGHT write PIN so the many
+def post(hass, suffix, body, entry_id=ENTRY_ID, pin=SET_PIN):
+    """Drive a POST. By default it carries the right write PIN so the many
     non-auth tests stay about their own subject; pass pin="..." for a wrong
     one or pin=NO_PIN to omit the header (the gate tests do exactly that)."""
     view = view_for(hass, suffix)
@@ -111,10 +118,11 @@ def clean_environment():
 
 
 class TestRegistration:
-    def test_every_bridge_view_needs_a_home_assistant_token(self):
-        """The one line between a LAN utility and an open MPPT."""
+    def test_the_bridge_is_open_no_home_assistant_token(self):
+        """By explicit choice the bridge takes no HA token; the write PIN (not
+        the token) is the write gate, so no view may claim requires_auth."""
         for view in BRIDGE_VIEWS:
-            assert view.requires_auth is True
+            assert view.requires_auth is False
 
     def test_the_urls_are_unique_and_live_under_the_api_prefix(self):
         urls = {view.url for view in BRIDGE_VIEWS}
@@ -166,27 +174,41 @@ class TestStateView:
 
 
 class TestWritePinGate:
-    """Every call that CHANGES the Classic is gated a second time, on top of
-    the Home Assistant token: the entry's write PIN, with a lockout ladder
-    that makes guessing cost exponentially more. Reads pay nothing."""
+    """The bridge carries NO Home Assistant token, so the write PIN is the
+    ENTIRE gate on every call that changes the Classic: a real 6-digit PIN is
+    required (the all-zeros placeholder leaves writes OFF), wrong guesses hit a
+    strict lockout, and the cheap reads pay nothing."""
 
-    def test_the_probe_accepts_the_right_pin(self):
-        hass, _ = installed()
-        response = post(hass, "pin", {"pin": DEFAULT_WRITE_PIN})
+    def test_the_probe_accepts_the_configured_pin(self):
+        hass, _ = installed()  # armed with SET_PIN
+        response = post(hass, "pin", {"pin": SET_PIN})
         assert response.status == 200
         assert response.body == {"pin": "accepted"}
 
     def test_the_probe_refuses_a_wrong_pin_without_echoing_it(self):
-        hass, coordinator = installed()
-        coordinator.write_pin = "13579"
-        response = post(hass, "pin", {"pin": "00000"}, pin=NO_PIN)
+        hass, _ = installed(pin="246810")
+        response = post(hass, "pin", {"pin": SET_PIN}, pin=NO_PIN)
         assert response.status == 401
         assert "error" in response.body
-        assert "13579" not in json.dumps(response.body)
+        assert "246810" not in json.dumps(response.body)
 
     def test_the_probe_wants_a_pin_in_the_body(self):
         hass, _ = installed()
         assert post(hass, "pin", {}, pin=NO_PIN).status == 400
+
+    @pytest.mark.parametrize("unset", [DEFAULT_WRITE_PIN, "12345", "abcdef", ""])
+    def test_writes_stay_off_until_a_real_pin_is_configured(self, unset):
+        """No usable default, enforced at the gate: while the entry's PIN is
+        the placeholder (or malformed), EVERY write is refused 403 telling the
+        owner to set one, and the device is never touched."""
+        api = FakeApi()
+        hass, _ = installed(api=api, pin=unset)
+        refused = post(hass, "write", {"register": ABSORB, "value": 576}, pin="000000")
+        assert refused.status == 403, f"PIN {unset!r} must not permit writes"
+        assert "PIN" in refused.body["error"] and "options" in refused.body["error"]
+        assert api.writes == []
+        # the probe says the same, so the app surfaces the instruction verbatim
+        assert post(hass, "pin", {"pin": unset}, pin=NO_PIN).status == 403
 
     @pytest.mark.parametrize("suffix,body", [
         ("write", {"register": ABSORB, "value": 576}),
@@ -211,47 +233,55 @@ class TestWritePinGate:
     ])
     def test_every_mutating_endpoint_refuses_the_wrong_pin(self, suffix, body):
         api = FakeApi()
-        hass, coordinator = installed(api=api)
-        coordinator.write_pin = "13579"
-        response = post(hass, suffix, body, pin="00000")
+        hass, _ = installed(api=api)
+        response = post(hass, suffix, body, pin="000001")
         assert response.status == 401
         assert api.writes == [], f"{suffix} landed despite the wrong PIN"
 
     def test_the_reads_are_never_pin_gated(self):
-        """State and the datalogger change nothing, so a token alone reads
-        them - the fast bridge poll stays fast."""
+        """State and the stored datalogger change nothing, so they answer with
+        no PIN at all - the fast bridge poll stays fast."""
         hass, _ = installed()
         assert get(hass, "state").status == 200
         assert get(hass, "datalogger").status == 200
 
-    def test_the_datalogger_sweep_is_not_gated_either(self):
-        # A refresh POSTs and is expensive, but it only READS the Classic; the
-        # PIN is about not leting a stranger CHANGE settings, not about cost.
+    def test_the_datalogger_sweep_is_pin_gated(self):
+        # A sweep READS, but it is a minutes-long monopoly on the Classic's one
+        # connection, so an open bridge would let any LAN device stall the live
+        # poll by spamming it - gated like a write. Right PIN first (lands),
+        # then no PIN is refused.
         hass, _ = installed(api=RecordingInternalApi())
-        response = post(hass, "datalogger/refresh", {}, pin=NO_PIN)
-        assert response.status == 200
+        assert post(hass, "datalogger/refresh", {}, pin=SET_PIN).status == 200
+        assert post(hass, "datalogger/refresh", {}, pin=NO_PIN).status == 401
 
     def test_wrong_guesses_across_endpoints_share_one_lockout(self):
         # /pin and /write draw on the SAME per-entry ladder, so guessing
         # cannot dodge the wait by rotating between endpoints.
         hass, _ = installed()
-        first = post(hass, "pin", {"pin": "00000"}, pin=NO_PIN)
+        first = post(hass, "pin", {"pin": "000001"}, pin=NO_PIN)
         assert first.status == 401
         # the immediate next guess anywhere is deferred by the wait
-        again = post(hass, "write", {"register": ABSORB, "value": 576}, pin="00001")
+        again = post(hass, "write", {"register": ABSORB, "value": 576}, pin="000002")
         assert again.status == 429
         assert "retry_after" in again.body
 
-    def test_the_right_pin_still_lands_mid_lockout(self):
-        # The owner is never locked out of their own Classic: after a wrong
-        # guess, the correct PIN through the very next write succeeds.
+    def test_the_right_pin_waits_out_the_lockout_before_it_lands(self):
+        # Strict lockout at the HTTP face: after a wrong PIN the bridge stops
+        # comparing, so even the CORRECT PIN answered right now is deferred 429
+        # and touches NOTHING (this is the hole the lenient build left open -
+        # comparing during the wait handed a spammer the PIN for free). Only
+        # once the wait has run does the right PIN reach the device.
         api = FakeApi()
         hass, coordinator = installed(api=api)
-        coordinator.write_pin = "13579"
-        assert post(hass, "pin", {"pin": "0000"}, pin=NO_PIN).status == 401
-        ok = post(hass, "write", {"register": ABSORB, "value": 576}, pin="13579")
+        assert post(hass, "pin", {"pin": "000001"}, pin=NO_PIN).status == 401
+        refused = post(hass, "write", {"register": ABSORB, "value": 576}, pin=SET_PIN)
+        assert refused.status == 429, "the right PIN must not bypass the wait"
+        assert api.writes == []
+        # Run the wait out (drive the gate's own monotonic clock back), then it lands.
+        coordinator._pin_gate._locked_until = 0.0
+        ok = post(hass, "write", {"register": ABSORB, "value": 576}, pin=SET_PIN)
         assert ok.status == 200
-        assert api.writes, "the right PIN must reach the device"
+        assert api.writes, "after the wait the right PIN must reach the device"
 
 
 class TestWriteView:

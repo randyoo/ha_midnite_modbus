@@ -7,20 +7,15 @@ bridge.ensure_bridge_views) and look the entry's coordinator up per request,
 so a reload never stacks a second route and an unloaded entry gets a clean
 404.
 
-Auth is Home Assistant's own: `requires_auth` makes the core middleware
-check the Authorization header, so a desktop app signs its calls with a
-long-lived access token from the user's HA profile page - the same
-credential every other /api caller uses. Enabling the bridge option opens
-nothing that a token cannot also close.
-
-On TOP of the token, every call that CHANGES the Classic (write, clock,
-reboot, EEPROM save, and the /pin probe) is gated a second time by the
-entry's write PIN: Home Assistant's token proves who may reach Home
-Assistant, the PIN proves the caller means to move the MPPT. A wrong or
-missing PIN is refused and a lockout ladder makes guessing cost
-exponentially longer waits (see bridge.PinGate); a token alone can no longer
-change a setting by guessing. GET state/datalogger stay token-only (they
-change nothing), the datalogger refresh included - it reads, never writes.
+The bridge needs NO Home Assistant token (`requires_auth = False`): watching
+is open to any device that can reach the port, by design. That makes the write
+PIN the ONLY thing on the write path, so it is load-bearing and strict: every
+call that CHANGES the Classic (write, clock, reboot, EEPROM save, the /pin
+probe, and the expensive datalogger sweep) is gated on the entry's 6-digit
+write PIN, and an owner who never set one (the all-zeros placeholder) is
+refused until they do. A wrong or missing PIN is refused and a strict lockout
+ladder makes guessing cost exponentially longer waits (see bridge.PinGate);
+reads of state/datalogger change nothing and stay open.
 
 The seconds and weekday the Classic's clock carries are not settable (the
 firmware derives them, and the payload's seconds byte is a manual-set
@@ -48,8 +43,10 @@ _LOGGER = logging.getLogger(__name__)
 class MidniteBridgeView(HomeAssistantView):
     """Shared plumbing: find the entry's coordinator, answer in JSON."""
 
-    # No anonymous MPPT writes on the LAN, ever.
-    requires_auth = True
+    # Open by design: no Home Assistant token. Reads are public to the LAN;
+    # every WRITE is gated on the entry's PIN (pin_gate below), so the token
+    # was doing nothing the PIN does not do better and specific to the MPPT.
+    requires_auth = False
 
     def coordinator_for(self, request: Any, entry_id: str) -> Optional[Any]:
         return request.app["hass"].data.get(DOMAIN, {}).get(entry_id)
@@ -79,13 +76,13 @@ class MidniteBridgeView(HomeAssistantView):
     def pin_gate(self, request: Any, coordinator: Any):
         """The write-PIN gate in front of every call that changes the Classic.
 
-        None lets the call proceed; anything else is the answer to give:
-        a wrong or absent PIN is refused 401 and starts the lockout ladder,
-        and while a lockout runs even a RIGHT PIN is refused 429 with the
-        seconds left, so brute force buys exponentially longer waits instead
-        of answers. Home Assistant's token is still checked first, by the
-        core middleware (requires_auth); this gate is what stops a caller
-        that HAS a token from guessing the PIN.
+        None lets the call proceed; anything else is the answer to give. Three
+        refusals: 403 when the owner has not set a 6-digit PIN at all (writes
+        are simply not armed - no default works), 401 for a wrong or absent PIN
+        which starts the lockout ladder, and 429 while a lockout runs (during
+        which the bridge compares NOTHING, so brute force buys exponentially
+        longer waits instead of answers). This is the whole write protection:
+        the bridge carries no token, so this gate is load-bearing.
         """
         refused = bridge.check_write_pin(coordinator, request.headers.get(PIN_HEADER))
         if refused is None:
@@ -114,7 +111,8 @@ class MidnitePinView(MidniteBridgeView):
     switch is flipped: right, and the app arms; wrong or absent, and the SAME
     refusal as a write comes back. It runs through the same gate, so the
     lockout ladder counts guesses here too - there is no cheaper endpoint to
-    brute the PIN against. The Home Assistant token is still required first.
+    brute the PIN against, and no PIN set at all is refused the same way a
+    write would be.
     """
 
     url = f"{BRIDGE_URL_PREFIX}/pin"
@@ -283,8 +281,13 @@ class MidniteDataloggerRefreshView(MidniteBridgeView):
     """POST - read the Classic's whole year of days (96 paced private reads).
 
     A sweep shares the one connection with the live poll, one read at a
-    time, so this takes a few seconds and the state never goes stale over
-    it; the reply is the full dated answer.
+    time, so this takes minutes and the state never goes stale over it; the
+    reply is the full dated answer. It READS, but it is a minutes-long
+    monopoly on the Classic's single Modbus connection, so an open bridge
+    would let any LAN device stall the live poll and every write by spamming
+    it - which is a way to change the Classic's behaviour without writing a
+    register. So it is PIN-gated like a write, not open like the cheap state
+    read. The datalogger GET (the cache) stays open.
     """
 
     url = f"{BRIDGE_URL_PREFIX}/datalogger/refresh"
@@ -294,6 +297,9 @@ class MidniteDataloggerRefreshView(MidniteBridgeView):
         coordinator = self.coordinator_for(request, entry_id)
         if coordinator is None:
             return self.missing_entry(entry_id)
+        refused = self.pin_gate(request, coordinator)
+        if refused is not None:
+            return refused
         answer = await bridge.async_bridge_datalogger(request.app["hass"], coordinator)
         return self.json(answer)
 

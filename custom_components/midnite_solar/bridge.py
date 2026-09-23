@@ -43,6 +43,7 @@ from .const import (
     DEFAULT_WRITE_PIN,
     DEVICE_TYPES,
     FORCE_FLAGS,
+    PIN_LENGTH,
     PIN_LOCKOUT_STEPS,
     REGISTER_MAP,
 )
@@ -171,15 +172,15 @@ def bridge_firmware(coordinator: Any) -> Dict[str, Any]:
 class PinGate:
     """Per-entry write-PIN check with Apple-style exponential lockout.
 
-    Home Assistant's own token already gates every /api call; this is the
-    SECOND gate, specific to the Classic's settings, and it exists for the
-    caller that has a token but not the PIN. It remembers how many wrong (or
-    missing) PINs it has been shown and, once the ladder says so, refuses to
-    even look at another guess until the wait has run: each consecutive miss
-    costs PIN_LOCKOUT_STEPS[n] seconds (5 s, then 15, 60, 300, 900, capped at
-    3600), so guessing grows from seconds toward hours per try while a correct
-    PIN is instant and clears the run. The comparison is constant-time
-    (hmac.compare_digest) and no answer ever repeats the PIN back.
+    It remembers how many wrong (or missing) PINs it has been shown and, once
+    the ladder says so, refuses to look at ANY candidate - right or wrong -
+    until the wait has run, returning an identical 429 for each. That refusal
+    to compare mid-wait is what makes it a rate limiter rather than a fake
+    one: a spammer gets a single comparison per rung, so guessing grows from
+    seconds toward hours and a 4-digit PIN costs hours to reach
+    (PIN_LOCKOUT_STEPS: 5 s, 15, 60, 300, 900, capped at 3600). A correct PIN
+    clears the run, but only once its own wait has run. The comparison is
+    constant-time (hmac.compare_digest) and no answer ever repeats the PIN back.
     """
 
     def __init__(self) -> None:
@@ -190,20 +191,25 @@ class PinGate:
     def check(self, presented: Any, expected: str, now: float):
         """Return None to let the write land, else (status, body) to answer.
 
-        The RIGHT PIN always lands, even mid-lockout, and clears the run:
-        locking the owner out of their own Classic after one typo is cruelty,
-        and it buys nothing against a guesser (who cannot tell a right PIN
-        from a wrong one until it lands, and by then has paid the whole
-        ladder). A MISS - wrong or no PIN - is refused 401 and starts the
-        wait; while a wait is running, misses are refused 429 with the seconds
-        left and do NOT re-extend it (so a retry-storm cannot make the lockout
-        outlast its own rung). The rung grows with the count of CONSECUTIVE
-        misses, which is what makes guessing cost exponentially more.
+        The lockout is checked BEFORE the PIN ever is, and while a wait runs
+        the bridge does NOT look at the PIN at all: a right candidate and a
+        wrong one get the identical 429 with the seconds left. That is the
+        entire anti-brute-force property. If the bridge compared first (even
+        to help the owner in), a spammer firing at line rate would hold a free
+        oracle - every wrong guess returns 429, so the ONE response that is not
+        429 would BE the correct PIN, and the ladder would slow nothing. By
+        refusing to compare during the wait, each miss buys exactly one rung
+        (5 s, 15, 60, 300, 900, 3600, capped) of total silence, so a guesser
+        earns a single comparison per rung and a 4-digit PIN costs hours to
+        reach. The right PIN only lands once its wait has run; misses during a
+        wait are not even counted, so a retry-storm cannot re-extend the window
+        past its own rung.
+
+        The strict Apple trade-off this buys: after a few typos the OWNER's own
+        correct PIN is refused until the current wait expires. That is intended
+        - it is the rate limit doing its job - and the escapes are to wait it
+        out, reload the entry, or restart Home Assistant (all clear the gate).
         """
-        if isinstance(presented, str) and compare_digest(presented, expected):
-            self._wrong = 0
-            self._locked_until = 0.0
-            return None
         if now < self._locked_until:
             left = int(self._locked_until - now) + 1
             return 429, {
@@ -211,6 +217,10 @@ class PinGate:
                 "at another guess yet",
                 "retry_after": left,
             }
+        if isinstance(presented, str) and compare_digest(presented, expected):
+            self._wrong = 0
+            self._locked_until = 0.0
+            return None
         self._wrong += 1
         wait = PIN_LOCKOUT_STEPS[min(self._wrong - 1, len(PIN_LOCKOUT_STEPS) - 1)]
         self._locked_until = now + wait
@@ -220,21 +230,49 @@ class PinGate:
         }
 
 
+def write_pin_is_set(pin: Any) -> bool:
+    """True only when a REAL write PIN is configured - never the placeholder.
+
+    A real PIN is exactly PIN_LENGTH digits and is not DEFAULT_WRITE_PIN (the
+    all-zeros fresh-install placeholder). This is the one rule behind "you
+    cannot write through the bridge until you set a 6-digit PIN": the bridge
+    carries no access token, so an unconfigured PIN must fail CLOSED (writes
+    off), not fall back to a known default a stranger could guess.
+    """
+    return (
+        isinstance(pin, str)
+        and len(pin) == PIN_LENGTH
+        and pin.isdigit()
+        and pin != DEFAULT_WRITE_PIN
+    )
+
+
 def check_write_pin(coordinator: Any, presented: Any, now: Optional[float] = None):
     """Engine call behind every mutating bridge endpoint: gate on the PIN.
 
-    The gate lives on the coordinator (one per entry, like auto_save_eeprom)
-    so its lockout survives ordinary requests and is reset when the entry
-    reloads - which is exactly when the owner would have changed the PIN.
+    Two checks, in order. First the bridge asks whether the OWNER ever armed
+    it: if the entry's PIN is unset or still the all-zeros placeholder, every
+    write is refused 403 with the instruction to set one - there is no default
+    that works, because the open bridge would otherwise be writable by anyone
+    on the LAN who guessed the well-known placeholder. Only then does the
+    PinGate run: the gate lives on the coordinator (one per entry, like
+    auto_save_eeprom), so its lockout survives ordinary requests and resets
+    when the entry reloads - exactly when the owner would have changed the PIN.
     Returns None to let the call proceed, or the (status, body) to answer it
     with; the thin HTTP view only maps that onto a JSON response.
     """
+    expected = str(getattr(coordinator, "write_pin", "") or "")
+    if not write_pin_is_set(expected):
+        return 403, {
+            "error": "the bridge has no write PIN set, so writes are off; "
+            f"choose a {PIN_LENGTH}-digit write PIN in the Midnite Solar "
+            "integration options to enable them",
+        }
     gate = getattr(coordinator, "_pin_gate", None)
     if gate is None:
         gate = PinGate()
         coordinator._pin_gate = gate
-    expected = getattr(coordinator, "write_pin", None) or DEFAULT_WRITE_PIN
-    return gate.check(presented, str(expected), time.monotonic() if now is None else now)
+    return gate.check(presented, expected, time.monotonic() if now is None else now)
 
 
 def resolve_register(target: Any) -> int:

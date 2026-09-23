@@ -29,6 +29,7 @@ from .const import (
     DEFAULT_SENSOR_INTERVAL,
     DEFAULT_WRITE_PIN,
     DOMAIN,
+    PIN_LENGTH,
 )
 from .register_values import format_mac_from_registers
 
@@ -38,6 +39,22 @@ _LOGGER = logging.getLogger(__name__)
 # identify or verify a device, so no flow ever sits on a dead 502 port for the
 # pymodbus default (3 s, and 3 s x 3 retries once retries are left on).
 DISCOVERY_TIMEOUT = 3.0
+
+
+def _valid_write_pin(value: str) -> str:
+    """Reject a write PIN that is not a real 6-digit value.
+
+    The bridge carries no access token, so the PIN is the whole write
+    protection: it must be exactly PIN_LENGTH digits, and it must NOT be the
+    all-zeros placeholder the form pre-fills. Refusing the placeholder in the
+    form (as well as in the write gate) is what makes "set a real PIN" an
+    enforced rule rather than advice - a user cannot save the default.
+    """
+    if not isinstance(value, str) or len(value) != PIN_LENGTH or not value.isdigit():
+        raise vol.Invalid(f"the write PIN must be exactly {PIN_LENGTH} digits")
+    if value == DEFAULT_WRITE_PIN:
+        raise vol.Invalid("that is the placeholder; choose a different 6-digit write PIN")
+    return value
 
 # The MAC address registers 4106-4108, the same three the MAC sensor reads.
 # A manual entry claims this as its unique id so a later DHCP discovery of the
@@ -446,10 +463,11 @@ class MidniteSolarOptionsFlow(OptionsFlow):
     database). An app that watches the bridge at a second a pace needs fast
     Modbus and slow history, not one number serving both badly.
 
-    The write PIN is the bridge's second gate on top of Home Assistant's
-    token; it is pre-filled with DEFAULT_WRITE_PIN and this is where a user
-    changes it. Changing it reloads the entry (which also clears the PIN's
-    lockout ladder - correct, since the owner just rotated it).
+    The write PIN is the bridge's ONLY write gate (the bridge carries no
+    access token): a required 6-digit value, validated so the all-zeros
+    placeholder cannot be saved - writes stay refused until a real PIN is set.
+    Changing it reloads the entry, which also clears the PIN's lockout ladder -
+    correct, since the owner just rotated it.
     """
 
     def __init__(self, config_entry):
@@ -486,24 +504,26 @@ class MidniteSolarOptionsFlow(OptionsFlow):
                             CONF_SENSOR_INTERVAL, DEFAULT_SENSOR_INTERVAL
                         ),
                     ): int,
-                    # Off by default: the bridge is a token-guarded write path
-                    # to the MPPT that other LAN tools can reach.
+                    # Off by default: it opens a PIN-guarded write path to the
+                    # MPPT that other LAN tools can reach (reads go public too).
                     vol.Optional(
                         CONF_BRIDGE_ENABLED,
                         default=self._entry.options.get(
                             CONF_BRIDGE_ENABLED, DEFAULT_BRIDGE_ENABLED
                         ),
                     ): bool,
-                    # The bridge's second, write-specific gate: every call that
-                    # changes the Classic must carry it, and wrong guesses buy
-                    # exponentially longer waits. Pre-filled with the default
-                    # the code uses until this field says otherwise.
+                    # The whole write protection (the bridge carries no token):
+                    # a required 6-digit PIN, validated so the all-zeros
+                    # placeholder cannot be saved. Writes stay refused until a
+                    # real one is set; wrong guesses buy exponentially longer
+                    # waits. Pre-filled with the placeholder purely so the field
+                    # is visibly unset - the validator rejects keeping it.
                     vol.Optional(
                         CONF_WRITE_PIN,
                         default=self._entry.options.get(
                             CONF_WRITE_PIN, DEFAULT_WRITE_PIN
                         ),
-                    ): str,
+                    ): vol.All(str, _valid_write_pin),
                 }
             ),
         )

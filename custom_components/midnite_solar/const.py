@@ -18,34 +18,43 @@ DEFAULT_SENSOR_INTERVAL = 60
 # The bridge: this integration as the Classic's one Modbus client, serving a
 # LAN API on Home Assistant's own HTTP port so a desktop app (or anything
 # else) can watch and write without ever touching the single-connection
-# the Classic's Ethernet port itself. Off by default - it is a LAN-reachable path that can write
-# to the MPPT, so the user opts in; requests carry a Home Assistant access
-# token like every other /api call.
+# the Classic's Ethernet port itself. Off by default - it is a LAN-reachable
+# path that can write to the MPPT, so the user opts in. The bridge needs no
+# Home Assistant token: reads are open to any device that can reach the port,
+# and every call that CHANGES the Classic is gated on the write PIN below
+# instead. That is a deliberate trade - no token to hand out, but the PIN is
+# then the ONLY thing on the write path, so it must be a real one.
 CONF_BRIDGE_ENABLED = "bridge_enabled"
 DEFAULT_BRIDGE_ENABLED = False
-# Carried in every API answer and in the mDNS record; bumped when the JSON
-# contract changes. Version 2: every mutating endpoint (write, clock, reboot,
-# save) additionally carries the entry's write PIN in the X-Midnite-Pin
-# header, and POST /pin exists to validate one before arming a client.
-BRIDGE_API_VERSION = 2
+# Carried in every API answer and in the mDNS record; bumped when the contract
+# changes. Version 3: the bridge is open (no Home Assistant token); the write
+# PIN is a required 6 digits and the all-zeros placeholder DISABLES writes
+# until it is changed; and the datalogger sweep is PIN-gated too (it is a
+# minutes-long monopoly on the Classic's one connection, so it is not free).
+BRIDGE_API_VERSION = 3
 
-# The bridge's second gate, specific to WRITES. Home Assistant's token gates
-# every /api call already; this PIN is the user's seatbelt against a LAN
-# tool that has a token (or finds this port and guesses): the entry's options
-# hold it, DEFAULT_WRITE_PIN is the value until the entry says otherwise, and
-# the desktop app asks for it the moment its write switch is flipped.
-# Honest about its own size: a PIN in an options field stops the casual and
-# the passing LAN caller, not someone who can read Home Assistant's config.
+# The gate on WRITES - the whole write path, now the bridge carries no token.
+# The entry's options hold the PIN; the desktop app asks for it the moment its
+# write switch is flipped.
 CONF_WRITE_PIN = "write_pin"
-DEFAULT_WRITE_PIN = "0000"
+PIN_LENGTH = 6
+# The fresh-install PLACEHOLDER. It is NOT a usable PIN: while the entry's PIN
+# is still this value the bridge REFUSES every write, so there is no default
+# that "just works" and no way to write until the owner sets a real 6-digit
+# PIN. Chosen as an obvious sentinel (all zeros) the form will not let you keep.
+DEFAULT_WRITE_PIN = "000000"
 # The header a write call carries the PIN in (a header, not a body field, so
 # the gate is identical on endpoints whose bodies differ - and on the reboot,
 # which has no body at all).
 PIN_HEADER = "X-Midnite-Pin"
-# Apple-passcode style: the n-th consecutive wrong PIN is followed by this
-# many seconds during which the bridge will not even LOOK at another guess
-# (exponentially longer waits, capped at an hour; a correct PIN clears the
-# ladder). Counting is per config entry, across every mutating endpoint.
+# Apple-passcode style, and STRICT: the n-th consecutive wrong PIN buys this
+# many seconds during which the bridge does not look at ANY candidate - right
+# or wrong, every attempt returns the same 429. That is the whole point: if the
+# bridge kept comparing mid-wait, a spammer would read the one non-429 answer
+# as the correct PIN and the ladder would slow nothing. Refusing to compare
+# gives a guesser exactly one comparison per rung, so guessing costs hours.
+# Capped at an hour; a correct PIN clears the run once its own wait has run.
+# Counting is per config entry, across every mutating endpoint (bridge.PinGate).
 PIN_LOCKOUT_STEPS = (5, 15, 60, 300, 900, 3600)
 # The API is served under Home Assistant's existing port (the HAOS firewall
 # already opens it and auth is inherited); the mDNS service is how a desktop

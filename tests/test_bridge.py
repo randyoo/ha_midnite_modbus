@@ -432,23 +432,27 @@ class TestStartStop:
 
 
 class TestWritePinGate:
-    """The second gate, on the ENGINE: a wrong (or missing) PIN buys an
-    exponentially longer wait, a right PIN is free. `now` is passed in so the
-    ladder is pinned without a single real second elapsing (per the suite's
-    no-sleeping rule)."""
+    """The gate, on the ENGINE: a wrong (or missing) PIN buys an exponentially
+    longer wait during which the bridge compares NOTHING, so a guesser earns
+    one comparison per rung. `now` is passed in so the ladder is pinned without
+    a single real second elapsing (per the suite's no-sleeping rule)."""
 
-    def entry(self, pin="13579"):
+    def entry(self, pin="135790"):
         _hass, coordinator = a_classic()
         coordinator.write_pin = pin
         return coordinator
 
-    def test_the_default_pin_until_the_entry_names_another(self):
+    def test_an_unconfigured_placeholder_entry_refuses_every_write(self):
+        # No usable default, on the ENGINE: a fresh entry still carrying the
+        # all-zeros placeholder refuses ANY write 403 - even the placeholder
+        # itself as a "guess" - because the open bridge would otherwise be
+        # writable by anyone who knew the well-known default.
         _hass, untouched = a_classic()  # no options written yet
-        assert check_write_pin(untouched, DEFAULT_WRITE_PIN) is None
-        assert check_write_pin(untouched, "13579")[0] == 401
+        assert check_write_pin(untouched, DEFAULT_WRITE_PIN)[0] == 403
+        assert check_write_pin(untouched, "135790")[0] == 403
 
     def test_the_right_pin_lands_silently(self):
-        assert check_write_pin(self.entry(), "13579") is None
+        assert check_write_pin(self.entry(), "135790") is None
 
     def test_a_wrong_pin_is_401_and_starts_the_first_rung(self):
         refused = check_write_pin(self.entry(), "00000", now=1000.0)
@@ -461,8 +465,10 @@ class TestWritePinGate:
         assert check_write_pin(self.entry(), None, now=1000.0)[0] == 401
 
     def test_the_refusal_never_repeats_the_pin(self):
-        refused = check_write_pin(self.entry("00000"), "13579", now=1000.0)
-        assert "13579" not in str(refused)
+        # The configured PIN is 246810; a wrong guess must not leak it back.
+        refused = check_write_pin(self.entry("246810"), "135790", now=1000.0)
+        assert refused[0] == 401
+        assert "246810" not in str(refused)
 
     def test_the_wait_grows_exponentially_over_consecutive_misses(self):
         coordinator = self.entry()
@@ -488,14 +494,30 @@ class TestWritePinGate:
         next_rung = check_write_pin(coordinator, "x", now=5000.0 + PIN_LOCKOUT_STEPS[0] + 0.5)
         assert next_rung[1]["retry_after"] == PIN_LOCKOUT_STEPS[1]
 
-    def test_the_right_pin_breaks_the_lockout_and_clears_the_ladder(self):
-        # The owner is never punished for a guesser's attempt: the correct PIN
-        # lands even mid-lockout, and the next wrong guess restarts at rung 0.
+    def test_the_bridge_does_not_compare_during_the_wait(self):
+        # THE anti-oracle regression, and the property the lenient build got
+        # wrong: mid-wait a RIGHT candidate and a WRONG one must be
+        # indistinguishable, or a spammer just reads the one oddball answer as
+        # the PIN. Same status, same retry_after, whatever the guess.
+        coordinator = self.entry()
+        assert check_write_pin(coordinator, "x", now=9000.0)[0] == 401  # start a wait
+        wrong = check_write_pin(coordinator, "00000", now=9000.0 + 1)
+        right = check_write_pin(coordinator, "135790", now=9000.0 + 1)
+        assert wrong[0] == right[0] == 429, "the right PIN must NOT leak through mid-wait"
+        assert wrong[1]["retry_after"] == right[1]["retry_after"]
+
+    def test_the_right_pin_waits_out_the_lockout_then_clears_the_ladder(self):
+        # The strict Apple trade-off: after a typo the owner's own right PIN is
+        # refused until the wait runs - then it lands, and the next wrong guess
+        # restarts at rung 0 (the run was cleared, not carried).
         coordinator = self.entry()
         base = 9000.0
         assert check_write_pin(coordinator, "x", now=base)[0] == 401
-        assert check_write_pin(coordinator, "13579", now=base + 0.5) is None
-        reset = check_write_pin(coordinator, "x", now=base + 1.0)
+        assert check_write_pin(coordinator, "135790", now=base + 0.5)[0] == 429  # mid-wait: refused
+        assert (
+            check_write_pin(coordinator, "135790", now=base + PIN_LOCKOUT_STEPS[0] + 0.5) is None
+        )  # after the wait: lands
+        reset = check_write_pin(coordinator, "x", now=base + PIN_LOCKOUT_STEPS[0] + 1.0)
         assert reset[1]["retry_after"] == PIN_LOCKOUT_STEPS[0]
 
     def test_the_lockout_is_held_on_the_coordinator_across_calls(self):

@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 
 import pytest
+import voluptuous as vol
 from homeassistant.config_entries import AbortFlow, ConfigEntry, ConfigFlow
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import Hass
@@ -382,24 +383,45 @@ class TestOptions:
         )
         assert outcome["data"] == {CONF_SCAN_INTERVAL: 5, CONF_SENSOR_INTERVAL: 300}
 
-    def test_the_write_pin_field_is_prefilled_with_the_default(self):
-        """The field comes pre-filled with 0000 (the code's own default) so
-        the user sees what protects the bridge and can change it from there."""
+    def test_the_write_pin_field_is_prefilled_with_the_placeholder(self):
+        """The field shows the all-zeros PLACEHOLDER (so an unset entry is
+        visibly unset) - but it is not a usable PIN, only a starting value."""
         handler = MidniteSolarConfigFlow.async_get_options_flow(entry(options={}))
         outcome = asyncio.run(handler.async_step_init(None))
-        assert default_for(outcome, CONF_WRITE_PIN) == DEFAULT_WRITE_PIN == "0000"
+        assert default_for(outcome, CONF_WRITE_PIN) == DEFAULT_WRITE_PIN == "000000"
 
     def test_the_write_pin_shows_the_current_value_when_one_is_set(self):
-        existing = entry(options={CONF_WRITE_PIN: "13579"})
+        existing = entry(options={CONF_WRITE_PIN: "135790"})
         handler = MidniteSolarConfigFlow.async_get_options_flow(existing)
         outcome = asyncio.run(handler.async_step_init(None))
-        assert default_for(outcome, CONF_WRITE_PIN) == "13579"
+        assert default_for(outcome, CONF_WRITE_PIN) == "135790"
 
     def test_a_chosen_write_pin_is_stored_as_an_option(self):
         handler = MidniteSolarConfigFlow.async_get_options_flow(entry(options={}))
-        outcome = asyncio.run(handler.async_step_init({CONF_WRITE_PIN: "24680"}))
+        outcome = asyncio.run(handler.async_step_init({CONF_WRITE_PIN: "246810"}))
         assert outcome["type"] == "create_entry"
-        assert outcome["data"] == {CONF_WRITE_PIN: "24680"}
+        assert outcome["data"] == {CONF_WRITE_PIN: "246810"}
+
+    def test_the_validator_rejects_the_placeholder(self):
+        # The whole "must change the default" rule, enforced by the form's own
+        # schema (what Home Assistant runs a real submission through): the
+        # all-zeros placeholder cannot be saved.
+        handler = MidniteSolarConfigFlow.async_get_options_flow(entry(options={}))
+        schema = asyncio.run(handler.async_step_init(None))["data_schema"]
+        with pytest.raises(vol.Invalid):
+            schema({CONF_WRITE_PIN: "000000"})
+
+    @pytest.mark.parametrize("bad", ["", "0000", "12345", "1234567", "abcdef", "12 456"])
+    def test_the_validator_rejects_anything_but_six_digits(self, bad):
+        handler = MidniteSolarConfigFlow.async_get_options_flow(entry(options={}))
+        schema = asyncio.run(handler.async_step_init(None))["data_schema"]
+        with pytest.raises(vol.Invalid):
+            schema({CONF_WRITE_PIN: bad})
+
+    def test_the_validator_accepts_a_real_six_digit_pin(self):
+        handler = MidniteSolarConfigFlow.async_get_options_flow(entry(options={}))
+        schema = asyncio.run(handler.async_step_init(None))["data_schema"]
+        assert schema({CONF_WRITE_PIN: "246810"})[CONF_WRITE_PIN] == "246810"
 
     def test_the_flow_no_longer_has_the_step_that_could_only_raise(self):
         """The old step called _get_current_entries(), which Home Assistant does not do."""

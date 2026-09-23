@@ -37,7 +37,8 @@
       "init": {
         "title": "Settings",
         "data": {
-          "scan_interval": "Update interval (seconds)"
+          "scan_interval": "Classic poll interval (seconds) - how often the Modbus wire is read for live bridge data",
+          "sensor_interval": "Sensor update interval (seconds) - how often readings are republished to Home Assistant's history"
         }
       }
     }

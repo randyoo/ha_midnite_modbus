@@ -160,6 +160,20 @@ class TestSnapshot:
         assert build_snapshot(a_classic()[1])["auto_save_eeprom"] is False
         assert build_snapshot(a_classic(auto_save_eeprom=True)[1])["auto_save_eeprom"] is True
 
+    def test_the_wire_stamp_says_when_the_classic_was_last_polled(self):
+        """A client's own fetch time says nothing about the data's age; the
+        coordinator's successful-poll stamp is the honest answer."""
+        _hass, coordinator = a_classic()
+        coordinator.last_polled = datetime.datetime(
+            2026, 9, 22, 12, 0, 0, tzinfo=datetime.timezone.utc
+        )
+        assert build_snapshot(coordinator)["last_polled"] == "2026-09-22T12:00:00+00:00"
+
+    def test_a_never_polled_bridge_stamps_nothing(self):
+        _hass, coordinator = a_classic()
+        coordinator.last_polled = None
+        assert build_snapshot(coordinator)["last_polled"] is None
+
 
 class TestResolve:
     def test_names_and_numbers_both_land_on_the_register(self):

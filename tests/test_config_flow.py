@@ -21,8 +21,10 @@ from midnite_solar import config_flow as flow_module
 from midnite_solar.config_flow import MidniteSolarConfigFlow
 from midnite_solar.const import (
     CONF_SCAN_INTERVAL,
+    CONF_SENSOR_INTERVAL,
     DEFAULT_PORT,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_SENSOR_INTERVAL,
     DOMAIN,
 )
 
@@ -355,6 +357,28 @@ class TestOptions:
         assert outcome["type"] == "create_entry"
         assert outcome["data"] == {CONF_SCAN_INTERVAL: 60}
         assert outcome["title"] == ""
+
+    def test_the_sensor_interval_has_its_own_form_field(self):
+        """Two cadences, two fields: fast Modbus for the bridge cache, slow
+        republish so the recorder is not fed every polled tenth of a volt."""
+        existing = entry(options={CONF_SENSOR_INTERVAL: 300})
+        handler = MidniteSolarConfigFlow.async_get_options_flow(existing)
+        outcome = asyncio.run(handler.async_step_init(None))
+        assert default_for(outcome, CONF_SENSOR_INTERVAL) == 300
+
+    def test_the_sensor_interval_default_when_nothing_was_set(self):
+        handler = MidniteSolarConfigFlow.async_get_options_flow(entry(options={}))
+        outcome = asyncio.run(handler.async_step_init(None))
+        assert default_for(outcome, CONF_SENSOR_INTERVAL) == DEFAULT_SENSOR_INTERVAL
+
+    def test_both_intervals_are_stored_when_both_are_edited(self):
+        handler = MidniteSolarConfigFlow.async_get_options_flow(entry(options={}))
+        outcome = asyncio.run(
+            handler.async_step_init(
+                {CONF_SCAN_INTERVAL: 5, CONF_SENSOR_INTERVAL: 300}
+            )
+        )
+        assert outcome["data"] == {CONF_SCAN_INTERVAL: 5, CONF_SENSOR_INTERVAL: 300}
 
     def test_the_flow_no_longer_has_the_step_that_could_only_raise(self):
         """The old step called _get_current_entries(), which Home Assistant does not do."""

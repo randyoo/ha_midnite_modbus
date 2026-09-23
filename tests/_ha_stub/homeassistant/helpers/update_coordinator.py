@@ -60,6 +60,17 @@ class DataUpdateCoordinator:
         """Return a callable that removes nothing."""
         return lambda: None
 
+    def async_update_listeners(self):
+        """Count a dispatch; the double has no listener callbacks to call.
+
+        Parity: Home Assistant's real coordinator calls this at the end of a
+        refresh whenever the data changed (or the success flag flipped), and
+        that call is what pushes new state into every CoordinatorEntity. An
+        integration overrides it to thin the republish - the Midnite
+        coordinator does - so the double must have the hook and count it.
+        """
+        self.dispatches = getattr(self, "dispatches", 0) + 1
+
 
 class CoordinatorEntity(Entity, Generic[_DataT]):
     """Entity that gets its state from a coordinator."""

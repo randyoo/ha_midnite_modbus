@@ -21,9 +21,11 @@ except ImportError:
 from .const import (
     CONF_BRIDGE_ENABLED,
     CONF_SCAN_INTERVAL,
+    CONF_SENSOR_INTERVAL,
     DEFAULT_BRIDGE_ENABLED,
     DEFAULT_PORT,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_SENSOR_INTERVAL,
     DOMAIN,
 )
 from .register_values import format_mac_from_registers
@@ -429,12 +431,18 @@ class MidniteSolarConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class MidniteSolarOptionsFlow(OptionsFlow):
-    """Change how often the Classic is polled, and whether the bridge is up.
+    """Change the two cadences and whether the bridge is up.
 
     `__init__.py` reads these options and `update_listener` reloads the entry
     when they change, but until now there was no options flow: the step that
     looked like one called a method Home Assistant does not do, so it could
     only ever raise and the interval stayed at its default.
+
+    The cadences are deliberately separate: the Modbus poll feeds the live
+    bridge cache, while the sensor interval is how often those readings may
+    be republished to Home Assistant's entities (and so enter the history
+    database). An app that watches the bridge at a second a pace needs fast
+    Modbus and slow history, not one number serving both badly.
     """
 
     def __init__(self, config_entry):
@@ -451,7 +459,7 @@ class MidniteSolarOptionsFlow(OptionsFlow):
         self._entry = config_entry
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Show or store the scan interval and the bridge switch."""
+        """Show or store the two intervals and the bridge switch."""
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
@@ -463,6 +471,12 @@ class MidniteSolarOptionsFlow(OptionsFlow):
                         CONF_SCAN_INTERVAL,
                         default=self._entry.options.get(
                             CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+                        ),
+                    ): int,
+                    vol.Optional(
+                        CONF_SENSOR_INTERVAL,
+                        default=self._entry.options.get(
+                            CONF_SENSOR_INTERVAL, DEFAULT_SENSOR_INTERVAL
                         ),
                     ): int,
                     # Off by default: the bridge is a token-guarded write path

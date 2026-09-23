@@ -6,6 +6,15 @@ DEFAULT_PORT = 502
 CONF_SCAN_INTERVAL = "scan_interval"
 DEFAULT_SCAN_INTERVAL = 15
 
+# The two cadences are deliberately separate. The Classic is polled over
+# Modbus every scan_interval - that is the LIVE picture, and it is what the
+# bridge cache serves to the desktop app. Entities (and with them HA's
+# recorder) are republished at most every sensor_interval, so feeding an app
+# that polls its cache once a second never fills the HA database with
+# sub-second history rows.
+CONF_SENSOR_INTERVAL = "sensor_interval"
+DEFAULT_SENSOR_INTERVAL = 60
+
 # The bridge: this integration as the Classic's one Modbus client, serving a
 # LAN API on Home Assistant's own HTTP port so a desktop app (or anything
 # else) can watch and write without ever touching the single-connection

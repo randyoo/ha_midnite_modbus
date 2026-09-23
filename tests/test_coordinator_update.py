@@ -10,6 +10,7 @@ instead of hanging the poll.
 from __future__ import annotations
 
 import asyncio
+import time
 
 import pytest
 from fakes import FakeApi, ModbusResult
@@ -208,3 +209,82 @@ class TestReadingBackAValue:
 
     def test_before_the_first_update(self):
         assert make(FakeApi()).get_register_value(4149) is None
+
+
+class TestTheTwoCadences:
+    """The wire runs at the poll interval; HA's history runs at the sensor one.
+
+    A fast Modbus poll feeds the bridge cache, so the coordinator's data must
+    ALWAYS be current; what the sensor interval thins is only the republish to
+    entities (each entity state write is a recorder row). These pin that the
+    thinning never touches the data itself, and never delays going offline or
+    coming back.
+    """
+
+    def polled(self, api, sensor_interval=60):
+        coordinator = MidniteSolarUpdateCoordinator(
+            Hass(), "192.168.88.53", 502, interval=15, sensor_interval=sensor_interval
+        )
+        coordinator.api = api
+        return coordinator
+
+    def test_a_successful_poll_stamps_the_wire_time(self):
+        coordinator = self.polled(FakeApi())
+        assert coordinator.last_polled is None
+        asyncio.run(coordinator._async_update_data())
+        assert coordinator.last_polled is not None
+
+    def test_a_failed_poll_leaves_the_last_good_time_standing(self):
+        """The age a bridge client shows must keep growing over a dead device."""
+        coordinator = self.polled(FakeApi())
+        asyncio.run(coordinator._async_update_data())
+        stamp = coordinator.last_polled
+        coordinator.api = FakeApi(unreadable=True)
+        with pytest.raises(UpdateFailed):
+            asyncio.run(coordinator._async_update_data())
+        assert coordinator.last_polled is stamp
+
+    def test_the_first_republish_is_free(self):
+        """Entities created at setup need state now, not in a sensor interval."""
+        coordinator = self.polled(FakeApi())
+        coordinator.async_update_listeners()
+        assert coordinator.dispatches == 1
+
+    def test_a_same_status_data_change_waits_for_the_sensor_window(self):
+        coordinator = self.polled(FakeApi(), sensor_interval=60)
+        coordinator.async_update_listeners()
+        coordinator.data = {"data": {}, "availability": {}}  # new data...
+        coordinator.async_update_listeners()  # ...but entities already saw one
+        assert coordinator.dispatches == 1
+
+    def test_the_republish_fires_when_the_window_is_due(self):
+        coordinator = self.polled(FakeApi(), sensor_interval=60)
+        coordinator.async_update_listeners()
+        coordinator._dispatch_due = time.monotonic() - 0.001  # age the window
+        coordinator.async_update_listeners()
+        assert coordinator.dispatches == 2
+
+    def test_going_offline_never_waits_for_the_window(self):
+        coordinator = self.polled(FakeApi(), sensor_interval=3600)
+        coordinator.async_update_listeners()
+        coordinator.last_update_success = False
+        coordinator.async_update_listeners()
+        assert coordinator.dispatches == 2
+
+    def test_coming_back_never_waits_for_the_window_either(self):
+        coordinator = self.polled(FakeApi(), sensor_interval=3600)
+        coordinator.last_update_success = False
+        coordinator.async_update_listeners()
+        coordinator.last_update_success = True
+        coordinator.async_update_listeners()
+        assert coordinator.dispatches == 2
+
+    def test_the_cache_never_waits(self):
+        """Suppressed dispatch still leaves the newest data in coordinator.data."""
+        coordinator = self.polled(FakeApi(), sensor_interval=3600)
+        coordinator.async_update_listeners()
+        fresh = {"data": {"setpoints": {4149: 576}}, "availability": {}}
+        coordinator.data = fresh
+        coordinator.async_update_listeners()
+        assert coordinator.data is fresh
+        assert coordinator.dispatches == 1

@@ -160,9 +160,12 @@ class TestTranslations:
         assert {"host", "port", "scan_interval"} <= fields
 
     def test_the_options_flow_step_is_the_one_the_code_uses(self):
-        """async_step_init is the step Home Assistant will show."""
+        """async_step_init is the step Home Assistant will show; it asks for
+        BOTH cadences, and every field it asks for is labelled."""
         assert "init" in STRINGS["options"]["step"]
-        assert "scan_interval" in STRINGS["options"]["step"]["init"]["data"]
+        assert {"scan_interval", "sensor_interval"} <= set(
+            STRINGS["options"]["step"]["init"]["data"]
+        )
 
     def test_the_discovered_description_has_the_placeholders_the_flow_passes(self):
         description = STRINGS["config"]["step"]["user"]["description_discovered"]

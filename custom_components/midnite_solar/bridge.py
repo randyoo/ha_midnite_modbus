@@ -78,11 +78,16 @@ def build_snapshot(coordinator: Any) -> Dict[str, Any]:
     scales by tenths per its own formulas - the client divides, exactly like
     the AIR app's per-register conversions; the names table is the API's
     register dictionary so a client needs no copy of the register map.
+    `last_polled` is when the CLASSIC was last successfully polled (UTC);
+    a client's own fetch time says nothing about how old these numbers are,
+    and a device that stopped answering makes this stamp's age grow.
     """
     data = (coordinator.data or {}).get("data", {}) if coordinator.data else {}
+    last_polled = getattr(coordinator, "last_polled", None)
     return {
         "api_version": BRIDGE_API_VERSION,
         "online": bool(data),
+        "last_polled": last_polled.isoformat() if last_polled is not None else None,
         "names": dict(REGISTER_MAP),
         "groups": {
             group: {str(address): value for address, value in (values or {}).items()}

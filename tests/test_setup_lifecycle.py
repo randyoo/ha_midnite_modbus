@@ -20,7 +20,13 @@ from homeassistant.exceptions import ConfigEntryNotReady, UpdateFailed
 
 import midnite_solar as integration
 from midnite_solar import coordinator as coordinator_module
-from midnite_solar.const import CONF_SCAN_INTERVAL, DEFAULT_PORT, DOMAIN
+from midnite_solar.const import (
+    CONF_SCAN_INTERVAL,
+    CONF_SENSOR_INTERVAL,
+    DEFAULT_PORT,
+    DEFAULT_SENSOR_INTERVAL,
+    DOMAIN,
+)
 
 HOST = "192.168.88.53"
 PLATFORMS = {"sensor", "binary_sensor", "button", "number", "text", "select", "switch"}
@@ -167,6 +173,20 @@ class TestSetup:
         config_entry = entry(options={})
         set_up(hass, config_entry)
         assert hass.data[DOMAIN][config_entry.entry_id].interval == 15
+
+    def test_the_sensor_interval_option_sets_the_republish_rate(self):
+        hass = Hass()
+        config_entry = entry(options={CONF_SENSOR_INTERVAL: 300})
+        set_up(hass, config_entry)
+        coordinator = hass.data[DOMAIN][config_entry.entry_id]
+        assert coordinator.sensor_interval == 300
+
+    def test_the_sensor_interval_defaults_to_a_minute(self):
+        hass = Hass()
+        config_entry = entry(options={})
+        set_up(hass, config_entry)
+        coordinator = hass.data[DOMAIN][config_entry.entry_id]
+        assert coordinator.sensor_interval == DEFAULT_SENSOR_INTERVAL == 60
 
     def test_yaml_setup_is_a_no_op_that_succeeds(self):
         assert asyncio.run(integration.async_setup(Hass(), {})) is True
@@ -326,6 +346,23 @@ class TestUpdateListenerLifecycle:
         config_entry.options = {CONF_SCAN_INTERVAL: 30}
         asyncio.run(integration.update_listener(hass, config_entry))
         assert hass.config_entries.reloads == [config_entry.entry_id]
+
+    def test_a_sensor_interval_change_still_reloads(self):
+        """The republish rate is fixed in the coordinator, so it reloads too."""
+        hass = Hass()
+        config_entry = entry()
+        set_up(hass, config_entry)
+        config_entry.options = {CONF_SCAN_INTERVAL: 15, CONF_SENSOR_INTERVAL: 300}
+        asyncio.run(integration.update_listener(hass, config_entry))
+        assert hass.config_entries.reloads == [config_entry.entry_id]
+
+    def test_rewriting_the_same_sensor_interval_does_not_reload(self):
+        hass = Hass()
+        config_entry = entry(options={CONF_SENSOR_INTERVAL: 300})
+        set_up(hass, config_entry)
+        config_entry.options = {CONF_SCAN_INTERVAL: 15, CONF_SENSOR_INTERVAL: 300}
+        asyncio.run(integration.update_listener(hass, config_entry))
+        assert hass.config_entries.reloads == []
 
 
 class TestUnloadRobustness:

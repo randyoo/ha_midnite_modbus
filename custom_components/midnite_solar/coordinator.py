@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from datetime import timedelta
 from typing import Any, Dict, List, Optional
 
@@ -13,8 +14,14 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
     UpdateFailed,
 )
+from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN, REGISTER_GROUPS, REGISTER_MAP
+from .const import (
+    DEFAULT_SENSOR_INTERVAL,
+    DOMAIN,
+    REGISTER_GROUPS,
+    REGISTER_MAP,
+)
 from .hub import MidniteHub
 from .register_values import serial_from_registers
 
@@ -83,6 +90,7 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
         host: str,
         port: int,
         interval: int = 15,
+        sensor_interval: int = DEFAULT_SENSOR_INTERVAL,
     ) -> None:
         """Initialize Update Coordinator."""
 
@@ -94,6 +102,19 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
         )
         self.api = MidniteHub(host, port)
         self.interval = interval
+        # How often the polled values may be republished to entities (and so
+        # reach the recorder). Home Assistant's base dispatches listeners on
+        # EVERY poll whose data changed; async_update_listeners below thins
+        # that out without ever holding data back from coordinator.data,
+        # which is what the bridge cache serves.
+        self.sensor_interval = sensor_interval
+        # Wall time of the last fully successful Modbus poll; the bridge
+        # answers GET /state with it so a client's "last update" counter
+        # shows the WIRE's age, not the age of its own fetch from this cache.
+        self.last_polled = None
+        # Dispatch throttle state: 0.0 makes the very first dispatch free.
+        self._dispatch_due = 0.0
+        self._dispatched_success = None
         self.device_info = {}
         # Whether a set-point write should also commit to EEPROM. Off by default:
         # the ForceEEpromUpdate commit writes every pending (EE) register at once,
@@ -148,10 +169,34 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
 
         self._hand_over_serial_number(data)
 
+        # Only a poll that got this far (the connection test passed; groups
+        # may individually be marked unavailable) stamps the wire. A failed
+        # update leaves the last good time standing, so the age a client sees
+        # keeps growing over a device that stopped answering.
+        self.last_polled = dt_util.utcnow()
+
         return {
             "data": data,
             "availability": unavailable_entities,
         }
+
+    def async_update_listeners(self) -> None:
+        """Republish to entities at the sensor interval, not every Modbus poll.
+
+        The base coordinator calls this whenever new data differs, which at a
+        fast scan rate would land every changed reading in the recorder. A
+        change in the success flag ALWAYS goes through at once (entities must
+        see offline and the recovery immediately); only same-status data is
+        thinned. Skipped polls lose nothing: the next allowed dispatch carries
+        the newest `self.data`, and readers of `self.data` directly (the
+        bridge) always have the newest regardless of dispatch.
+        """
+        now = time.monotonic()
+        if self.last_update_success == self._dispatched_success and now < self._dispatch_due:
+            return
+        self._dispatched_success = self.last_update_success
+        self._dispatch_due = now + self.sensor_interval
+        super().async_update_listeners()
 
     def _hand_over_serial_number(self, data: Dict[str, Any]) -> None:
         """Give the hub the serial number that releases the Ethernet write protect.

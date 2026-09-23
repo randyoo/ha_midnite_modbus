@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def now() -> datetime:
     """Return the local (naive) time, matching core's return type."""
     return datetime.now()
+
+
+def utcnow() -> datetime:
+    """Return the current UTC time, tz-aware, matching core's return type."""
+    return datetime.now(timezone.utc)
 
 
 def as_local(value: datetime) -> datetime:

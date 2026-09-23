@@ -139,6 +139,18 @@ class TestStateView:
         assert response.body["identity"]["name"] == "CLASSIC7"
         assert response.body["groups"]["setpoints"]["4149"] == 576
 
+    def test_the_state_carries_the_bridges_last_wire_poll(self):
+        """The app's "last update" counter ages with THIS, not with its own
+        fetch: a cache served all day still reports how old its numbers are."""
+        import datetime
+
+        hass, coordinator = installed()
+        coordinator.last_polled = datetime.datetime(
+            2026, 9, 22, 12, 0, 0, tzinfo=datetime.timezone.utc
+        )
+        response = get(hass, "state")
+        assert response.body["last_polled"] == "2026-09-22T12:00:00+00:00"
+
 
 class TestWriteView:
     def test_a_write_by_name_answers_with_the_register_it_landed_on(self):

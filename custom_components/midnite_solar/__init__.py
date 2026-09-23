@@ -12,9 +12,11 @@ from .bridge import async_start_bridge, async_stop_bridge
 from .const import (
     CONF_BRIDGE_ENABLED,
     CONF_SCAN_INTERVAL,
+    CONF_SENSOR_INTERVAL,
     DEFAULT_BRIDGE_ENABLED,
     DEFAULT_PORT,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_SENSOR_INTERVAL,
     DOMAIN,
 )
 from .coordinator import MidniteSolarUpdateCoordinator
@@ -41,11 +43,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     host = entry.data[CONF_HOST]
     port = entry.data.get(CONF_PORT, DEFAULT_PORT)
     interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+    sensor_interval = entry.options.get(CONF_SENSOR_INTERVAL, DEFAULT_SENSOR_INTERVAL)
 
-    _LOGGER.info(f"Setting up Midnite Solar at {host}:{port}")
+    _LOGGER.info(
+        f"Setting up Midnite Solar at {host}:{port} (Classic polled every "
+        f"{interval}s, sensors republished at most every {sensor_interval}s)"
+    )
 
     # Create coordinator for data updates
-    coordinator = MidniteSolarUpdateCoordinator(hass, host, port, interval)
+    coordinator = MidniteSolarUpdateCoordinator(hass, host, port, interval, sensor_interval)
 
     # Publish the coordinator before the first refresh so the teardown below can
     # always find and undo it, and store it before connect so a failed connect
@@ -146,9 +152,10 @@ async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Handle options updates."""
     coordinator = hass.data.get(DOMAIN, {}).get(entry.entry_id)
     new_interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+    new_sensor = entry.options.get(CONF_SENSOR_INTERVAL, DEFAULT_SENSOR_INTERVAL)
     new_bridge = bool(entry.options.get(CONF_BRIDGE_ENABLED, DEFAULT_BRIDGE_ENABLED))
-    # Reload only for the changes this integration actually acts on: the poll
-    # interval and the bridge toggle. The listener fires on every
+    # Reload only for the changes this integration actually acts on: the two
+    # intervals and the bridge toggle. The listener fires on every
     # async_update_entry - including the ones the DHCP and reconfigure flows
     # make while they are already reloading the entry themselves. Reloading on
     # those too turns a single address change into concurrent reloads of a
@@ -156,12 +163,14 @@ async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if (
         coordinator is not None
         and getattr(coordinator, "interval", None) == new_interval
+        and getattr(coordinator, "sensor_interval", DEFAULT_SENSOR_INTERVAL) == new_sensor
         and getattr(coordinator, "bridge_enabled", DEFAULT_BRIDGE_ENABLED) == new_bridge
     ):
         _LOGGER.debug(
-            "Config entry updated but neither the scan interval (%s s) nor the "
-            "bridge (%s) changed; not reloading",
+            "Config entry updated but neither the poll interval (%s s), the "
+            "sensor interval (%s s) nor the bridge (%s) changed; not reloading",
             new_interval,
+            new_sensor,
             new_bridge,
         )
         return True

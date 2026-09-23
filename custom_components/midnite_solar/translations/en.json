@@ -38,7 +38,9 @@
         "title": "Settings",
         "data": {
           "scan_interval": "Classic poll interval (seconds) - how often the Modbus wire is read for live bridge data",
-          "sensor_interval": "Sensor update interval (seconds) - how often readings are republished to Home Assistant's history"
+          "sensor_interval": "Sensor update interval (seconds) - how often readings are republished to Home Assistant's history",
+          "bridge_enabled": "Expose the bridge API so a desktop app can watch and write the Classic",
+          "write_pin": "Write PIN - required on every call that changes the Classic (guesses cost exponentially longer waits)"
         }
       }
     }

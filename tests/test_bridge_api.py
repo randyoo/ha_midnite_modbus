@@ -35,8 +35,10 @@ from midnite_solar.const import (
     BRIDGE_BEACON_TYPE,
     BRIDGE_URL_PREFIX,
     CONF_BRIDGE_ENABLED,
+    DEFAULT_WRITE_PIN,
     DEVICE_TYPES,
     DOMAIN,
+    PIN_HEADER,
     REGISTER_MAP,
 )
 from test_bridge import NOW, identity_groups
@@ -48,6 +50,13 @@ ABSORB = REGISTER_MAP["ABSORB_SETPOINT_VOLTAGE"]
 # 2026-09-21 14:30:05 as ISO text, and the same with an explicit UTC suffix.
 CLOCK_TEXT = "2026-09-21T14:30:05"
 CLOCK_TEXT_Z = "2026-09-21T14:30:05Z"
+
+
+class _NoPin:
+    """Sentinel: send the request with NO write-PIN header at all."""
+
+
+NO_PIN = _NoPin()
 
 
 class Hub(FakeApi):
@@ -78,9 +87,13 @@ def view_for(hass, suffix):
     return next(view for view in hass.http.views if view.url == wanted)
 
 
-def post(hass, suffix, body, entry_id=ENTRY_ID):
+def post(hass, suffix, body, entry_id=ENTRY_ID, pin=DEFAULT_WRITE_PIN):
+    """Drive a POST. By default it carries the RIGHT write PIN so the many
+    non-auth tests stay about their own subject; pass pin="..." for a wrong
+    one or pin=NO_PIN to omit the header (the gate tests do exactly that)."""
     view = view_for(hass, suffix)
-    return asyncio.run(view.post(FakeRequest(hass, body), entry_id))
+    headers = {} if isinstance(pin, _NoPin) else {PIN_HEADER: pin}
+    return asyncio.run(view.post(FakeRequest(hass, body, headers), entry_id))
 
 
 def get(hass, suffix, entry_id=ENTRY_ID):
@@ -119,7 +132,7 @@ class TestRegistration:
         }
         assert kinds["state"] is True
         assert kinds["datalogger"] is True
-        for writer in ("write", "clock", "reboot", "save", "datalogger/refresh"):
+        for writer in ("pin", "write", "clock", "reboot", "save", "datalogger/refresh"):
             assert asyncio.iscoroutinefunction(view_for(hass, writer).post)
 
     def test_an_entry_that_never_set_up_answers_404_everywhere(self):
@@ -150,6 +163,95 @@ class TestStateView:
         )
         response = get(hass, "state")
         assert response.body["last_polled"] == "2026-09-22T12:00:00+00:00"
+
+
+class TestWritePinGate:
+    """Every call that CHANGES the Classic is gated a second time, on top of
+    the Home Assistant token: the entry's write PIN, with a lockout ladder
+    that makes guessing cost exponentially more. Reads pay nothing."""
+
+    def test_the_probe_accepts_the_right_pin(self):
+        hass, _ = installed()
+        response = post(hass, "pin", {"pin": DEFAULT_WRITE_PIN})
+        assert response.status == 200
+        assert response.body == {"pin": "accepted"}
+
+    def test_the_probe_refuses_a_wrong_pin_without_echoing_it(self):
+        hass, coordinator = installed()
+        coordinator.write_pin = "13579"
+        response = post(hass, "pin", {"pin": "00000"}, pin=NO_PIN)
+        assert response.status == 401
+        assert "error" in response.body
+        assert "13579" not in json.dumps(response.body)
+
+    def test_the_probe_wants_a_pin_in_the_body(self):
+        hass, _ = installed()
+        assert post(hass, "pin", {}, pin=NO_PIN).status == 400
+
+    @pytest.mark.parametrize("suffix,body", [
+        ("write", {"register": ABSORB, "value": 576}),
+        ("clock", {"time": CLOCK_TEXT_Z}),
+        ("reboot", {}),
+        ("save", {}),
+    ])
+    def test_every_mutating_endpoint_refuses_a_missing_pin(self, suffix, body):
+        # The header absent is refused AND (via the shared gate) counted, so a
+        # caller cannot learn that some endpoint skips the PIN for free.
+        api = FakeApi()
+        hass, _ = installed(api=api)
+        response = post(hass, suffix, body, pin=NO_PIN)
+        assert response.status == 401
+        assert api.writes == [], f"{suffix} must not touch the device without the PIN"
+
+    @pytest.mark.parametrize("suffix,body", [
+        ("write", {"register": ABSORB, "value": 576}),
+        ("clock", {"time": CLOCK_TEXT_Z}),
+        ("reboot", {}),
+        ("save", {}),
+    ])
+    def test_every_mutating_endpoint_refuses_the_wrong_pin(self, suffix, body):
+        api = FakeApi()
+        hass, coordinator = installed(api=api)
+        coordinator.write_pin = "13579"
+        response = post(hass, suffix, body, pin="00000")
+        assert response.status == 401
+        assert api.writes == [], f"{suffix} landed despite the wrong PIN"
+
+    def test_the_reads_are_never_pin_gated(self):
+        """State and the datalogger change nothing, so a token alone reads
+        them - the fast bridge poll stays fast."""
+        hass, _ = installed()
+        assert get(hass, "state").status == 200
+        assert get(hass, "datalogger").status == 200
+
+    def test_the_datalogger_sweep_is_not_gated_either(self):
+        # A refresh POSTs and is expensive, but it only READS the Classic; the
+        # PIN is about not leting a stranger CHANGE settings, not about cost.
+        hass, _ = installed(api=RecordingInternalApi())
+        response = post(hass, "datalogger/refresh", {}, pin=NO_PIN)
+        assert response.status == 200
+
+    def test_wrong_guesses_across_endpoints_share_one_lockout(self):
+        # /pin and /write draw on the SAME per-entry ladder, so guessing
+        # cannot dodge the wait by rotating between endpoints.
+        hass, _ = installed()
+        first = post(hass, "pin", {"pin": "00000"}, pin=NO_PIN)
+        assert first.status == 401
+        # the immediate next guess anywhere is deferred by the wait
+        again = post(hass, "write", {"register": ABSORB, "value": 576}, pin="00001")
+        assert again.status == 429
+        assert "retry_after" in again.body
+
+    def test_the_right_pin_still_lands_mid_lockout(self):
+        # The owner is never locked out of their own Classic: after a wrong
+        # guess, the correct PIN through the very next write succeeds.
+        api = FakeApi()
+        hass, coordinator = installed(api=api)
+        coordinator.write_pin = "13579"
+        assert post(hass, "pin", {"pin": "0000"}, pin=NO_PIN).status == 401
+        ok = post(hass, "write", {"register": ABSORB, "value": 576}, pin="13579")
+        assert ok.status == 200
+        assert api.writes, "the right PIN must reach the device"
 
 
 class TestWriteView:

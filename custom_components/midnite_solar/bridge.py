@@ -18,8 +18,10 @@ import json
 import logging
 import socket
 import threading
+import time
 from contextlib import closing
-from typing import Any, Callable, Dict, Optional
+from hmac import compare_digest
+from typing import Any, Callable, Dict, Optional, Tuple
 from urllib.parse import urlparse
 
 import zeroconf
@@ -38,8 +40,10 @@ from .const import (
     BRIDGE_MDNS_NAME,
     BRIDGE_MDNS_TYPE,
     BRIDGE_VIEWS_KEY,
+    DEFAULT_WRITE_PIN,
     DEVICE_TYPES,
     FORCE_FLAGS,
+    PIN_LOCKOUT_STEPS,
     REGISTER_MAP,
 )
 from .datalogger import Datalogger, async_sweep
@@ -162,6 +166,75 @@ def bridge_firmware(coordinator: Any) -> Dict[str, Any]:
         "app_rev": revision("APP_REV_LOW", "APP_REV_HIGH"),
         "net_rev": revision("NET_REV_LOW", "NET_REV_HIGH"),
     }
+
+
+class PinGate:
+    """Per-entry write-PIN check with Apple-style exponential lockout.
+
+    Home Assistant's own token already gates every /api call; this is the
+    SECOND gate, specific to the Classic's settings, and it exists for the
+    caller that has a token but not the PIN. It remembers how many wrong (or
+    missing) PINs it has been shown and, once the ladder says so, refuses to
+    even look at another guess until the wait has run: each consecutive miss
+    costs PIN_LOCKOUT_STEPS[n] seconds (5 s, then 15, 60, 300, 900, capped at
+    3600), so guessing grows from seconds toward hours per try while a correct
+    PIN is instant and clears the run. The comparison is constant-time
+    (hmac.compare_digest) and no answer ever repeats the PIN back.
+    """
+
+    def __init__(self) -> None:
+        """Start with a clean run: no misses, nothing locked."""
+        self._wrong = 0
+        self._locked_until = 0.0
+
+    def check(self, presented: Any, expected: str, now: float):
+        """Return None to let the write land, else (status, body) to answer.
+
+        The RIGHT PIN always lands, even mid-lockout, and clears the run:
+        locking the owner out of their own Classic after one typo is cruelty,
+        and it buys nothing against a guesser (who cannot tell a right PIN
+        from a wrong one until it lands, and by then has paid the whole
+        ladder). A MISS - wrong or no PIN - is refused 401 and starts the
+        wait; while a wait is running, misses are refused 429 with the seconds
+        left and do NOT re-extend it (so a retry-storm cannot make the lockout
+        outlast its own rung). The rung grows with the count of CONSECUTIVE
+        misses, which is what makes guessing cost exponentially more.
+        """
+        if isinstance(presented, str) and compare_digest(presented, expected):
+            self._wrong = 0
+            self._locked_until = 0.0
+            return None
+        if now < self._locked_until:
+            left = int(self._locked_until - now) + 1
+            return 429, {
+                "error": "too many wrong PINs; this bridge is not looking "
+                "at another guess yet",
+                "retry_after": left,
+            }
+        self._wrong += 1
+        wait = PIN_LOCKOUT_STEPS[min(self._wrong - 1, len(PIN_LOCKOUT_STEPS) - 1)]
+        self._locked_until = now + wait
+        return 401, {
+            "error": "the write PIN is missing or wrong",
+            "retry_after": wait,
+        }
+
+
+def check_write_pin(coordinator: Any, presented: Any, now: Optional[float] = None):
+    """Engine call behind every mutating bridge endpoint: gate on the PIN.
+
+    The gate lives on the coordinator (one per entry, like auto_save_eeprom)
+    so its lockout survives ordinary requests and is reset when the entry
+    reloads - which is exactly when the owner would have changed the PIN.
+    Returns None to let the call proceed, or the (status, body) to answer it
+    with; the thin HTTP view only maps that onto a JSON response.
+    """
+    gate = getattr(coordinator, "_pin_gate", None)
+    if gate is None:
+        gate = PinGate()
+        coordinator._pin_gate = gate
+    expected = getattr(coordinator, "write_pin", None) or DEFAULT_WRITE_PIN
+    return gate.check(presented, str(expected), time.monotonic() if now is None else now)
 
 
 def resolve_register(target: Any) -> int:

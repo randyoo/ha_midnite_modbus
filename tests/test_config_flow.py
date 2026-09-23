@@ -22,9 +22,11 @@ from midnite_solar.config_flow import MidniteSolarConfigFlow
 from midnite_solar.const import (
     CONF_SCAN_INTERVAL,
     CONF_SENSOR_INTERVAL,
+    CONF_WRITE_PIN,
     DEFAULT_PORT,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SENSOR_INTERVAL,
+    DEFAULT_WRITE_PIN,
     DOMAIN,
 )
 
@@ -379,6 +381,25 @@ class TestOptions:
             )
         )
         assert outcome["data"] == {CONF_SCAN_INTERVAL: 5, CONF_SENSOR_INTERVAL: 300}
+
+    def test_the_write_pin_field_is_prefilled_with_the_default(self):
+        """The field comes pre-filled with 0000 (the code's own default) so
+        the user sees what protects the bridge and can change it from there."""
+        handler = MidniteSolarConfigFlow.async_get_options_flow(entry(options={}))
+        outcome = asyncio.run(handler.async_step_init(None))
+        assert default_for(outcome, CONF_WRITE_PIN) == DEFAULT_WRITE_PIN == "0000"
+
+    def test_the_write_pin_shows_the_current_value_when_one_is_set(self):
+        existing = entry(options={CONF_WRITE_PIN: "13579"})
+        handler = MidniteSolarConfigFlow.async_get_options_flow(existing)
+        outcome = asyncio.run(handler.async_step_init(None))
+        assert default_for(outcome, CONF_WRITE_PIN) == "13579"
+
+    def test_a_chosen_write_pin_is_stored_as_an_option(self):
+        handler = MidniteSolarConfigFlow.async_get_options_flow(entry(options={}))
+        outcome = asyncio.run(handler.async_step_init({CONF_WRITE_PIN: "24680"}))
+        assert outcome["type"] == "create_entry"
+        assert outcome["data"] == {CONF_WRITE_PIN: "24680"}
 
     def test_the_flow_no_longer_has_the_step_that_could_only_raise(self):
         """The old step called _get_current_entries(), which Home Assistant does not do."""

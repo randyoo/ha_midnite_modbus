@@ -23,8 +23,10 @@ from midnite_solar import coordinator as coordinator_module
 from midnite_solar.const import (
     CONF_SCAN_INTERVAL,
     CONF_SENSOR_INTERVAL,
+    CONF_WRITE_PIN,
     DEFAULT_PORT,
     DEFAULT_SENSOR_INTERVAL,
+    DEFAULT_WRITE_PIN,
     DOMAIN,
 )
 
@@ -187,6 +189,22 @@ class TestSetup:
         set_up(hass, config_entry)
         coordinator = hass.data[DOMAIN][config_entry.entry_id]
         assert coordinator.sensor_interval == DEFAULT_SENSOR_INTERVAL == 60
+
+    def test_the_write_pin_option_reaches_the_gate(self):
+        """The bridge reads the PIN off the coordinator; setup must carry the
+        entry's own value there or the gate would guard with the default."""
+        hass = Hass()
+        config_entry = entry(options={CONF_WRITE_PIN: "13579"})
+        set_up(hass, config_entry)
+        coordinator = hass.data[DOMAIN][config_entry.entry_id]
+        assert coordinator.write_pin == "13579"
+
+    def test_the_write_pin_defaults_to_zeroes(self):
+        hass = Hass()
+        config_entry = entry(options={})
+        set_up(hass, config_entry)
+        coordinator = hass.data[DOMAIN][config_entry.entry_id]
+        assert coordinator.write_pin == DEFAULT_WRITE_PIN == "0000"
 
     def test_yaml_setup_is_a_no_op_that_succeeds(self):
         assert asyncio.run(integration.async_setup(Hass(), {})) is True
@@ -361,6 +379,24 @@ class TestUpdateListenerLifecycle:
         config_entry = entry(options={CONF_SENSOR_INTERVAL: 300})
         set_up(hass, config_entry)
         config_entry.options = {CONF_SCAN_INTERVAL: 15, CONF_SENSOR_INTERVAL: 300}
+        asyncio.run(integration.update_listener(hass, config_entry))
+        assert hass.config_entries.reloads == []
+
+    def test_a_write_pin_change_still_reloads(self):
+        """A reload is the ONE thing that makes a new PIN live (and resets the
+        lockout ladder, which is right when the owner just rotated the PIN)."""
+        hass = Hass()
+        config_entry = entry()
+        set_up(hass, config_entry)
+        config_entry.options = {CONF_WRITE_PIN: "13579"}
+        asyncio.run(integration.update_listener(hass, config_entry))
+        assert hass.config_entries.reloads == [config_entry.entry_id]
+
+    def test_rewriting_the_same_write_pin_does_not_reload(self):
+        hass = Hass()
+        config_entry = entry(options={CONF_WRITE_PIN: "13579"})
+        set_up(hass, config_entry)
+        config_entry.options = {CONF_WRITE_PIN: "13579", CONF_SCAN_INTERVAL: 15}
         asyncio.run(integration.update_listener(hass, config_entry))
         assert hass.config_entries.reloads == []
 

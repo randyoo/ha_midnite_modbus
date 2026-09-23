@@ -13,10 +13,12 @@ from .const import (
     CONF_BRIDGE_ENABLED,
     CONF_SCAN_INTERVAL,
     CONF_SENSOR_INTERVAL,
+    CONF_WRITE_PIN,
     DEFAULT_BRIDGE_ENABLED,
     DEFAULT_PORT,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SENSOR_INTERVAL,
+    DEFAULT_WRITE_PIN,
     DOMAIN,
 )
 from .coordinator import MidniteSolarUpdateCoordinator
@@ -52,6 +54,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Create coordinator for data updates
     coordinator = MidniteSolarUpdateCoordinator(hass, host, port, interval, sensor_interval)
+
+    # The write PIN the bridge gates every settings-changing call on (the
+    # entry's own, or the default until the entry sets one). Stored here, not
+    # read per-request, so an owner changing it reloads the entry and resets
+    # the lockout ladder along with the old PIN - the reload IS the point at
+    # which a changed PIN becomes live, exactly like the intervals.
+    coordinator.write_pin = str(
+        entry.options.get(CONF_WRITE_PIN, DEFAULT_WRITE_PIN)
+    )
 
     # Publish the coordinator before the first refresh so the teardown below can
     # always find and undo it, and store it before connect so a failed connect
@@ -154,21 +165,25 @@ async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     new_interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
     new_sensor = entry.options.get(CONF_SENSOR_INTERVAL, DEFAULT_SENSOR_INTERVAL)
     new_bridge = bool(entry.options.get(CONF_BRIDGE_ENABLED, DEFAULT_BRIDGE_ENABLED))
+    new_pin = str(entry.options.get(CONF_WRITE_PIN, DEFAULT_WRITE_PIN))
     # Reload only for the changes this integration actually acts on: the two
-    # intervals and the bridge toggle. The listener fires on every
-    # async_update_entry - including the ones the DHCP and reconfigure flows
-    # make while they are already reloading the entry themselves. Reloading on
-    # those too turns a single address change into concurrent reloads of a
-    # single-connection Classic.
+    # intervals, the bridge toggle and the write PIN (a reload is also what
+    # retires the PIN's lockout ladder, which is right when the OWNER just
+    # changed it). The listener fires on every async_update_entry - including
+    # the ones the DHCP and reconfigure flows make while they are already
+    # reloading the entry themselves. Reloading on those too turns a single
+    # address change into concurrent reloads of a single-connection Classic.
     if (
         coordinator is not None
         and getattr(coordinator, "interval", None) == new_interval
         and getattr(coordinator, "sensor_interval", DEFAULT_SENSOR_INTERVAL) == new_sensor
         and getattr(coordinator, "bridge_enabled", DEFAULT_BRIDGE_ENABLED) == new_bridge
+        and getattr(coordinator, "write_pin", DEFAULT_WRITE_PIN) == new_pin
     ):
         _LOGGER.debug(
             "Config entry updated but neither the poll interval (%s s), the "
-            "sensor interval (%s s) nor the bridge (%s) changed; not reloading",
+            "sensor interval (%s s), the bridge (%s) nor the write PIN changed; "
+            "not reloading",
             new_interval,
             new_sensor,
             new_bridge,

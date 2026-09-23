@@ -13,6 +13,15 @@ long-lived access token from the user's HA profile page - the same
 credential every other /api caller uses. Enabling the bridge option opens
 nothing that a token cannot also close.
 
+On TOP of the token, every call that CHANGES the Classic (write, clock,
+reboot, EEPROM save, and the /pin probe) is gated a second time by the
+entry's write PIN: Home Assistant's token proves who may reach Home
+Assistant, the PIN proves the caller means to move the MPPT. A wrong or
+missing PIN is refused and a lockout ladder makes guessing cost
+exponentially longer waits (see bridge.PinGate); a token alone can no longer
+change a setting by guessing. GET state/datalogger stay token-only (they
+change nothing), the datalogger refresh included - it reads, never writes.
+
 The seconds and weekday the Classic's clock carries are not settable (the
 firmware derives them, and the payload's seconds byte is a manual-set
 marker, not a value - see register_values.clock_file_payload), so the clock
@@ -31,7 +40,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.util import dt as dt_util
 
 from . import bridge
-from .const import BRIDGE_URL_PREFIX, DOMAIN
+from .const import BRIDGE_URL_PREFIX, DOMAIN, PIN_HEADER
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -67,6 +76,23 @@ class MidniteBridgeView(HomeAssistantView):
             )
         return body, None
 
+    def pin_gate(self, request: Any, coordinator: Any):
+        """The write-PIN gate in front of every call that changes the Classic.
+
+        None lets the call proceed; anything else is the answer to give:
+        a wrong or absent PIN is refused 401 and starts the lockout ladder,
+        and while a lockout runs even a RIGHT PIN is refused 429 with the
+        seconds left, so brute force buys exponentially longer waits instead
+        of answers. Home Assistant's token is still checked first, by the
+        core middleware (requires_auth); this gate is what stops a caller
+        that HAS a token from guessing the PIN.
+        """
+        refused = bridge.check_write_pin(coordinator, request.headers.get(PIN_HEADER))
+        if refused is None:
+            return None
+        status, body = refused
+        return self.json(body, status_code=status)
+
 
 class MidniteStateView(MidniteBridgeView):
     """GET /api/midnite/{entry_id}/state - the last poll, no wire touched."""
@@ -79,6 +105,39 @@ class MidniteStateView(MidniteBridgeView):
         if coordinator is None:
             return self.missing_entry(entry_id)
         return self.json(bridge.build_snapshot(coordinator))
+
+
+class MidnitePinView(MidniteBridgeView):
+    """POST {"pin": text} - checks a write PIN without changing the Classic.
+
+    How the desktop app validates the PIN it just typed the moment the write
+    switch is flipped: right, and the app arms; wrong or absent, and the SAME
+    refusal as a write comes back. It runs through the same gate, so the
+    lockout ladder counts guesses here too - there is no cheaper endpoint to
+    brute the PIN against. The Home Assistant token is still required first.
+    """
+
+    url = f"{BRIDGE_URL_PREFIX}/pin"
+    name = "api:midnite:pin"
+
+    async def post(self, request: Any, entry_id: str):
+        coordinator = self.coordinator_for(request, entry_id)
+        if coordinator is None:
+            return self.missing_entry(entry_id)
+        body, error = await self.body(request)
+        if error is not None:
+            return error
+        presented = body.get("pin")
+        if not isinstance(presented, str):
+            # A probe with no pin field is a malformed request, not a guess:
+            # answer 400 WITHOUT consulting the gate, so a client that posts
+            # empty bodies cannot spend anyone's lockout ladder.
+            return self.json({"error": "the probe needs a pin as text"}, status_code=400)
+        refused = bridge.check_write_pin(coordinator, presented)
+        if refused is not None:
+            status, message = refused
+            return self.json(message, status_code=status)
+        return self.json({"pin": "accepted"})
 
 
 class MidniteWriteView(MidniteBridgeView):
@@ -96,6 +155,9 @@ class MidniteWriteView(MidniteBridgeView):
         coordinator = self.coordinator_for(request, entry_id)
         if coordinator is None:
             return self.missing_entry(entry_id)
+        refused = self.pin_gate(request, coordinator)
+        if refused is not None:
+            return refused
         body, error = await self.body(request)
         if error is not None:
             return error
@@ -126,6 +188,9 @@ class MidniteClockView(MidniteBridgeView):
         coordinator = self.coordinator_for(request, entry_id)
         if coordinator is None:
             return self.missing_entry(entry_id)
+        refused = self.pin_gate(request, coordinator)
+        if refused is not None:
+            return refused
         body, error = await self.body(request)
         if error is not None:
             return error
@@ -164,6 +229,9 @@ class MidniteRebootView(MidniteBridgeView):
         coordinator = self.coordinator_for(request, entry_id)
         if coordinator is None:
             return self.missing_entry(entry_id)
+        refused = self.pin_gate(request, coordinator)
+        if refused is not None:
+            return refused
         try:
             answer = await bridge.async_bridge_reboot(request.app["hass"], coordinator)
         except HomeAssistantError as e:
@@ -186,6 +254,9 @@ class MidniteEepromSaveView(MidniteBridgeView):
         coordinator = self.coordinator_for(request, entry_id)
         if coordinator is None:
             return self.missing_entry(entry_id)
+        refused = self.pin_gate(request, coordinator)
+        if refused is not None:
+            return refused
         try:
             answer = await bridge.async_bridge_eeprom_save(
                 request.app["hass"], coordinator
@@ -229,6 +300,7 @@ class MidniteDataloggerRefreshView(MidniteBridgeView):
 
 BRIDGE_VIEWS = (
     MidniteStateView,
+    MidnitePinView,
     MidniteWriteView,
     MidniteClockView,
     MidniteRebootView,

@@ -22,10 +22,12 @@ from .const import (
     CONF_BRIDGE_ENABLED,
     CONF_SCAN_INTERVAL,
     CONF_SENSOR_INTERVAL,
+    CONF_WRITE_PIN,
     DEFAULT_BRIDGE_ENABLED,
     DEFAULT_PORT,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SENSOR_INTERVAL,
+    DEFAULT_WRITE_PIN,
     DOMAIN,
 )
 from .register_values import format_mac_from_registers
@@ -443,6 +445,11 @@ class MidniteSolarOptionsFlow(OptionsFlow):
     be republished to Home Assistant's entities (and so enter the history
     database). An app that watches the bridge at a second a pace needs fast
     Modbus and slow history, not one number serving both badly.
+
+    The write PIN is the bridge's second gate on top of Home Assistant's
+    token; it is pre-filled with DEFAULT_WRITE_PIN and this is where a user
+    changes it. Changing it reloads the entry (which also clears the PIN's
+    lockout ladder - correct, since the owner just rotated it).
     """
 
     def __init__(self, config_entry):
@@ -487,6 +494,16 @@ class MidniteSolarOptionsFlow(OptionsFlow):
                             CONF_BRIDGE_ENABLED, DEFAULT_BRIDGE_ENABLED
                         ),
                     ): bool,
+                    # The bridge's second, write-specific gate: every call that
+                    # changes the Classic must carry it, and wrong guesses buy
+                    # exponentially longer waits. Pre-filled with the default
+                    # the code uses until this field says otherwise.
+                    vol.Optional(
+                        CONF_WRITE_PIN,
+                        default=self._entry.options.get(
+                            CONF_WRITE_PIN, DEFAULT_WRITE_PIN
+                        ),
+                    ): str,
                 }
             ),
         )

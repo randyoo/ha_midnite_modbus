@@ -166,9 +166,13 @@ class FakeRequest:
 
     BAD = object()
 
-    def __init__(self, hass, body=None):
+    def __init__(self, hass, body=None, headers=None):
         self.app = {"hass": hass}
         self._body = body
+        # The views read the write PIN off the request headers; a real aiohttp
+        # request has a case-insensitive map, and `.get` is all the double has
+        # to provide for the gate.
+        self.headers = dict(headers or {})
 
     async def json(self):
         if self._body is FakeRequest.BAD:

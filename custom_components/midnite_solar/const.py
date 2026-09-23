@@ -24,8 +24,29 @@ DEFAULT_SENSOR_INTERVAL = 60
 CONF_BRIDGE_ENABLED = "bridge_enabled"
 DEFAULT_BRIDGE_ENABLED = False
 # Carried in every API answer and in the mDNS record; bumped when the JSON
-# contract changes.
-BRIDGE_API_VERSION = 1
+# contract changes. Version 2: every mutating endpoint (write, clock, reboot,
+# save) additionally carries the entry's write PIN in the X-Midnite-Pin
+# header, and POST /pin exists to validate one before arming a client.
+BRIDGE_API_VERSION = 2
+
+# The bridge's second gate, specific to WRITES. Home Assistant's token gates
+# every /api call already; this PIN is the user's seatbelt against a LAN
+# tool that has a token (or finds this port and guesses): the entry's options
+# hold it, DEFAULT_WRITE_PIN is the value until the entry says otherwise, and
+# the desktop app asks for it the moment its write switch is flipped.
+# Honest about its own size: a PIN in an options field stops the casual and
+# the passing LAN caller, not someone who can read Home Assistant's config.
+CONF_WRITE_PIN = "write_pin"
+DEFAULT_WRITE_PIN = "0000"
+# The header a write call carries the PIN in (a header, not a body field, so
+# the gate is identical on endpoints whose bodies differ - and on the reboot,
+# which has no body at all).
+PIN_HEADER = "X-Midnite-Pin"
+# Apple-passcode style: the n-th consecutive wrong PIN is followed by this
+# many seconds during which the bridge will not even LOOK at another guess
+# (exponentially longer waits, capped at an hour; a correct PIN clears the
+# ladder). Counting is per config entry, across every mutating endpoint.
+PIN_LOCKOUT_STEPS = (5, 15, 60, 300, 900, 3600)
 # The API is served under Home Assistant's existing port (the HAOS firewall
 # already opens it and auth is inherited); the mDNS service is how a desktop
 # app finds that address without being told.

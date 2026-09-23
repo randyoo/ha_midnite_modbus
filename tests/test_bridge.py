@@ -36,6 +36,7 @@ from midnite_solar.bridge import (
     async_start_bridge,
     async_stop_bridge,
     build_snapshot,
+    check_write_pin,
     ensure_bridge_views,
     resolve_register,
 )
@@ -45,7 +46,9 @@ from midnite_solar.const import (
     BRIDGE_MDNS_TYPE,
     CLOCK_FILE_ADDRESS,
     CLOCK_FILE_DEVICE,
+    DEFAULT_WRITE_PIN,
     FORCE_FLAGS,
+    PIN_LOCKOUT_STEPS,
     REGISTER_MAP,
 )
 from midnite_solar.text import registers_for_name
@@ -395,9 +398,9 @@ class TestStartStop:
     def test_the_views_are_registered_once_per_home_assistant(self):
         hass = Hass()
         assert ensure_bridge_views(hass) is True
-        assert len(hass.http.views) == 7
+        assert len(hass.http.views) == 8  # +state +pin +write +clock +reboot +save +datalogger +refresh
         assert ensure_bridge_views(hass) is False
-        assert len(hass.http.views) == 7
+        assert len(hass.http.views) == 8
 
     def test_start_advertises_and_remembers_the_bridge_for_the_entry(self):
         hass, coordinator = a_classic()
@@ -416,7 +419,7 @@ class TestStartStop:
         # No advertisement, but the entry's bridge is still stored (so the
         # teardown below has something to undo) and views are up.
         assert hass.data[BRIDGE_ADS_KEY][ENTRY_ID] is not None
-        assert len(hass.http.views) == 7
+        assert len(hass.http.views) == 8
 
     def test_stop_withdraws_and_is_safe_a_second_time(self):
         hass, coordinator = a_classic()
@@ -426,3 +429,77 @@ class TestStartStop:
         assert asyncio.run(async_stop_bridge(hass, entry)) is True
         assert instance.closed is True
         assert asyncio.run(async_stop_bridge(hass, entry)) is False
+
+
+class TestWritePinGate:
+    """The second gate, on the ENGINE: a wrong (or missing) PIN buys an
+    exponentially longer wait, a right PIN is free. `now` is passed in so the
+    ladder is pinned without a single real second elapsing (per the suite's
+    no-sleeping rule)."""
+
+    def entry(self, pin="13579"):
+        _hass, coordinator = a_classic()
+        coordinator.write_pin = pin
+        return coordinator
+
+    def test_the_default_pin_until_the_entry_names_another(self):
+        _hass, untouched = a_classic()  # no options written yet
+        assert check_write_pin(untouched, DEFAULT_WRITE_PIN) is None
+        assert check_write_pin(untouched, "13579")[0] == 401
+
+    def test_the_right_pin_lands_silently(self):
+        assert check_write_pin(self.entry(), "13579") is None
+
+    def test_a_wrong_pin_is_401_and_starts_the_first_rung(self):
+        refused = check_write_pin(self.entry(), "00000", now=1000.0)
+        assert refused[0] == 401
+        assert refused[1]["retry_after"] == PIN_LOCKOUT_STEPS[0]
+
+    def test_no_pin_at_all_is_a_guess_not_a_free_pass(self):
+        # A caller that omits the header is refused AND counted, so it cannot
+        # probe "does this bridge skip the PIN" for free.
+        assert check_write_pin(self.entry(), None, now=1000.0)[0] == 401
+
+    def test_the_refusal_never_repeats_the_pin(self):
+        refused = check_write_pin(self.entry("00000"), "13579", now=1000.0)
+        assert "13579" not in str(refused)
+
+    def test_the_wait_grows_exponentially_over_consecutive_misses(self):
+        coordinator = self.entry()
+        clock = 1000.0
+        for rung, wait in enumerate(PIN_LOCKOUT_STEPS):
+            refused = check_write_pin(coordinator, "x", now=clock)
+            assert refused[0] == 401, f"rung {rung} must be a fresh refusal"
+            assert refused[1]["retry_after"] == wait
+            clock += wait + 0.5  # step past this wait to earn the next rung
+        # the ladder CAPS: a seventh miss still waits only the last rung
+        capped = check_write_pin(coordinator, "x", now=clock)
+        assert capped[1]["retry_after"] == PIN_LOCKOUT_STEPS[-1]
+
+    def test_a_miss_during_a_wait_is_deferred_and_does_not_re_extend(self):
+        coordinator = self.entry()
+        assert check_write_pin(coordinator, "x", now=5000.0)[0] == 401
+        # A retry-storm mid-wait is refused 429 and does NOT push the timer
+        # back, so guessing can never make the lockout outlast its own rung.
+        deferred = check_write_pin(coordinator, "x", now=5000.0 + PIN_LOCKOUT_STEPS[0] - 1)
+        assert deferred[0] == 429
+        assert deferred[1]["retry_after"] > 0
+        # the NEXT miss, once the wait has run, advances exactly one rung
+        next_rung = check_write_pin(coordinator, "x", now=5000.0 + PIN_LOCKOUT_STEPS[0] + 0.5)
+        assert next_rung[1]["retry_after"] == PIN_LOCKOUT_STEPS[1]
+
+    def test_the_right_pin_breaks_the_lockout_and_clears_the_ladder(self):
+        # The owner is never punished for a guesser's attempt: the correct PIN
+        # lands even mid-lockout, and the next wrong guess restarts at rung 0.
+        coordinator = self.entry()
+        base = 9000.0
+        assert check_write_pin(coordinator, "x", now=base)[0] == 401
+        assert check_write_pin(coordinator, "13579", now=base + 0.5) is None
+        reset = check_write_pin(coordinator, "x", now=base + 1.0)
+        assert reset[1]["retry_after"] == PIN_LOCKOUT_STEPS[0]
+
+    def test_the_lockout_is_held_on_the_coordinator_across_calls(self):
+        # One gate per entry: the SECOND call sees the first call's miss.
+        coordinator = self.entry()
+        assert check_write_pin(coordinator, "x", now=20000.0)[0] == 401
+        assert check_write_pin(coordinator, "x", now=20000.5)[0] == 429

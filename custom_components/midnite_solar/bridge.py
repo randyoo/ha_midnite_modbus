@@ -7,9 +7,10 @@ views in bridge_api.py serve one-liners over these functions. The logic lives
 here (like decoding lives in register_values.py) so it is testable against
 the hardware-free doubles.
 
-Every request carries a Home Assistant access token, so enabling the bridge
-option alone opens nothing: the caller still has to present one of HA's own
-long-lived tokens (or a browser session) like any other /api call.
+The bridge is OPEN: it carries no Home Assistant access token. Reads are public
+to the LAN, and the write PIN (this module's PinGate / check_write_pin) is the
+whole gate on every call that CHANGES the Classic - so there is no usable
+default, and an unconfigured entry refuses writes until a real PIN is set.
 """
 
 from __future__ import annotations

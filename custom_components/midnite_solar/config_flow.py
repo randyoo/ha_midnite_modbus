@@ -29,8 +29,12 @@ from .const import (
     DEFAULT_SENSOR_INTERVAL,
     DEFAULT_WRITE_PIN,
     DOMAIN,
-    PIN_LENGTH,
 )
+# Reuse the write gate's OWN predicate, so the options form and the gate agree
+# on what a real PIN is by construction, not by two copies drifting. Importing
+# bridge here is not circular (bridge never imports config_flow) and the module
+# is already loaded by the time a flow opens.
+from .bridge import write_pin_is_set
 from .register_values import format_mac_from_registers
 
 _LOGGER = logging.getLogger(__name__)
@@ -39,22 +43,6 @@ _LOGGER = logging.getLogger(__name__)
 # identify or verify a device, so no flow ever sits on a dead 502 port for the
 # pymodbus default (3 s, and 3 s x 3 retries once retries are left on).
 DISCOVERY_TIMEOUT = 3.0
-
-
-def _valid_write_pin(value: str) -> str:
-    """Reject a write PIN that is not a real 6-digit value.
-
-    The bridge carries no access token, so the PIN is the whole write
-    protection: it must be exactly PIN_LENGTH digits, and it must NOT be the
-    all-zeros placeholder the form pre-fills. Refusing the placeholder in the
-    form (as well as in the write gate) is what makes "set a real PIN" an
-    enforced rule rather than advice - a user cannot save the default.
-    """
-    if not isinstance(value, str) or len(value) != PIN_LENGTH or not value.isdigit():
-        raise vol.Invalid(f"the write PIN must be exactly {PIN_LENGTH} digits")
-    if value == DEFAULT_WRITE_PIN:
-        raise vol.Invalid("that is the placeholder; choose a different 6-digit write PIN")
-    return value
 
 # The MAC address registers 4106-4108, the same three the MAC sensor reads.
 # A manual entry claims this as its unique id so a later DHCP discovery of the
@@ -484,9 +472,30 @@ class MidniteSolarOptionsFlow(OptionsFlow):
         self._entry = config_entry
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Show or store the two intervals and the bridge switch."""
+        """Show or store the two intervals, the bridge switch, and the PIN.
+
+        The write PIN is validated HERE, in code, and never in the schema:
+        Home Assistant turns a flow's data_schema into JSON for the web UI, and
+        it can represent a plain `str` field but NOT a custom vol.All validator
+        function - wrapping one made the options dialog 500 the instant it
+        opened (caught live 2026-09). So the field is a plain `str` and the
+        6-digit rule runs on submit, using the write gate's OWN predicate so
+        the form refuses exactly what a write would refuse.
+        """
+        errors: dict[str, str] = {}
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            # Leaving the placeholder (or omitting the field) is a VALID save:
+            # it just means writes stay off, which the write gate already
+            # enforces. The form only rejects a value that is neither the
+            # placeholder nor a real 6-digit PIN - a half-typed 0000 or "abc",
+            # which would silently do nothing. This way a watcher who never
+            # writes can still save an interval change; no one can save a
+            # look-alike PIN that they think enables writes but does not.
+            pin = str(user_input.get(CONF_WRITE_PIN, DEFAULT_WRITE_PIN))
+            if pin != DEFAULT_WRITE_PIN and not write_pin_is_set(pin):
+                errors[CONF_WRITE_PIN] = "invalid_write_pin"
+            else:
+                return self.async_create_entry(title="", data=user_input)
 
         return self.async_show_form(
             step_id="init",
@@ -512,20 +521,20 @@ class MidniteSolarOptionsFlow(OptionsFlow):
                             CONF_BRIDGE_ENABLED, DEFAULT_BRIDGE_ENABLED
                         ),
                     ): bool,
-                    # The whole write protection (the bridge carries no token):
-                    # a required 6-digit PIN, validated so the all-zeros
-                    # placeholder cannot be saved. Writes stay refused until a
-                    # real one is set; wrong guesses buy exponentially longer
-                    # waits. Pre-filled with the placeholder purely so the field
-                    # is visibly unset - the validator rejects keeping it.
+                    # The whole write protection (the bridge carries no token).
+                    # A PLAIN str so Home Assistant can serialize the form; the
+                    # 6-digit rule is enforced in code just above and again by
+                    # the write gate at write time. Prefilled with the current
+                    # value (or the all-zeros placeholder) so unset looks unset.
                     vol.Optional(
                         CONF_WRITE_PIN,
                         default=self._entry.options.get(
                             CONF_WRITE_PIN, DEFAULT_WRITE_PIN
                         ),
-                    ): vol.All(str, _valid_write_pin),
+                    ): str,
                 }
             ),
+            errors=errors,
         )
 
 

@@ -171,6 +171,16 @@ class TestTranslations:
             "write_pin",
         } == set(STRINGS["options"]["step"]["init"]["data"])
 
+    def test_every_options_field_error_is_written_out(self):
+        """A field error the options step raises (errors[CONF_x] = "key") must
+        have a string, else the UI shows a bare key. Validation of the write PIN
+        is in the step (a schema validator 500'd the form), so its error key has
+        to be translated here."""
+        raised = set(re.findall(r'errors\[[A-Z_]+\] = "([a-z_]+)"', FLOW_SOURCE))
+        written = set(STRINGS["options"]["step"]["init"].get("error", {}))
+        assert raised, "the options step is expected to raise at least one field error"
+        assert raised - written == set()
+
     def test_the_discovered_description_has_the_placeholders_the_flow_passes(self):
         description = STRINGS["config"]["step"]["user"]["description_discovered"]
         assert "{{ ip }}" in description and "{{ mac }}" in description

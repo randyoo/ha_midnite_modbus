@@ -12,7 +12,6 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-import voluptuous as vol
 from homeassistant.config_entries import AbortFlow, ConfigEntry, ConfigFlow
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import Hass
@@ -402,26 +401,37 @@ class TestOptions:
         assert outcome["type"] == "create_entry"
         assert outcome["data"] == {CONF_WRITE_PIN: "246810"}
 
-    def test_the_validator_rejects_the_placeholder(self):
-        # The whole "must change the default" rule, enforced by the form's own
-        # schema (what Home Assistant runs a real submission through): the
-        # all-zeros placeholder cannot be saved.
+    @pytest.mark.parametrize("bad", ["", "0000", "1234", "12345", "1234567", "abcdef"])
+    def test_a_bad_pin_comes_back_as_a_form_error_not_a_save(self, bad):
+        # Validation is in the STEP, not the schema. A half-typed or non-numeric
+        # PIN (neither the placeholder nor a real 6-digit value) re-shows the
+        # form with a field error rather than storing a look-alike that would
+        # silently do nothing. The write gate's own predicate decides.
         handler = MidniteSolarConfigFlow.async_get_options_flow(entry(options={}))
-        schema = asyncio.run(handler.async_step_init(None))["data_schema"]
-        with pytest.raises(vol.Invalid):
-            schema({CONF_WRITE_PIN: "000000"})
+        outcome = asyncio.run(handler.async_step_init({CONF_WRITE_PIN: bad}))
+        assert outcome["type"] == "form", f"{bad!r} must not be accepted"
+        assert outcome["errors"][CONF_WRITE_PIN] == "invalid_write_pin"
 
-    @pytest.mark.parametrize("bad", ["", "0000", "12345", "1234567", "abcdef", "12 456"])
-    def test_the_validator_rejects_anything_but_six_digits(self, bad):
+    @pytest.mark.parametrize("ok", [DEFAULT_WRITE_PIN, "246810"])
+    def test_the_placeholder_and_a_real_pin_both_save(self, ok):
+        # The placeholder is a VALID save (writes just stay off, enforced by the
+        # gate) so a watcher who never writes is not held hostage inventing a PIN
+        # to change an interval; a real 6-digit PIN saves too.
         handler = MidniteSolarConfigFlow.async_get_options_flow(entry(options={}))
-        schema = asyncio.run(handler.async_step_init(None))["data_schema"]
-        with pytest.raises(vol.Invalid):
-            schema({CONF_WRITE_PIN: bad})
+        outcome = asyncio.run(handler.async_step_init({CONF_WRITE_PIN: ok}))
+        assert outcome["type"] == "create_entry"
 
-    def test_the_validator_accepts_a_real_six_digit_pin(self):
+    def test_the_write_pin_field_is_a_plain_str_the_ui_can_serialize(self):
+        # THE 500 REGRESSION: a custom validator (vol.All(str, func)) in the
+        # schema cannot be serialized by Home Assistant to JSON for the web
+        # UI, so the options dialog 500'd the instant it opened. The field must
+        # stay a plain type Home Assistant can render; validation lives in code.
         handler = MidniteSolarConfigFlow.async_get_options_flow(entry(options={}))
         schema = asyncio.run(handler.async_step_init(None))["data_schema"]
-        assert schema({CONF_WRITE_PIN: "246810"})[CONF_WRITE_PIN] == "246810"
+        field = next(
+            k for k in schema.schema if getattr(k, "schema", k) == CONF_WRITE_PIN
+        )
+        assert schema.schema[field] is str
 
     def test_the_flow_no_longer_has_the_step_that_could_only_raise(self):
         """The old step called _get_current_entries(), which Home Assistant does not do."""

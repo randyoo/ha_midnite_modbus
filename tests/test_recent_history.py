@@ -189,7 +189,10 @@ class TestFullWalk:
         sample = store.as_dict()["samples"][-1]
         # cat 0's synthetic word is 500 + the hour: the stored raw is the
         # 4119-scale tenths, and the scaled field is the display value.
-        assert sample["power_w"] == pytest.approx(511 / 10)
+        # 4119 is whole watts: the raw mirror needs no /10 (the map's own
+        # row says "[4119] Watts"; a /10 there showed the user a 10x dim
+        # chart, which is how this got pinned).
+        assert sample["power_w"] == pytest.approx(511)
         assert sample["power_w_raw"] == 511
         assert sample["stage"] == 0x0303 + (RING_START.minute % 2)
         assert "stage_raw" not in sample
@@ -477,7 +480,7 @@ class TestColumns:
             store.upsert(
                 when,
                 {
-                    "power_w": (525 - i) / 10,
+                    "power_w": float(525 - i),
                     "power_w_raw": 525 - i,
                     "vpv": 162.1 - i,
                     "vpv_raw": 1621 - int(i * 10),

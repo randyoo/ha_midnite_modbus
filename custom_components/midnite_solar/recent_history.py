@@ -96,7 +96,11 @@ STAGE_CAT = 5
 # the map's own display formula, not a storage scale. The charge stage stays
 # the raw 4120 code (its stage set is Table 4120-1, FINDINGS section 50).
 VALUE_FIELDS: dict[int, tuple[str, float]] = {
-    0: ("power_w", 10.0),
+    # 4119 is INTEGER Watts on its own map row ("[4119] Watts"), and the
+    # stored cat-0 word is its raw mirror - so cat 0 needs no /10. (The
+    # FINDINGS 52 note called it tenths; the mirror itself was right, the
+    # unit label was the mistake. The user's live eyes caught it.)
+    0: ("power_w", 1.0),
     1: ("vpv", 10.0),
     2: ("vbatt", 10.0),
     6: ("output_amps", 10.0),
@@ -124,12 +128,18 @@ RAM_RETENTION_SECONDS = 31 * 86400.0
 # bytes a day instead of a dictionary per sample, because this file rewrites
 # whole. 12 months of 5-minute samples is a few megabytes, and the companion
 # app is its only reader: nothing here is a Home Assistant entity.
-FILE_VERSION = 1
+# Version 2: the cat-0 scale correction (4119 is whole watts). Home
+# Assistant's Store refuses to load a file whose version it does not know,
+# so bumping this DISCARDS any file written under the old (wrong) scale
+# and the next flush writes the honest one.
+FILE_VERSION = 2
 FLUSH_SECONDS = 3600.0
 # (column name, sample field, scale) - columns store the RAW word; the
 # scaled field is rebuilt on load exactly as the walk stores it.
 COLUMNS: tuple[tuple[str, str, float], ...] = (
-    ("power", "power_w", 10.0),
+    # Same scale as VALUE_FIELDS above (they must agree or the file
+    # rebuilds powers 10x off): 4119 is whole watts.
+    ("power", "power_w", 1.0),
     ("vpv", "vpv", 10.0),
     ("vbatt", "vbatt", 10.0),
     ("amps", "output_amps", 10.0),
@@ -229,13 +239,13 @@ class RecentHistory:
         for when in times:
             sample = self.samples[when]
             for name, field, scale in COLUMNS:
-                if scale == 1.0:
+                if field == "stage":
                     columns[name].append(sample.get(field))
-                else:
-                    raw = sample.get(f"{field}_raw")
-                    if raw is None and sample.get(field) is not None:
-                        raw = round(sample[field] * scale)
-                    columns[name].append(raw)
+                    continue
+                raw = sample.get(f"{field}_raw")
+                if raw is None and sample.get(field) is not None:
+                    raw = round(sample[field] * scale)
+                columns[name].append(raw)
         return {
             "v": FILE_VERSION,
             "interval_sec": (self.walk or {}).get("interval_sec"),
@@ -271,7 +281,10 @@ class RecentHistory:
                 )
                 if raw is None:
                     continue
-                if scale == 1.0:
+                if field == "stage":
+                    # The stage column IS the 4120 code; there is no
+                    # scaled twin of it. (Whole-watt power is NOT
+                    # stage-like: it keeps its raw mirror field.)
                     fields[field] = int(raw)
                 else:
                     fields[f"{field}_raw"] = int(raw)

@@ -160,14 +160,30 @@ class TestRegistration:
         }
         assert kinds["state"] is True
         assert kinds["datalogger"] is True
-        for writer in ("pin", "write", "clock", "reboot", "save", "datalogger/refresh"):
+        assert kinds["recenthistory"] is True
+        for writer in (
+            "pin",
+            "write",
+            "clock",
+            "reboot",
+            "save",
+            "datalogger/refresh",
+            "recenthistory/refresh",
+        ):
             assert asyncio.iscoroutinefunction(view_for(hass, writer).post)
 
     def test_an_entry_that_never_set_up_answers_404_everywhere(self):
         hass, _coordinator = installed()
-        for suffix in ("state", "datalogger"):
+        for suffix in ("state", "datalogger", "recenthistory"):
             assert get(hass, suffix, entry_id="ghost").status == 404
-        for suffix in ("write", "clock", "reboot", "save", "datalogger/refresh"):
+        for suffix in (
+            "write",
+            "clock",
+            "reboot",
+            "save",
+            "datalogger/refresh",
+            "recenthistory/refresh",
+        ):
             assert post(hass, suffix, {}, entry_id="ghost").status == 404
 
 
@@ -268,12 +284,13 @@ class TestWritePinGate:
         assert api.writes == [], f"{suffix} landed despite the wrong PIN"
 
     def test_the_reads_are_never_pin_gated(self):
-        """State and the stored datalogger change nothing, so they answer with
-        no PIN at all - the fast bridge poll stays fast.
+        """State and the stored logs change nothing, so they answer with no
+        PIN at all - the fast bridge poll stays fast.
         """
         hass, _ = installed()
         assert get(hass, "state").status == 200
         assert get(hass, "datalogger").status == 200
+        assert get(hass, "recenthistory").status == 200
 
     def test_the_datalogger_sweep_is_pin_gated(self):
         # A sweep READS, but it is a minutes-long monopoly on the Classic's one
@@ -283,6 +300,13 @@ class TestWritePinGate:
         hass, _ = installed(api=RecordingInternalApi())
         assert post(hass, "datalogger/refresh", {}, pin=SET_PIN).status == 200
         assert post(hass, "datalogger/refresh", {}, pin=NO_PIN).status == 401
+
+    def test_the_recent_history_refresh_is_pin_gated(self):
+        # Same monopoly reasoning as the day-log sweep: even a two-read tick
+        # owns the one connection, so it is gated like a write.
+        hass, _ = installed(api=RecordingInternalApi())
+        assert post(hass, "recenthistory/refresh", {}, pin=SET_PIN).status == 200
+        assert post(hass, "recenthistory/refresh", {}, pin=NO_PIN).status == 401
 
     def test_wrong_guesses_across_endpoints_share_one_lockout(self):
         # /pin and /write draw on the SAME per-entry ladder, so guessing

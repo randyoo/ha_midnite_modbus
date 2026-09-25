@@ -404,16 +404,18 @@ class TestStartStop:
         hass = Hass()
         assert ensure_bridge_views(hass) is True
         assert (
-            len(hass.http.views) == 8
+            len(hass.http.views) == 10
         )  # +state +pin +write +clock +reboot +save +datalogger +refresh
+        # +recenthistory +recenthistory/refresh
         assert ensure_bridge_views(hass) is False
-        assert len(hass.http.views) == 8
+        assert len(hass.http.views) == 10
 
     def test_start_advertises_and_remembers_the_bridge_for_the_entry(self):
         hass, coordinator = a_classic()
         asyncio.run(async_start_bridge(hass, an_entry(), coordinator))
         assert hass.data[BRIDGE_ADS_KEY][ENTRY_ID] is not None
         assert coordinator.datalogger is not None
+        assert coordinator.recent_history is not None
         assert len(zeroconf.Zeroconf.instances[0].registered) == 1
 
     def test_the_bridge_collects_its_own_datalogger_cache(self):
@@ -443,6 +445,44 @@ class TestStartStop:
         assert sweeper.cancelled()
         assert coordinator.logger_sweeper is None
 
+    def test_the_bridge_collects_recent_history_too(self):
+        """The device-6 collector rides the same lifecycle: it parks on the
+        warm-up (the startup polls own the wire first) and the stop cancels
+        it, clearing the attribute the idempotence check reads.
+        """
+        hass, coordinator = a_classic()
+        hass.data.setdefault(DOMAIN, {})[ENTRY_ID] = coordinator
+
+        async def start_then_stop():
+            await async_start_bridge(hass, an_entry(), coordinator)
+            collector = coordinator.recent_collector
+            assert isinstance(collector, asyncio.Task)
+            await asyncio.sleep(0)
+            assert not collector.done(), "it must park on the warm-up, not run"
+            assert coordinator.api.internal_reads == [], "warm-up put reads on the wire"
+            await async_stop_bridge(hass, an_entry())
+            return collector
+
+        collector = asyncio.run(start_then_stop())
+        assert collector.cancelled()
+        assert coordinator.recent_collector is None
+
+    def test_stop_saves_the_collected_history_file(self):
+        """A reload, a bridge toggle or an options change must not cost the
+        app its history: with the file option on (the default), the stop
+        flushes the store once before letting it go.
+        """
+        hass, coordinator = a_classic()
+        hass.data.setdefault(DOMAIN, {})[ENTRY_ID] = coordinator
+        asyncio.run(async_start_bridge(hass, an_entry(), coordinator))
+        store = bridge_module.bridge_recent_history(coordinator)
+        sample_time = datetime.datetime(2026, 9, 25, 11, 42)
+        store.upsert(sample_time, {"power_w": 52.5, "power_w_raw": 525})
+        asyncio.run(async_stop_bridge(hass, an_entry()))
+        saved = hass.stored_files[f"{DOMAIN}.recent_history.{ENTRY_ID}"]
+        assert saved["power"] == [525]
+        assert saved["ts"] == [sample_time.isoformat(timespec="minutes")]
+
     def test_a_lan_without_mdns_still_gets_the_api(self, monkeypatch):
         def no_route(self):
             raise OSError("network unreachable")
@@ -453,7 +493,7 @@ class TestStartStop:
         # No advertisement, but the entry's bridge is still stored (so the
         # teardown below has something to undo) and views are up.
         assert hass.data[BRIDGE_ADS_KEY][ENTRY_ID] is not None
-        assert len(hass.http.views) == 8
+        assert len(hass.http.views) == 10
 
     def test_stop_withdraws_and_is_safe_a_second_time(self):
         hass, coordinator = a_classic()

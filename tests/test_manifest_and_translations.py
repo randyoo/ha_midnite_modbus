@@ -183,14 +183,17 @@ class TestTranslations:
 
     def test_the_options_flow_step_is_the_one_the_code_uses(self):
         """async_step_init is the step Home Assistant will show; every field
-        its schema asks for - both cadences, the bridge toggle, and the write
-        PIN - carries a label, so nothing renders as a bare key.
+        its schema asks for - both cadences, the bridge toggle, the write
+        PIN and the collected-history pair - carries a label, so nothing
+        renders as a bare key.
         """
         assert "init" in STRINGS["options"]["step"]
         assert {
             "scan_interval",
             "sensor_interval",
             "bridge_enabled",
+            "recent_history_file",
+            "recent_history_keep_days",
             "write_pin",
         } == set(STRINGS["options"]["step"]["init"]["data"])
 

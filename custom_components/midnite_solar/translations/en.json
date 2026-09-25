@@ -40,7 +40,9 @@
           "scan_interval": "Classic poll interval (seconds) - how often the Modbus wire is read for live bridge data",
           "sensor_interval": "Sensor update interval (seconds) - how often readings are republished to Home Assistant's history",
           "bridge_enabled": "Expose the bridge API so a desktop app can watch and write the Classic (reads become public on the LAN; writes need the PIN below)",
-          "write_pin": "6-digit write PIN - required on every call that changes the Classic. Writes stay off until you change this from 000000; wrong guesses cost exponentially longer waits"
+          "write_pin": "6-digit write PIN - required on every call that changes the Classic. Writes stay off until you change this from 000000; wrong guesses cost exponentially longer waits",
+          "recent_history_file": "Keep the collected history (5-minute power/voltage samples the companion app charts) in Home Assistant storage. It is NOT shown anywhere in Home Assistant - no entities, no history graph - it exists for the app",
+          "recent_history_keep_days": "Days of collected history the file keeps (7-3650; default a year). The Classic itself only remembers about 32 hours; the file is the app's longer memory"
         },
         "error": {
           "invalid_write_pin": "The write PIN must be exactly 6 digits and not the 000000 placeholder - set a real one to enable writes."

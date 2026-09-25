@@ -121,6 +121,8 @@ With entry id `ENTRY` (visible in the integration's URL):
 | `POST /api/midnite/ENTRY/save` | "Save to EEPROM now": one ForceEEpromUpdate committing every pending (EE) setting at once - the same button Home Assistant's UI has; never a side effect of reading |
 | `GET /api/midnite/ENTRY/datalogger` | the last swept days from the Classic's own datalogger |
 | `POST /api/midnite/ENTRY/datalogger/refresh` | reads its whole stored year (96 paced private reads on the shared connection - takes seconds) |
+| `GET /api/midnite/ENTRY/recenthistory` | the collected device-6 recent-history samples (5-minute power/VPV/Vbatt/amps/kWh/stage, oldest first), with `collecting` true while a walk holds the wire |
+| `POST /api/midnite/ENTRY/recenthistory/refresh` | collect now: a paced walk of the Classic's ~384-sample minute ring (its own memory; the Classic keeps only ~32 hours, the integration's file keeps up to a year - see options) |
 
 Register values are the RAW integers the register map scales by tenths -
 the client divides, exactly like the AIR app's own conversions. Some

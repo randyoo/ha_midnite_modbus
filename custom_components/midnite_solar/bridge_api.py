@@ -348,6 +348,58 @@ class MidniteDataloggerRefreshView(MidniteBridgeView):
         return self.json(answer)
 
 
+class MidniteRecentHistoryView(MidniteBridgeView):
+    """GET - the collected recent-history samples, plus `collecting`.
+
+    Open and cheap by design, like the day-log cache: the bridge collects
+    this from the Classic's device-6 ring in the background, so a watching
+    client can fill its current-day histogram on connect without a PIN,
+    without ever POSTing, and without touching the wire. `collecting` is the
+    in-progress signal: true while a walk or tick holds the one connection,
+    with the cache answering as it stands underneath it.
+    """
+
+    url = f"{BRIDGE_URL_PREFIX}/recenthistory"
+    name = "api:midnite:recenthistory"
+
+    async def get(self, request: Any, entry_id: str):
+        """Answer the collected samples from the cache; no PIN, no wire."""
+        coordinator = self.coordinator_for(request, entry_id)
+        if coordinator is None:
+            return self.missing_entry(entry_id)
+        return self.json(bridge.bridge_recent_history(coordinator).as_dict())
+
+
+class MidniteRecentHistoryRefreshView(MidniteBridgeView):
+    """POST - "collect now": a tick on the Classic's one connection.
+
+    It READS, but every collection is a monopoly (however brief) on the
+    single Modbus connection the live poll and every write share, so an open
+    bridge would let any LAN device stall the poll by spamming it - the
+    datalogger refresh's reasoning, verbatim. The background collector beats
+    without anyone asking and the GET answers from the cache meanwhile, so
+    nobody needs to POST this for the chart to fill. A POST that arrives
+    while a collection is in flight JOINS it (answers the cache, flagged
+    `collecting`) instead of stampeding a second one onto the wire.
+    """
+
+    url = f"{BRIDGE_URL_PREFIX}/recenthistory/refresh"
+    name = "api:midnite:recenthistory-refresh"
+
+    async def post(self, request: Any, entry_id: str):
+        """Answer the collection through the PIN gate."""
+        coordinator = self.coordinator_for(request, entry_id)
+        if coordinator is None:
+            return self.missing_entry(entry_id)
+        refused = self.pin_gate(request, coordinator)
+        if refused is not None:
+            return refused
+        answer = await bridge.async_bridge_recent_history(
+            request.app["hass"], coordinator
+        )
+        return self.json(answer)
+
+
 BRIDGE_VIEWS = (
     MidniteStateView,
     MidnitePinView,
@@ -357,4 +409,6 @@ BRIDGE_VIEWS = (
     MidniteEepromSaveView,
     MidniteDataloggerView,
     MidniteDataloggerRefreshView,
+    MidniteRecentHistoryView,
+    MidniteRecentHistoryRefreshView,
 )

@@ -31,11 +31,28 @@ DEFAULT_BRIDGE_ENABLED = False
 # PIN is a required 6 digits and the all-zeros placeholder DISABLES writes
 # until it is changed; and the datalogger sweep is PIN-gated too (it is a
 # minutes-long monopoly on the Classic's one connection, so it is not free).
-BRIDGE_API_VERSION = 3
+# Version 4 adds /recenthistory and /recenthistory/refresh (the device-6
+# recent-history log; FINDINGS section 52). Version 3 dated from the day the
+# datalogger cache grew its background collector.
+BRIDGE_API_VERSION = 4
 
 # The gate on WRITES - the whole write path, now the bridge carries no token.
 # The entry's options hold the PIN; the desktop app asks for it the moment its
 # write switch is flipped.
+# The recent-history file: the bridge's collected device-6 samples, kept in
+# Home Assistant's own .storage so the companion app's history chart outlives
+# the Classic's ~32-hour ring and every HA restart. This data is FOR THE
+# COMPANION APP: nothing in it is surfaced as a Home Assistant entity, and no
+# Home Assistant screen renders it - the options text says so verbatim,
+# because a user cannot otherwise guess where 3 MB of JSON came from.
+CONF_RECENT_HISTORY_FILE = "recent_history_file"
+DEFAULT_RECENT_HISTORY_FILE = True
+# 12 months of 5-minute samples is ~105k rows: a few megabytes of raw u16
+# columns, rewritten at most hourly and only when the collector collected
+# something. The floor (7 days) still outlasts the Classic's own ring.
+CONF_RECENT_HISTORY_KEEP_DAYS = "recent_history_keep_days"
+DEFAULT_RECENT_HISTORY_KEEP_DAYS = 365
+
 CONF_WRITE_PIN = "write_pin"
 PIN_LENGTH = 6
 # The fresh-install PLACEHOLDER. It is NOT a usable PIN: while the entry's PIN

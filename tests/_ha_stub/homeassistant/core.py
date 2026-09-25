@@ -78,6 +78,9 @@ class Hass:
         # Real Home Assistant always runs the http component; the bridge's
         # views register on it, and the double only records them.
         self.http = Http()
+        # Real Home Assistant persists integration data under .storage;
+        # helpers.storage.Store reads and writes this dict instead.
+        self.stored_files = {}
 
     async def async_add_executor_job(self, target, *args):
         """Run the blocking Modbus call inline and remember it.

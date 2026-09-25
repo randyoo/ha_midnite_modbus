@@ -30,11 +30,15 @@ from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 from .bridge import write_pin_is_set
 from .const import (
     CONF_BRIDGE_ENABLED,
+    CONF_RECENT_HISTORY_FILE,
+    CONF_RECENT_HISTORY_KEEP_DAYS,
     CONF_SCAN_INTERVAL,
     CONF_SENSOR_INTERVAL,
     CONF_WRITE_PIN,
     DEFAULT_BRIDGE_ENABLED,
     DEFAULT_PORT,
+    DEFAULT_RECENT_HISTORY_FILE,
+    DEFAULT_RECENT_HISTORY_KEEP_DAYS,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SENSOR_INTERVAL,
     DEFAULT_WRITE_PIN,
@@ -577,6 +581,24 @@ class MidniteSolarOptionsFlow(OptionsFlow):
                             CONF_BRIDGE_ENABLED, DEFAULT_BRIDGE_ENABLED
                         ),
                     ): bool,
+                    # The collected-history file (bridge-on means collecting):
+                    # the app's history chart memory, in Home Assistant's own
+                    # .storage. Nothing in it is an entity and no HA screen
+                    # shows it - the field text says so, because an options
+                    # form is where a user decides what a megabyte file is for.
+                    vol.Optional(
+                        CONF_RECENT_HISTORY_FILE,
+                        default=self._entry.options.get(
+                            CONF_RECENT_HISTORY_FILE, DEFAULT_RECENT_HISTORY_FILE
+                        ),
+                    ): bool,
+                    vol.Optional(
+                        CONF_RECENT_HISTORY_KEEP_DAYS,
+                        default=self._entry.options.get(
+                            CONF_RECENT_HISTORY_KEEP_DAYS,
+                            DEFAULT_RECENT_HISTORY_KEEP_DAYS,
+                        ),
+                    ): vol.All(vol.Coerce(int), vol.Range(min=7, max=3650)),
                     # The whole write protection (the bridge carries no token).
                     # A PLAIN str so Home Assistant can serialize the form; the
                     # 6-digit rule is enforced in code just above and again by

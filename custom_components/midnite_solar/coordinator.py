@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     # module, so a runtime import here would risk a cycle for nothing.
     from .bridge import PinGate
     from .datalogger import Datalogger
+    from .recent_history import RecentHistory
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -128,6 +129,12 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
         self._pin_gate: PinGate | None = None
         self.datalogger: Datalogger | None = None
         self.logger_sweeper: asyncio.Future[None] | None = None
+        self.recent_history: RecentHistory | None = None
+        self.recent_collector: asyncio.Future[None] | None = None
+        # The recent-history file options (__init__.py sets both from the
+        # entry; declared here so the bridge loop type-checks).
+        self.recent_history_file: bool = True
+        self.recent_history_keep_days: int = 365
         # Whether a set-point write should also commit to EEPROM. Off by default:
         # the ForceEEpromUpdate commit writes every pending (EE) register at once,
         # so it is opt-in via the "Auto Save EEPROM" switch, with the "Save to

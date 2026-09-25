@@ -18,7 +18,17 @@
 required-version = ">=0.16.8"
 
 line-length = 88
-target-version = "py314"
+# DEVIATION, ON PURPOSE: core targets py314 (its pyproject requires-python
+# is >=3.14.2), and that is the value this file mirrors. But PEP 758 made
+# `except ValueError, TypeError:` (paren-free) legal in 3.14, ruff's
+# FORMATTER follows this same target-version, and a py314 format pass
+# rewrites paren'd multi-exception handlers INTO syntax the 3.13 venv that
+# runs this suite cannot parse. There is no separate format.target-version
+# in this ruff, so the shared target is pinned to py313 - the older of the
+# two interpreters this repo must satisfy - which costs only the handful of
+# lint rules whose fixes would themselves be 3.14 syntax, and keeps every
+# formatted byte valid on the test venv AND the 3.14 that HAOS runs.
+target-version = "py313"
 
 [lint]
 select = [

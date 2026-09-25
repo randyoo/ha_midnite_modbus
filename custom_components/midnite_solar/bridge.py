@@ -44,6 +44,8 @@ from .const import (
     BRIDGE_MDNS_NAME,
     BRIDGE_MDNS_TYPE,
     BRIDGE_VIEWS_KEY,
+    DEFAULT_RECENT_HISTORY_FILE,
+    DEFAULT_RECENT_HISTORY_KEEP_DAYS,
     DEFAULT_WRITE_PIN,
     DEVICE_TYPES,
     DOMAIN,
@@ -60,6 +62,15 @@ from .entity_writes import (
     async_store_settings,
     async_verify_write,
     async_write_setting,
+)
+from .recent_history import (
+    FLUSH_SECONDS,
+    TICK_SECONDS,
+    WALK_WARM_SECONDS,
+    RecentHistory,
+    async_flush_file,
+    async_load_file,
+    async_tick,
 )
 from .register_values import (
     clock_from_registers,
@@ -446,6 +457,141 @@ async def async_sweeper_loop(hass: Any, coordinator: Any) -> None:
         await asyncio.sleep(SWEEP_RESWEEP_SECONDS)
 
 
+def bridge_recent_history(coordinator: Any) -> RecentHistory:
+    """The per-entry recent-history store, created empty on first use."""
+    store = getattr(coordinator, "recent_history", None)
+    if store is None:
+        store = RecentHistory()
+        coordinator.recent_history = store
+    return store
+
+
+async def async_bridge_recent_history(hass: Any, coordinator: Any) -> dict[str, Any]:
+    """One recent-history collection at a time: run it now, or join.
+
+    The store's `collecting` flag is the single-flight token and the app's
+    "history gathering in progress" answer, exactly like the day-log sweep's
+    flag - because a collection tick is the same kind of guest on this
+    single-connection device (two reads in the common case, a full-window
+    walk when it must re-anchor). A caller that arrives mid-collection gets
+    the cache AS IT STANDS, flagged `collecting`; the finished answer comes
+    on the next look.
+    """
+    store = bridge_recent_history(coordinator)
+    if store.collecting:
+        return store.as_dict()
+    store.collecting = True
+    try:
+        await async_tick(hass, coordinator, store)
+    finally:
+        # The flag falls BEFORE the answer is written, so the caller that
+        # just collected is never told "still loading" about data that is
+        # already in hand. A cancelled pass lands here too.
+        store.collecting = False
+    return store.as_dict()
+
+
+def async_start_recent_collector(hass: Any, coordinator: Any, entry: Any) -> None:
+    """Arm this entry's background recent-history collector (idempotent)."""
+    if getattr(coordinator, "recent_collector", None) is not None:
+        return
+    coordinator.recent_collector = hass.async_create_task(
+        async_recent_loop(hass, coordinator, entry.entry_id)
+    )
+
+
+async def async_recent_loop(hass: Any, coordinator: Any, entry_id: str) -> None:
+    """Collect the recent-history ring, unasked, for the entry's lifetime.
+
+    A beat is two timestamped reads and a merge of whatever they reveal;
+    the tick itself decides when the whole window must be re-walked (cold
+    start, periodic re-anchor, an echoing head, a cache older than the ring
+    spans). This bench's Classic auto-restarts at dawn (FINDINGS section 52
+    addendum): the morning blank is just the daily cold start of this loop's
+    store, and the full walk reruns by itself. A failed beat is logged and
+    retried on the next beat; the cache keeps answering meanwhile, because
+    a dead-forever collector once before was the whole lesson (section 49).
+
+    The file frames the loop: loaded once before the first beat (the
+    collected history the Classic's own ring forgot comes back, and the
+    walk ahead outranks it on shared timestamps), then rewritten hourly
+    when - and only when - new samples landed. The file is the companion
+    app's memory, not a Home Assistant record: whatever happens to it,
+    the collector keeps running on the wire alone.
+    """
+    await asyncio.sleep(WALK_WARM_SECONDS)
+    file_on = bool(
+        getattr(coordinator, "recent_history_file", DEFAULT_RECENT_HISTORY_FILE)
+    )
+    if file_on:
+        try:
+            added = await async_load_file(
+                hass, entry_id, bridge_recent_history(coordinator)
+            )
+            if added:
+                _LOGGER.info(
+                    "The bridge loaded %s collected-history samples from Home "
+                    "Assistant storage; the Classic's own ring holds far fewer",
+                    added,
+                )
+        except Exception as e:  # noqa: BLE001
+            _LOGGER.warning(
+                "The collected-history file would not load; starting from the "
+                "ring alone: %s",
+                e,
+            )
+    loop_time = asyncio.get_running_loop().time
+    last_flush = loop_time()
+    flushed_count, flushed_newest = -1, None
+    while True:
+        try:
+            await async_bridge_recent_history(hass, coordinator)
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:  # noqa: BLE001
+            _LOGGER.warning(
+                "The bridge's recent-history collection failed; retrying later: %s",
+                e,
+            )
+        if (
+            file_on
+            and loop_time() - last_flush >= FLUSH_SECONDS
+            and await _recent_flush_if_new(
+                hass, coordinator, entry_id, flushed_count, flushed_newest
+            )
+        ):
+            store = bridge_recent_history(coordinator)
+            flushed_count, flushed_newest = len(store.samples), store.newest
+            last_flush = loop_time()
+        await asyncio.sleep(TICK_SECONDS)
+
+
+async def _recent_flush_if_new(
+    hass: Any, coordinator: Any, entry_id: str, flushed_count: int, flushed_newest: Any
+) -> bool:
+    """Write the collected-history file, but only when new samples landed.
+
+    The hourly rewrite of a megabyte file is fine for any disk and fine for
+    SD too - until you multiply by a year of idle nights - so the beat
+    compares (count, newest) against the last write and lets an idle hour
+    pass without touching storage at all.
+    """
+    store = bridge_recent_history(coordinator)
+    if len(store.samples) == flushed_count and store.newest == flushed_newest:
+        return True
+    keep_days = getattr(
+        coordinator, "recent_history_keep_days", DEFAULT_RECENT_HISTORY_KEEP_DAYS
+    )
+    try:
+        await async_flush_file(hass, entry_id, store, float(keep_days))
+    except Exception as e:  # noqa: BLE001
+        # The file is memory, not the product: a write failure warns and
+        # the next beat (or teardown) tries again.
+        _LOGGER.warning("The collected-history file would not save: %s", e)
+        return False
+    return True
+
+
 def beacon_payload(entry: Any, coordinator: Any, address: str, port: int) -> bytes:
     """The beacon datagram body: everything a listener needs to CALL us.
 
@@ -746,21 +892,55 @@ async def async_start_bridge(hass: Any, entry: Any, coordinator: Any) -> None:
     # fills without any client asking (the GET stays open, the POST
     # refresh stays the PIN-gated "now, please").
     async_start_sweeper(hass, coordinator)
+    # The recent-history ring rides the same design: an open cache, a
+    # PIN-gated "collect now", and a collector that beats without being
+    # asked. Created here so the first GET never answers from a store the
+    # collector has not met yet.
+    bridge_recent_history(coordinator)
+    async_start_recent_collector(hass, coordinator, entry)
 
 
 async def async_stop_bridge(hass: Any, entry: Any) -> bool:
-    """Withdraw this entry's advertisement and stop its sweeper.
+    """Withdraw this entry's advertisement and stop its collectors.
 
     The views stay (entry-agnostic).
     """
-    # The collector first: it is the one thing here that could still be
-    # mid-read on the wire. Cancel it; the sweep's `finally` clears the
-    # `sweeping` flag even into a CancelledError.
+    # The collectors first: they are the things here that could still be
+    # mid-read on the wire. Cancel them; each pass's `finally` clears its
+    # single-flight flag even into a CancelledError.
     coordinator = hass.data.get(DOMAIN, {}).get(entry.entry_id)
-    sweeper = getattr(coordinator, "logger_sweeper", None) if coordinator else None
-    if sweeper is not None:
-        sweeper.cancel()
-        coordinator.logger_sweeper = None
+    for attr in ("logger_sweeper", "recent_collector"):
+        collector = getattr(coordinator, attr, None) if coordinator else None
+        if collector is not None:
+            collector.cancel()
+            setattr(coordinator, attr, None)
+    # The collectors are stopped, so the recent-history store is quiet: one
+    # last flush carries the hour's samples to Home Assistant storage
+    # before the entry goes away (a reload, a disabled bridge, a changed
+    # option - none of them may cost the app its history). Best effort:
+    # teardown never fails for a memory write.
+    if coordinator is not None and getattr(
+        coordinator, "recent_history_file", DEFAULT_RECENT_HISTORY_FILE
+    ):
+        store = getattr(coordinator, "recent_history", None)
+        if store is not None and store.samples:
+            try:
+                await async_flush_file(
+                    hass,
+                    entry.entry_id,
+                    store,
+                    float(
+                        getattr(
+                            coordinator,
+                            "recent_history_keep_days",
+                            DEFAULT_RECENT_HISTORY_KEEP_DAYS,
+                        )
+                    ),
+                )
+            except Exception as e:  # noqa: BLE001
+                _LOGGER.warning(
+                    "The collected-history file would not save on teardown: %s", e
+                )
     advertiser = hass.data.get(BRIDGE_ADS_KEY, {}).pop(entry.entry_id, None)
     if advertiser is None:
         return False

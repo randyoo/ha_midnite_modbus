@@ -29,6 +29,6 @@ def test_module_imports(module):
 
 
 def test_no_module_imports_the_removed_name():
-    import midnite_solar.sensor as sensor
+    from midnite_solar import sensor
 
     assert not hasattr(sensor, "WindPowerCurveV0Number")

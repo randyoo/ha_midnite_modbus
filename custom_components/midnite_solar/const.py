@@ -177,7 +177,6 @@ REGISTER_MAP = {
     "WIND_POWER_TABLE_I_REG_5": 4314,
     "WIND_POWER_TABLE_I_REG_6": 4315,
     "WIND_POWER_TABLE_I_REG_7": 4316,
-    
     # Network configuration. Each address is two registers. The map's text prints
     # them "20482 20483 | IP Address | [20483].[20483] MSB LSB . [20482].[20482] MSB
     # LSB" (high word, high byte first), but a real Classic stores the address the
@@ -197,7 +196,6 @@ REGISTER_MAP = {
     "DNS_1_HIGH_WORD": 20489,
     "DNS_2_LOW_WORD": 20490,
     "DNS_2_HIGH_WORD": 20491,
-    
     # Setpoints
     "ABSORB_SETPOINT_VOLTAGE": 4149,
     "FLOAT_VOLTAGE_SETPOINT": 4150,
@@ -205,19 +203,16 @@ REGISTER_MAP = {
     "BATTERY_OUTPUT_CURRENT_LIMIT": 4148,
     # Sliding current limit
     "SLIDING_CURRENT_LIMIT": 4152,
-    
     # Time settings
     "MIN_ABSORB_TIME": 4153,
     "ABSORB_TIME_EEPROM": 4154,
     "EQUALIZE_TIME_EEPROM": 4162,
     "EQUALIZE_INTERVAL_DAYS_EEPROM": 4163,
-    
     # Force flags (write-only)
     "FORCE_FLAG_BITS": 4160,
     # Force Flag Bits are 32-bit and write-only: "([4161] << 16) + [4160]".
     # Flags at or above 0x10000 live in this high register.
     "FORCE_FLAG_BITS_HIGH": 4161,
-    
     # Ethernet write protect. The map: "20492 20493 W Serial Number (Unlock Code)
     # For writing to Classic modbus registers over Ethernet ... Write the Classic's
     # serial number over Ethernet to unlock writing of modbus registers over
@@ -235,17 +230,14 @@ REGISTER_MAP = {
     # See Table 4130-1 (read as 32 bits or singly)"
     "INFO_FLAGS_LOW": 4130,
     "INFO_FLAGS_HIGH": 4131,
-    
     # Unit name (ASCII, 8 characters from registers 4210-4213)
     "UNIT_NAME_0": 4210,
     "UNIT_NAME_1": 4211,
     "UNIT_NAME_2": 4212,
     "UNIT_NAME_3": 4213,
-    
     # Device ID (alternative serial, registers 4111-4112)
     "DEVICE_ID_LOW_WORD": 4111,
     "DEVICE_ID_HIGH_WORD": 4112,
-
     # "Enable Flags 2" (the AIR app's name for it, ClassicDataDictionary.as:543).
     # Bit 2 is the "AutoDlyReset" the app enables as the first half of its
     # Reboot (ConfigMenuLocal.as:4882); the other bits are the diversion,
@@ -254,7 +246,6 @@ REGISTER_MAP = {
     # its Features panel; the rest of these bits the app passes through.
     "ENABLE_FLAGS_1": 4187,
     "ENABLE_FLAGS_2": 4186,
-
     # The Classic's own clock, which the AIR app reads from the ordinary block
     # as CTIME0 = ([4215] << 16) + [4214], CTIME1 = ([4217] << 16) + [4216] and
     # CTIME2 = [4218] (an unused 16-bit word) - ClassicDataDictionary.as:727-750.
@@ -264,6 +255,13 @@ REGISTER_MAP = {
     "CTIME_DAY_MONTH": 4216,
     "CTIME_YEAR": 4217,
     "CTIME2": 4218,
+}
+
+# The reverse of REGISTER_MAP (register number -> its name), built once so a
+# log line can name the register it failed on. The map's values are unique by
+# construction (the integration would not work otherwise).
+REGISTER_BY_ADDRESS: dict[int, str] = {
+    address: name for name, address in REGISTER_MAP.items()
 }
 
 # What the bridge API must never write, whatever a client asks for.
@@ -339,20 +337,55 @@ DEVICE_TYPES = {
 # decompiled caller passes literal true for it, which we deliberately do not
 # copy).
 ENABLE_FLAG_TOGGLES = (
-    ("ground_fault", "Ground Fault Protection", "ENABLE_FLAGS_1", 0,
-     "Enables/disables ground fault protection; see the manual for the jumper setting"),
-    ("arc_fault", "Arc Fault Detection", "ENABLE_FLAGS_1", 1,
-     "Arc fault settings changes require a Classic reboot to take effect"),
-    ("night_auto_reset", "Night Auto Reset", "ENABLE_FLAGS_2", 2,
-     "Automatic failsafe reset at night; the reboot button enables this bit too"),
-    ("networked_batt_temp", "Networked Battery Sensor", "ENABLE_FLAGS_2", 5,
-     "Follows the master Classic's battery temperature sensor in a stacked network"),
-    ("low_max_mode", "Low-Max Mode", "ENABLE_FLAGS_2", 7,
-     "Low-max mode for low input voltage operation"),
-    ("insomnia_mode", "Insomnia Mode", "ENABLE_FLAGS_2", 12,
-     "Overrides time shutdown while there is still enough power to keep running"),
-    ("log_at_night", "Keep Logging at Night", "ENABLE_FLAGS_2", 14,
-     "Keep the Classic's datalogger running through the night"),
+    (
+        "ground_fault",
+        "Ground Fault Protection",
+        "ENABLE_FLAGS_1",
+        0,
+        "Enables/disables ground fault protection; see the manual for the jumper setting",
+    ),
+    (
+        "arc_fault",
+        "Arc Fault Detection",
+        "ENABLE_FLAGS_1",
+        1,
+        "Arc fault settings changes require a Classic reboot to take effect",
+    ),
+    (
+        "night_auto_reset",
+        "Night Auto Reset",
+        "ENABLE_FLAGS_2",
+        2,
+        "Automatic failsafe reset at night; the reboot button enables this bit too",
+    ),
+    (
+        "networked_batt_temp",
+        "Networked Battery Sensor",
+        "ENABLE_FLAGS_2",
+        5,
+        "Follows the master Classic's battery temperature sensor in a stacked network",
+    ),
+    (
+        "low_max_mode",
+        "Low-Max Mode",
+        "ENABLE_FLAGS_2",
+        7,
+        "Low-max mode for low input voltage operation",
+    ),
+    (
+        "insomnia_mode",
+        "Insomnia Mode",
+        "ENABLE_FLAGS_2",
+        12,
+        "Overrides time shutdown while there is still enough power to keep running",
+    ),
+    (
+        "log_at_night",
+        "Keep Logging at Night",
+        "ENABLE_FLAGS_2",
+        14,
+        "Keep the Classic's datalogger running through the night",
+    ),
 )
 
 # Rest reasons from register 4275
@@ -483,16 +516,16 @@ AUX2_FUNCTIONS = {
 # Note ForceEEpromUpdateWriteF is what makes writes to (EE) registers
 # permanent; until it is sent, changed settings apply only until a restart.
 FORCE_FLAGS = {
-    "ForceEEpromUpdate": 2,       # 0x00000004, low word
-    "ForceEEpromInitRead": 3,     # 0x00000008, low word
-    "ForceResetInfoFlags": 4,     # 0x00000010, low word
-    "ForceFloat": 5,              # 0x00000020, low word
-    "ForceBulk": 6,               # 0x00000040, low word
-    "ForceEqualize": 7,           # 0x00000080, low word
-    "ForceNite": 8,               # 0x00000100, low word
-    "ForceSweep": 11,             # 0x00000800, low word
-    "ResetAeqCounts": 16,         # 0x00010000, high word
-    "ForceResetFaults": 23,       # 0x00800000, high word
+    "ForceEEpromUpdate": 2,  # 0x00000004, low word
+    "ForceEEpromInitRead": 3,  # 0x00000008, low word
+    "ForceResetInfoFlags": 4,  # 0x00000010, low word
+    "ForceFloat": 5,  # 0x00000020, low word
+    "ForceBulk": 6,  # 0x00000040, low word
+    "ForceEqualize": 7,  # 0x00000080, low word
+    "ForceNite": 8,  # 0x00000100, low word
+    "ForceSweep": 11,  # 0x00000800, low word
+    "ResetAeqCounts": 16,  # 0x00010000, high word
+    "ForceResetFaults": 23,  # 0x00800000, high word
 }
 
 # Reading a setting back is how we find out whether the Classic took it. Two kinds
@@ -554,16 +587,72 @@ NO_READBACK_REGISTERS = frozenset(
 # Voltage Unfiltered"). registers2.json took the typo literally and invented
 # 4376/4377 entries with formulas of their own.
 CLASSIC_STATUS_SENSORS = (
-    ("VBATT_REG_SET_P_TMP_COMP", "classic_status", "Battery Regulation Target", "V", "tenths", False, True),
-    ("VPV_TARGET_RD", "classic_status", "PV Target Voltage", "V", "tenths", True, False),
-    ("IBATT_UNFILTERED", "classic_status", "Battery Current Unfiltered", "A", "tenths", True, False),
-    ("VBATT_UNFILTERED", "classic_status", "Battery Voltage Unfiltered", "V", "tenths", True, False),
-    ("VPV_UNFILTERED", "classic_status", "PV Voltage Unfiltered", "V", "tenths", True, False),
+    (
+        "VBATT_REG_SET_P_TMP_COMP",
+        "classic_status",
+        "Battery Regulation Target",
+        "V",
+        "tenths",
+        False,
+        True,
+    ),
+    (
+        "VPV_TARGET_RD",
+        "classic_status",
+        "PV Target Voltage",
+        "V",
+        "tenths",
+        True,
+        False,
+    ),
+    (
+        "IBATT_UNFILTERED",
+        "classic_status",
+        "Battery Current Unfiltered",
+        "A",
+        "tenths",
+        True,
+        False,
+    ),
+    (
+        "VBATT_UNFILTERED",
+        "classic_status",
+        "Battery Voltage Unfiltered",
+        "V",
+        "tenths",
+        True,
+        False,
+    ),
+    (
+        "VPV_UNFILTERED",
+        "classic_status",
+        "PV Voltage Unfiltered",
+        "V",
+        "tenths",
+        True,
+        False,
+    ),
     # Table 4142-1 is referenced by the register map but never printed in this
     # revision, so the reason is the code the Classic sends, undecorated.
     ("REASON_FOR_RESET", "time_settings", "Reason For Reset", None, "raw", True, False),
-    ("PWM_READ_ONLY", "time_settings", "PWM Duty Cycle Command", None, "raw", True, False),
-    ("NITE_MINUTES_NO_PWR", "settings", "Minutes Without Power", "min", "raw", True, False),
+    (
+        "PWM_READ_ONLY",
+        "time_settings",
+        "PWM Duty Cycle Command",
+        None,
+        "raw",
+        True,
+        False,
+    ),
+    (
+        "NITE_MINUTES_NO_PWR",
+        "settings",
+        "Minutes Without Power",
+        "min",
+        "raw",
+        True,
+        False,
+    ),
 )
 
 # Register 4245 VbattNominal: "[4245] 12 * 1 thru 10 (120 Max for 250 KS)". The
@@ -618,9 +707,33 @@ AUX_THRESHOLD_SETTINGS = (
     ("AUX1_VOLTS_HI_REL", "Aux 1 Waste-Not Upper Voltage", "V", True, None, None, 0.1),
     ("AUX2_VOLTS_LO_REL", "Aux 2 Waste-Not Lower Voltage", "V", True, None, None, 0.1),
     ("AUX2_VOLTS_HI_REL", "Aux 2 Waste-Not Upper Voltage", "V", True, None, None, 0.1),
-    ("AUX1_VOLTS_LO_PV_ABS", "Aux 1 Low PV Absolute Voltage", "V", True, None, None, 0.1),
-    ("AUX1_VOLTS_HI_PV_ABS", "Aux 1 High PV Absolute Voltage", "V", True, None, None, 0.1),
-    ("AUX2_VOLTS_HI_PV_ABS", "Aux 2 High PV Absolute Voltage", "V", True, None, None, 0.1),
+    (
+        "AUX1_VOLTS_LO_PV_ABS",
+        "Aux 1 Low PV Absolute Voltage",
+        "V",
+        True,
+        None,
+        None,
+        0.1,
+    ),
+    (
+        "AUX1_VOLTS_HI_PV_ABS",
+        "Aux 1 High PV Absolute Voltage",
+        "V",
+        True,
+        None,
+        None,
+        0.1,
+    ),
+    (
+        "AUX2_VOLTS_HI_PV_ABS",
+        "Aux 2 High PV Absolute Voltage",
+        "V",
+        True,
+        None,
+        None,
+        0.1,
+    ),
 )
 
 EE_BACKED_REGISTERS = frozenset(

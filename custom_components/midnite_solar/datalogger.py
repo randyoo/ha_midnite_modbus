@@ -29,7 +29,7 @@ from __future__ import annotations
 import asyncio
 import datetime
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 from .const import BRIDGE_API_VERSION
 from .coordinator import OP_TIMEOUT
@@ -90,7 +90,7 @@ def day_address(category: int, day_slot: int) -> int:
     return ((category & 0x3F) << 10) | (day_slot & 0x3FF)
 
 
-def unpack_newest_first(payload: bytes) -> Optional[list]:
+def unpack_newest_first(payload: bytes) -> list | None:
     """Split one 64-byte read into its 32 days, newest day first.
 
     Day n is the little-endian u16 at byte offset 62 - 2n
@@ -105,7 +105,7 @@ def unpack_newest_first(payload: bytes) -> Optional[list]:
     ]
 
 
-def decode_date(raw: int) -> Optional[datetime.date]:
+def decode_date(raw: int) -> datetime.date | None:
     """The category-3 date: MONTH in 4 bits, DAY in the next 5, year above.
 
     The packing is month(4)@0 day(5)@4 year(7)@9 - the AIR app's own bit
@@ -136,15 +136,19 @@ def decode_date(raw: int) -> Optional[datetime.date]:
         return None
 
 
-def decode_time_of_day(raw: int) -> Dict[str, int]:
-    """The category-6 time: minute low 6 bits, hour next 5, no seconds
-    (`DataMenu.as:1242-1247`)."""
+def decode_time_of_day(raw: int) -> dict[str, int]:
+    """Decode the category-6 time.
+
+    Minute low 6 bits, hour next 5, no seconds (`DataMenu.as:1242-1247`).
+    """
     return {"minute": raw & 0x3F, "hour": (raw >> 6) & 0x1F}
 
 
-def decode_float_time(seconds: int) -> Dict[str, int]:
-    """The category-2 float time, seconds -> hours and minutes
-    (`DataMenu.as` "hh = v/3600; mm = v%3600/60")."""
+def decode_float_time(seconds: int) -> dict[str, int]:
+    """Split the category-2 float time into hours and minutes.
+
+    (`DataMenu.as` "hh = v/3600; mm = v%3600/60".)
+    """
     return {"hours": seconds // 3600, "minutes": (seconds % 3600) // 60}
 
 
@@ -154,8 +158,8 @@ class Datalogger:
     def __init__(self) -> None:
         """Start empty; a sweep fills it."""
         # day slot -> {"date": date, category fields...}
-        self.slots: Dict[int, Dict[str, Any]] = {}
-        self.sweep: Optional[Dict[str, Any]] = None
+        self.slots: dict[int, dict[str, Any]] = {}
+        self.sweep: dict[str, Any] | None = None
         # True from the instant a sweep starts until it lands (the sweep
         # itself is the only writer). It is the single-flight token AND the
         # API's "chart loading" answer: while set, GET /datalogger says
@@ -193,14 +197,14 @@ class Datalogger:
                 record[f"{field}_raw"] = raw
         return True
 
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> dict[str, Any]:
         """The API view: dated days, newest first, plus the sweep summary.
 
         Keyed by DATE, not slot: the slot a day sits in is the Classic's
         business, and a (bench-open) firmware that ever stored one day in two
         slots would otherwise answer the client with that day twice.
         """
-        by_date: Dict[str, Dict[str, Any]] = {}
+        by_date: dict[str, dict[str, Any]] = {}
         for record in self.slots.values():
             date = record.get("date")
             if date is None:
@@ -217,7 +221,7 @@ class Datalogger:
         }
 
 
-async def async_sweep(hass: Any, api: Any, store: Datalogger) -> Dict[str, Any]:
+async def async_sweep(hass: Any, api: Any, store: Datalogger) -> dict[str, Any]:
     """Read the whole datalogger: one 64-byte read per block and category.
 
     Every read is its own executor job with a small gap: the hub lock is one
@@ -240,9 +244,13 @@ async def async_sweep(hass: Any, api: Any, store: Datalogger) -> Dict[str, Any]:
                 SWEEP_READ_RETRIES,
             )
             reads += 1
-            if result is None or result.isError():
-                exceptions += 1
-            elif not store.merge_read(block, category, getattr(result, "payload", b"")):
+            if (
+                result is None
+                or result.isError()
+                or not store.merge_read(
+                    block, category, getattr(result, "payload", b"")
+                )
+            ):
                 exceptions += 1
             await asyncio.sleep(READ_GAP_SECONDS)
     store.sweep = {

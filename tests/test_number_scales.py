@@ -9,11 +9,7 @@ from __future__ import annotations
 
 import asyncio
 
-import pytest
 from fakes import FakeApi, FakeCoordinator
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import Hass
-
 from midnite_solar.const import REGISTER_GROUPS, REGISTER_MAP
 from midnite_solar.number import (
     AbsorbTimeNumber,
@@ -30,6 +26,10 @@ from midnite_solar.number import (
     MinBatteryTempCompVoltageNumber,
     ModbusAddressNumber,
 )
+import pytest
+
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import Hass
 
 SPEC_ROWS = {
     4148: "Battery output Current Limit (EE) | [4148] /10) Amps",
@@ -84,7 +84,9 @@ class TestRegisterAddresses:
 
     @pytest.mark.parametrize("address", sorted(SPEC_ROWS))
     def test_const_names_this_register(self, address):
-        assert address in REGISTER_MAP.values(), f"{address} is not a register const.py knows"
+        assert address in REGISTER_MAP.values(), (
+            f"{address} is not a register const.py knows"
+        )
 
     def test_the_minimum_and_maximum_temp_compensation_are_different_registers(self):
         """The map's row for 4156 quotes "[4155] /10": a typo in the document.
@@ -214,7 +216,10 @@ class TestModbusAddress:
         assert entity.native_max_value == 255
 
     def test_the_unit_of_a_modbus_address_is_nothing(self, entry):
-        assert build(ModbusAddressNumber, entry, 4326, 10).native_unit_of_measurement is None
+        assert (
+            build(ModbusAddressNumber, entry, 4326, 10).native_unit_of_measurement
+            is None
+        )
 
 
 class TestEverySetPointSendsTheCommit:

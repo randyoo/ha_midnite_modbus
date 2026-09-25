@@ -1,11 +1,11 @@
 """Home Assistant binary sensor platform objects."""
 
-from enum import Enum
+from enum import StrEnum
 
 from homeassistant.helpers.entity import Entity
 
 
-class BinarySensorDeviceClass(str, Enum):
+class BinarySensorDeviceClass(StrEnum):
     PROBLEM = "problem"
     RUNNING = "running"
     CONNECTIVITY = "connectivity"

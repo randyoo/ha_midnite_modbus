@@ -16,14 +16,16 @@ default, and an unconfigured entry refuses writes until a real PIN is set.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
+import contextlib
+from contextlib import closing
+from hmac import compare_digest
 import json
 import logging
 import socket
 import threading
 import time
-from contextlib import closing
-from hmac import compare_digest
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any
 from urllib.parse import urlparse
 
 import zeroconf
@@ -33,8 +35,8 @@ from homeassistant.helpers.network import NoURLAvailableError, get_url
 
 from .base import MidniteBaseEntityDescription
 from .const import (
-    BRIDGE_API_VERSION,
     BRIDGE_ADS_KEY,
+    BRIDGE_API_VERSION,
     BRIDGE_BEACON_INTERVAL,
     BRIDGE_BEACON_PORT,
     BRIDGE_BEACON_TYPE,
@@ -43,8 +45,8 @@ from .const import (
     BRIDGE_MDNS_TYPE,
     BRIDGE_VIEWS_KEY,
     DEFAULT_WRITE_PIN,
-    DOMAIN,
     DEVICE_TYPES,
+    DOMAIN,
     FORCE_FLAGS,
     PIN_LENGTH,
     PIN_LOCKOUT_STEPS,
@@ -78,7 +80,7 @@ KEY_BY_ADDRESS = {address: key for key, address in REGISTER_MAP.items()}
 DEFAULT_HTTP_PORT = 8123
 
 
-def build_snapshot(coordinator: Any) -> Dict[str, Any]:
+def build_snapshot(coordinator: Any) -> dict[str, Any]:
     """What GET /state answers: the coordinator cache, JSON-shaped.
 
     Served from the last poll without touching the wire, so any number of
@@ -108,11 +110,13 @@ def build_snapshot(coordinator: Any) -> Dict[str, Any]:
     }
 
 
-def bridge_identity(coordinator: Any) -> Dict[str, Any]:
+def bridge_identity(coordinator: Any) -> dict[str, Any]:
     """Who this Classic is: unit name, MAC, model, serial."""
-    device_info = ((coordinator.data or {}).get("data", {}) or {}).get("device_info", {}) or {}
+    device_info = ((coordinator.data or {}).get("data", {}) or {}).get(
+        "device_info", {}
+    ) or {}
 
-    def read(key: str) -> Optional[int]:
+    def read(key: str) -> int | None:
         return device_info.get(REGISTER_MAP[key])
 
     name_registers = [read(f"UNIT_NAME_{index}") for index in range(4)]
@@ -123,23 +127,15 @@ def bridge_identity(coordinator: Any) -> Dict[str, Any]:
     ]
     unit_id = read("UNIT_ID")
     return {
-        "name": (
-            name_from_registers(name_registers)
-            if None not in name_registers
-            else None
-        ),
-        "mac": (
-            format_mac_from_registers(*mac_registers)
-            if None not in mac_registers
-            else None
-        ),
+        "name": name_from_registers(name_registers),
+        "mac": format_mac_from_registers(*mac_registers),
         "unit_id": unit_id,
         "model": DEVICE_TYPES.get(unit_id & 0xFF) if unit_id is not None else None,
         "serial": MidniteBaseEntityDescription.serial_number(coordinator),
     }
 
 
-def bridge_clock(coordinator: Any) -> Optional[str]:
+def bridge_clock(coordinator: Any) -> str | None:
     """The Classic's own wall clock as ISO text, or None if unread."""
     clock = ((coordinator.data or {}).get("data", {}) or {}).get("clock", {}) or {}
     decoded = clock_from_registers(
@@ -151,18 +147,20 @@ def bridge_clock(coordinator: Any) -> Optional[str]:
     return decoded.isoformat() if decoded is not None else None
 
 
-def bridge_firmware(coordinator: Any) -> Dict[str, Any]:
+def bridge_firmware(coordinator: Any) -> dict[str, Any]:
     """The firmware block the AIR app opens every session with, decoded."""
-    firmware = ((coordinator.data or {}).get("data", {}) or {}).get("firmware", {}) or {}
+    firmware = ((coordinator.data or {}).get("data", {}) or {}).get(
+        "firmware", {}
+    ) or {}
 
-    def version(key: str) -> Optional[str]:
+    def version(key: str) -> str | None:
         raw = firmware.get(REGISTER_MAP[key])
         return version_from_register(raw) if raw is not None else None
 
-    def revision(low_key: str, high_key: str) -> Optional[int]:
+    def revision(low_key: str, high_key: str) -> int | None:
         low = firmware.get(REGISTER_MAP[low_key])
         high = firmware.get(REGISTER_MAP[high_key])
-        return combine32(low, high) if None not in (low, high) else None
+        return combine32(low, high)
 
     return {
         "app_version": version("APP_VERSION"),
@@ -250,7 +248,7 @@ def write_pin_is_set(pin: Any) -> bool:
     )
 
 
-def check_write_pin(coordinator: Any, presented: Any, now: Optional[float] = None):
+def check_write_pin(coordinator: Any, presented: Any, now: float | None = None):
     """Engine call behind every mutating bridge endpoint: gate on the PIN.
 
     Two checks, in order. First the bridge asks whether the OWNER ever armed
@@ -274,7 +272,9 @@ def check_write_pin(coordinator: Any, presented: Any, now: Optional[float] = Non
     gate = getattr(coordinator, "_pin_gate", None)
     if gate is None:
         gate = PinGate()
-        coordinator._pin_gate = gate
+        coordinator._pin_gate = gate  # noqa: SLF001
+        # (per-entry stores ride the coordinator, like write_pin and
+        # datalogger; this module owns the attribute)
     return gate.check(presented, expected, time.monotonic() if now is None else now)
 
 
@@ -308,7 +308,7 @@ def resolve_register(target: Any) -> int:
 
 async def async_bridge_write(
     hass: Any, coordinator: Any, target: Any, value: Any, commit: bool = False
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Write one register through the bridge, with the integration's checks.
 
     This is the entity write path (write, read back, gated EEPROM commit)
@@ -341,19 +341,19 @@ async def async_bridge_write(
     }
 
 
-async def async_bridge_clock(hass: Any, coordinator: Any, when) -> Dict[str, Any]:
+async def async_bridge_clock(hass: Any, coordinator: Any, when) -> dict[str, Any]:
     """Set the Classic's clock to `when`, the AIR app's file-write way."""
     await async_set_clock(hass, coordinator.api, when)
     return {"clock": when.isoformat()}
 
 
-async def async_bridge_reboot(hass: Any, coordinator: Any) -> Dict[str, Any]:
+async def async_bridge_reboot(hass: Any, coordinator: Any) -> dict[str, Any]:
     """Reboot the Classic; it drops the connection as it restarts."""
     await async_reboot_classic(hass, coordinator.api)
     return {"reboot": "sent", "note": "the Classic drops the connection as it restarts"}
 
 
-async def async_bridge_eeprom_save(hass: Any, coordinator: Any) -> Dict[str, Any]:
+async def async_bridge_eeprom_save(hass: Any, coordinator: Any) -> dict[str, Any]:
     """Commit every pending (EE) setting with one ForceEEpromUpdate.
 
     The bridge's mirror of HA's "Save to EEPROM now" button: with the
@@ -388,7 +388,7 @@ SWEEP_WARM_SECONDS = 5.0
 SWEEP_RESWEEP_SECONDS = 3600.0
 
 
-async def async_bridge_datalogger(hass: Any, coordinator: Any) -> Dict[str, Any]:
+async def async_bridge_datalogger(hass: Any, coordinator: Any) -> dict[str, Any]:
     """One device-5 sweep at a time: run it now, or join the one running.
 
     The store's `sweeping` flag is the single-flight token: a caller that
@@ -435,7 +435,10 @@ async def async_sweeper_loop(hass: Any, coordinator: Any) -> None:
             await async_bridge_datalogger(hass, coordinator)
         except asyncio.CancelledError:
             raise
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
+            # A sweep failure must never kill the collector: the bench caught
+            # a dead-forever background thread once (FINDINGS section 49) and
+            # "retry on the next beat" is the whole recovery design.
             _LOGGER.warning(
                 "The bridge's background datalogger sweep failed; retrying later: %s",
                 e,
@@ -443,9 +446,7 @@ async def async_sweeper_loop(hass: Any, coordinator: Any) -> None:
         await asyncio.sleep(SWEEP_RESWEEP_SECONDS)
 
 
-def beacon_payload(
-    entry: Any, coordinator: Any, address: str, port: int
-) -> bytes:
+def beacon_payload(entry: Any, coordinator: Any, address: str, port: int) -> bytes:
     """The beacon datagram body: everything a listener needs to CALL us.
 
     Pure (no socket, no clock) so the contract is unit-testable. It repeats
@@ -486,10 +487,9 @@ def broadcast_beacon(payload: bytes, local_addr: str) -> None:
     with closing(socket.socket(socket.AF_INET, socket.SOCK_DGRAM)) as sender:
         sender.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         for target in targets:
-            try:
+            with contextlib.suppress(OSError):
+                # no route for that broadcast form; the other may work
                 sender.sendto(payload, (target, BRIDGE_BEACON_PORT))
-            except OSError:
-                pass  # no route for that broadcast form; the other may work
 
 
 class BridgeAdvertiser:
@@ -514,7 +514,7 @@ class BridgeAdvertiser:
         hass: Any,
         entry: Any,
         coordinator: Any,
-        broadcaster: Optional[Callable[[bytes, str], None]] = None,
+        broadcaster: Callable[[bytes, str], None] | None = None,
     ) -> None:
         """Remember the entry; advertise nothing yet."""
         self._hass = hass
@@ -523,18 +523,23 @@ class BridgeAdvertiser:
         # Resolved at call time (not a default arg) so a test can monkeypatch
         # bridge.broadcast_beacon and see it used.
         self._broadcaster = broadcast_beacon if broadcaster is None else broadcaster
-        self._zeroconf = None
-        self._info = None
-        self._beacon_thread = None
+        # All Optional and DECLARED: publish() fills them in, close()
+        # unwinds them, and mypy checks both sides against these types.
+        self._zeroconf: zeroconf.Zeroconf | None = None
+        self._info: zeroconf.ServiceInfo | None = None
+        self._beacon_thread: threading.Thread | None = None
         self._beacon_stop = threading.Event()
-        self._beacon_bytes = None
-        self._beacon_addr = None
+        self._beacon_bytes: bytes | None = None
+        self._beacon_addr: str | None = None
         self._beacon_interval = BRIDGE_BEACON_INTERVAL
 
     def service_name(self) -> str:
-        """An instance name unique on the LAN: unit name where known, and
-        the Ethernet MAC (the entry's unique id) as the discriminator, so two
-        Homes serving Classics never collide on one record."""
+        """An mDNS instance name unique on the LAN.
+
+        Unit name where known, and the Ethernet MAC (the entry's unique id)
+        as the discriminator, so two Homes serving Classics never collide on
+        one record.
+        """
         identity = bridge_identity(self._coordinator)
         tail = identity.get("mac") or self._entry.entry_id
         unit = identity.get("name") or "Classic"
@@ -549,7 +554,9 @@ class BridgeAdvertiser:
         interface the default route uses.
         """
         try:
-            parsed = urlparse(get_url(self._hass, allow_internal=True, prefer_external=True))
+            parsed = urlparse(
+                get_url(self._hass, allow_internal=True, prefer_external=True)
+            )
             if parsed.hostname and self._is_ipv4(parsed.hostname):
                 return parsed.hostname, parsed.port or DEFAULT_HTTP_PORT
         except NoURLAvailableError:
@@ -586,9 +593,7 @@ class BridgeAdvertiser:
         """
         identity = bridge_identity(self._coordinator)
         tail = (identity.get("mac") or self._entry.entry_id).lower()
-        dns_safe = "".join(
-            char if char.isalnum() else "-" for char in tail
-        ).strip("-")
+        dns_safe = "".join(char if char.isalnum() else "-" for char in tail).strip("-")
         return f"midnite-bridge-{dns_safe}.local."
 
     def publish(self) -> None:
@@ -599,7 +604,7 @@ class BridgeAdvertiser:
         # Beat the beacon first: it is the half that survives a firewall that
         # eats mDNS, and it must survive even a failed zeroconf registration.
         self._start_beacon(address, port)
-        self._info = zeroconf.ServiceInfo(
+        info = zeroconf.ServiceInfo(
             BRIDGE_MDNS_TYPE,
             f"{self.service_name()}.{BRIDGE_MDNS_TYPE}",
             addresses=[socket.inet_aton(address)],
@@ -611,8 +616,17 @@ class BridgeAdvertiser:
                 b"classic": str(self._entry.data.get("host", "")).encode(),
             },
         )
-        self._zeroconf = zeroconf.Zeroconf()
-        self._zeroconf.register_service(self._info)
+        # Build locally, register, only then publish the handles: if the
+        # registration raises, the attributes stay None (nothing half-buried
+        # for close() to trip over) and the fresh socket is closed.
+        zc = zeroconf.Zeroconf()
+        try:
+            zc.register_service(info)
+        except Exception:
+            zc.close()
+            raise
+        self._zeroconf = zc
+        self._info = info
         _LOGGER.info(
             "Advertised the Midnite bridge as %s (mDNS + udp/%d beacon)",
             self.service_name(),
@@ -636,17 +650,42 @@ class BridgeAdvertiser:
         self._beacon_thread.start()
 
     def _beacon_loop(self) -> None:
-        """Beat every interval until close; a bad beat logs and stops the beat.
+        """Beat every interval until close; a bad beat is SKIPPED, not fatal.
 
         Waits BEFORE the first send (see the class note) so the suite never
         opens a beacon socket; only a live Home Assistant ever gets here.
+
+        The old loop answered any beat exception by ending the thread for
+        good - and the bench (2026-09-24, mid router work) caught exactly
+        that shape: the API stayed perfectly served while the beacon had
+        beaten zero times in 14 s, because one sendto during an interface
+        flap killed the beat forever and nothing ever re-published. A
+        network that comes back deserves a beacon that comes back: log the
+        first miss (and every twelfth), skip the beat, keep the cadence,
+        and say so when the beat survives again.
         """
+        misses = 0
         while not self._beacon_stop.wait(self._beacon_interval):
+            payload = self._beacon_bytes
+            addr = self._beacon_addr
+            if payload is None or addr is None:
+                # Cannot happen for a thread this module only starts after
+                # _start_beacon filled both; skipping is cheaper than
+                # asserting in production code.
+                continue
             try:
-                self._broadcaster(self._beacon_bytes, self._beacon_addr)
+                self._broadcaster(payload, addr)
             except Exception:
-                _LOGGER.exception("The bridge beacon stopped beating")
-                return
+                misses += 1
+                if misses == 1 or misses % 12 == 0:
+                    _LOGGER.exception("The bridge beacon beat failed (keep beating)")
+            else:
+                if misses:
+                    _LOGGER.info(
+                        "The bridge beacon is beating again after %d failed beat(s)",
+                        misses,
+                    )
+                    misses = 0
 
     def close(self) -> None:
         """Stop the beacon, withdraw the record, release the mDNS socket; safe twice."""
@@ -679,7 +718,9 @@ def ensure_bridge_views(hass: Any) -> bool:
     """
     if hass.data.get(BRIDGE_VIEWS_KEY):
         return False
-    from .bridge_api import BRIDGE_VIEWS
+    # Lazy BY DESIGN: bridge_api imports this module at its top, so a
+    # top-level import here is a cycle.
+    from .bridge_api import BRIDGE_VIEWS  # noqa: PLC0415
 
     for view in BRIDGE_VIEWS:
         hass.http.register_view(view())
@@ -696,7 +737,9 @@ async def async_start_bridge(hass: Any, entry: Any, coordinator: Any) -> None:
     # cannot be resolved) should not take it down.
     try:
         await hass.async_add_executor_job(advertiser.publish)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
+        # The API IS the bridge; a broken mDNS/zeroconf stack must not take
+        # it down, so any publish failure is a warning, never a setup failure.
         _LOGGER.warning("The bridge API is up but not advertised on the LAN: %s", e)
     hass.data.setdefault(BRIDGE_ADS_KEY, {})[entry.entry_id] = advertiser
     # The bridge also collects its own chart data: from here on the cache
@@ -706,8 +749,10 @@ async def async_start_bridge(hass: Any, entry: Any, coordinator: Any) -> None:
 
 
 async def async_stop_bridge(hass: Any, entry: Any) -> bool:
-    """Withdraw this entry's advertisement and stop its sweeper; the
-    views stay (entry-agnostic)."""
+    """Withdraw this entry's advertisement and stop its sweeper.
+
+    The views stay (entry-agnostic).
+    """
     # The collector first: it is the one thing here that could still be
     # mid-read on the wire. Cancel it; the sweep's `finally` clears the
     # `sweeping` flag even into a CancelledError.
@@ -721,6 +766,8 @@ async def async_stop_bridge(hass: Any, entry: Any) -> bool:
         return False
     try:
         await hass.async_add_executor_job(advertiser.close)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
+        # Teardown best-effort: the entry is already unloading; a mDNS socket
+        # that refuses to close cleanly must not fail the unload.
         _LOGGER.error("Error closing the bridge advertisement: %s", e)
     return True

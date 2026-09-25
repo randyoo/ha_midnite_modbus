@@ -19,7 +19,6 @@ COMPONENT = os.path.join(
 sys.path.insert(0, COMPONENT)
 
 from const import FORCE_FLAGS, REGISTER_MAP  # noqa: E402
-
 from register_values import force_flag_write  # noqa: E402
 
 # Table 4160-1 "ForceFlagsBits (Write Only)". The spec lists 32-bit values; the
@@ -38,9 +37,23 @@ SPEC_FORCE_FLAGS = {
 }
 
 SPEC_RESERVED_FORCE_FLAGS = frozenset(
-    [0x00000001, 0x00000002, 0x00000200, 0x00000400, 0x00001000, 0x00002000,
-     0x00004000, 0x00008000, 0x00020000, 0x00040000, 0x00080000, 0x00100000,
-     0x00200000, 0x00400000, 0x01000000]
+    [
+        0x00000001,
+        0x00000002,
+        0x00000200,
+        0x00000400,
+        0x00001000,
+        0x00002000,
+        0x00004000,
+        0x00008000,
+        0x00020000,
+        0x00040000,
+        0x00080000,
+        0x00100000,
+        0x00200000,
+        0x00400000,
+        0x01000000,
+    ]
 )
 
 # Spec name -> const.py key.
@@ -74,9 +87,13 @@ class TestForceFlags:
         assert not mismatches, "const key -> (code bit, spec bit)"
 
     def test_no_flag_sits_on_a_reserved_bit(self):
-        reserved = {1 << bit for bit in range(32) if (1 << bit) in SPEC_RESERVED_FORCE_FLAGS}
+        reserved = {
+            1 << bit for bit in range(32) if (1 << bit) in SPEC_RESERVED_FORCE_FLAGS
+        }
         offenders = {
-            name: hex(1 << bit) for name, bit in FORCE_FLAGS.items() if (1 << bit) in reserved
+            name: hex(1 << bit)
+            for name, bit in FORCE_FLAGS.items()
+            if (1 << bit) in reserved
         }
         assert not offenders
 

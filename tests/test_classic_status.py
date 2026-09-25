@@ -14,12 +14,7 @@ Every expectation is the register map's row for that register (Rev C.4/C.5):
 
 from __future__ import annotations
 
-import pytest
 from fakes import FakeApi, FakeCoordinator
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import Hass
-from homeassistant.helpers.entity import EntityCategory
-
 from midnite_solar.const import (
     CLASSIC_STATUS_SENSORS,
     EE_BACKED_REGISTERS,
@@ -28,6 +23,11 @@ from midnite_solar.const import (
     REGISTER_MAP,
 )
 from midnite_solar.sensor import ClassicStatusSensor
+import pytest
+
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import Hass
+from homeassistant.helpers.entity import EntityCategory
 
 ROWS = {row[0]: row for row in CLASSIC_STATUS_SENSORS}
 
@@ -59,6 +59,7 @@ def sensor(key, raw, entry):
 class TestAddresses:
     """The registers, as the map lists them."""
 
+
 class TestCategoryIsLegalForReadOnly:
     """Real Home Assistant refuses a read-only sensor with the CONFIG category.
 
@@ -68,16 +69,16 @@ class TestCategoryIsLegalForReadOnly:
     """
 
     def test_no_status_sensor_carries_the_config_category(self):
-        from homeassistant.helpers.entity import EntityCategory
         from midnite_solar.const import CLASSIC_STATUS_SENSORS
         from midnite_solar.sensor import ClassicStatusSensor
+
+        from homeassistant.helpers.entity import EntityCategory
 
         for setting in CLASSIC_STATUS_SENSORS:
             entity = ClassicStatusSensor.__new__(ClassicStatusSensor)
             key, _group, _name, _units, _kind, _diagnostic, _enabled = setting
             entity._attr_entity_category = EntityCategory.DIAGNOSTIC
             assert entity._attr_entity_category is not EntityCategory.CONFIG, key
-
 
     def test_every_row_is_at_the_maps_address(self):
         assert set(ROWS) == set(SPEC_ADDRESSES)
@@ -124,16 +125,24 @@ class TestScales:
 
     def test_a_register_that_has_not_been_read_is_unknown(self, entry):
         coordinator = FakeCoordinator(Hass(), FakeApi(), {})
-        assert ClassicStatusSensor(coordinator, entry, ROWS["VPV_TARGET_RD"]).native_value is None
+        assert (
+            ClassicStatusSensor(coordinator, entry, ROWS["VPV_TARGET_RD"]).native_value
+            is None
+        )
 
 
 class TestPresentation:
     """What a user is offered, and what stays out of the way."""
 
     def test_the_units_come_from_the_formula(self, entry):
-        assert sensor("VBATT_REG_SET_P_TMP_COMP", 0, entry).native_unit_of_measurement == "V"
+        assert (
+            sensor("VBATT_REG_SET_P_TMP_COMP", 0, entry).native_unit_of_measurement
+            == "V"
+        )
         assert sensor("IBATT_UNFILTERED", 0, entry).native_unit_of_measurement == "A"
-        assert sensor("NITE_MINUTES_NO_PWR", 0, entry).native_unit_of_measurement == "min"
+        assert (
+            sensor("NITE_MINUTES_NO_PWR", 0, entry).native_unit_of_measurement == "min"
+        )
 
     def test_the_reason_for_reset_has_no_units_to_claim(self, entry):
         assert sensor("REASON_FOR_RESET", 0, entry).native_unit_of_measurement is None
@@ -144,7 +153,9 @@ class TestPresentation:
             # DIAGNOSTIC, not CONFIG: real Home Assistant refuses to ADD a
             # read-only sensor with the config category (dev bench 2026-09-20
             # dropped this exact sensor for it).
-            assert sensor(key, 0, entry).entity_category == EntityCategory.DIAGNOSTIC, key
+            assert sensor(key, 0, entry).entity_category == EntityCategory.DIAGNOSTIC, (
+                key
+            )
 
     def test_the_fast_moving_and_diagnostic_values_are_off_by_default(self, entry):
         for key in (
@@ -157,7 +168,9 @@ class TestPresentation:
             "NITE_MINUTES_NO_PWR",
         ):
             assert sensor(key, 0, entry).entity_registry_enabled_default is False, key
-            assert sensor(key, 0, entry).entity_category == EntityCategory.DIAGNOSTIC, key
+            assert sensor(key, 0, entry).entity_category == EntityCategory.DIAGNOSTIC, (
+                key
+            )
 
     def test_each_sensor_has_its_own_identity(self, entry):
         assert sensor("VPV_TARGET_RD", 0, entry).unique_id == "entry-1_vpv_target_rd"
@@ -168,7 +181,9 @@ class TestPresentation:
         _, group, *_ = ROWS["VBATT_REG_SET_P_TMP_COMP"]
         api = FakeApi()
         coordinator = FakeCoordinator(Hass(), api, {group: {4244: 567}})
-        entity = ClassicStatusSensor(coordinator, entry, ROWS["VBATT_REG_SET_P_TMP_COMP"])
+        entity = ClassicStatusSensor(
+            coordinator, entry, ROWS["VBATT_REG_SET_P_TMP_COMP"]
+        )
         assert entity.native_value == 56.7
         coordinator.data["data"][group] = {}
         assert entity.native_value is None

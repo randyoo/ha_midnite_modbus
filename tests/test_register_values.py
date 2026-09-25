@@ -68,13 +68,17 @@ class TestScaling:
         rounding writes 284. That is where the difference is visible.
         """
         assert scaled_register(28.35) == 284
-        assert int(28.35 * 10) == 283, "truncation really does go low - the test means something"
+        assert int(28.35 * 10) == 283, (
+            "truncation really does go low - the test means something"
+        )
         # Plain tenths still land exactly.
         assert scaled_register(57.6) == 576
         assert scaled_register(28.3) == 283
         assert scaled_register(48.0) == 480
 
-    @pytest.mark.parametrize(("raw", "expected"), [(0, 0), (32767, 32767), (32768, -32768), (65535, -1)])
+    @pytest.mark.parametrize(
+        ("raw", "expected"), [(0, 0), (32767, 32767), (32768, -32768), (65535, -1)]
+    )
     def test_signed16(self, raw, expected):
         assert signed16(raw) == expected
 
@@ -165,7 +169,12 @@ class TestTemperatureFilter:
 
     def test_stable_readings_pass(self):
         filt = TemperatureFilter()
-        assert [filt.apply(v) for v in (25.0, 25.2, 24.9, 25.1)] == [25.0, 25.2, 24.9, 25.1]
+        assert [filt.apply(v) for v in (25.0, 25.2, 24.9, 25.1)] == [
+            25.0,
+            25.2,
+            24.9,
+            25.1,
+        ]
 
     def test_absurd_reading_is_dropped(self):
         filt = TemperatureFilter()

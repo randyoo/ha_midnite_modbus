@@ -16,11 +16,7 @@ from __future__ import annotations
 import asyncio
 import importlib
 
-import pytest
 from fakes import FakeApi, FakeCoordinator
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import Hass
-
 from midnite_solar.base import MidniteBaseEntityDescription
 from midnite_solar.const import (
     AUX_THRESHOLD_SETTINGS,
@@ -28,6 +24,10 @@ from midnite_solar.const import (
     REGISTER_GROUPS,
     REGISTER_MAP,
 )
+import pytest
+
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import Hass
 
 PLATFORMS = ("sensor", "binary_sensor", "number", "select", "text", "button", "switch")
 
@@ -52,7 +52,7 @@ async def _build():
     hass = Hass()
     entry = ConfigEntry(entry_id="entry-1", title="Classic 200")
     groups = {
-        group: {address: 0 for address in registers}
+        group: dict.fromkeys(registers, 0)
         for group, registers in REGISTER_GROUPS.items()
     }
     # The clock is the one group that cannot be "all zero": words 4214-4217 of
@@ -106,7 +106,12 @@ def value_of(platform, entity):
 def declared_registers(entity):
     """Every register an entity declares, under whichever attribute it uses."""
     found = []
-    for attribute in ("register_address", "low_address", "high_address", "version_address"):
+    for attribute in (
+        "register_address",
+        "low_address",
+        "high_address",
+        "version_address",
+    ):
         value = getattr(entity, attribute, None)
         if isinstance(value, int):
             found.append(value)
@@ -117,7 +122,7 @@ class TestCounts:
     """Pinned so adding or losing an entity is a decision, not an accident."""
 
     def test_each_platform_makes_the_entities_it_should(self, entities):
-        made = {platform: 0 for platform in PLATFORMS}
+        made = dict.fromkeys(PLATFORMS, 0)
         for platform, _entity in entities:
             made[platform] += 1
         assert made == ENTITIES_PER_PLATFORM
@@ -126,7 +131,11 @@ class TestCounts:
         assert len(entities) == sum(ENTITIES_PER_PLATFORM.values())
 
     def test_63_of_them_are_on_without_being_asked_for(self, entities):
-        enabled = [entity for _platform, entity in entities if entity.entity_registry_enabled_default]
+        enabled = [
+            entity
+            for _platform, entity in entities
+            if entity.entity_registry_enabled_default
+        ]
         assert len(enabled) == ENABLED_BY_DEFAULT
 
 
@@ -142,19 +151,20 @@ class TestAuxConfigIsQuiet:
         return {entity.unique_id for _platform, entity in entities}
 
     def test_the_aux_threshold_numbers_are_off_by_default(self, entities):
-        expected = {
-            f"entry-1_{key.lower()}" for key, *_ in AUX_THRESHOLD_SETTINGS
-        }
+        expected = {f"entry-1_{key.lower()}" for key, *_ in AUX_THRESHOLD_SETTINGS}
         assert expected <= self._unique_ids(entities), "all 13 thresholds are built"
-        for platform, entity in entities:
+        for _platform, entity in entities:
             if entity.unique_id in expected:
                 assert not entity.entity_registry_enabled_default, (
                     f"{entity.unique_id} must be off until the installer enables it"
                 )
 
     def test_the_aux_state_selects_are_off_by_default(self, entities):
-        for platform, entity in entities:
-            if entity.unique_id in ("entry-1_aux1_state_select", "entry-1_aux2_state_select"):
+        for _platform, entity in entities:
+            if entity.unique_id in (
+                "entry-1_aux1_state_select",
+                "entry-1_aux2_state_select",
+            ):
                 assert not entity.entity_registry_enabled_default
 
 
@@ -179,7 +189,11 @@ class TestIdentity:
         assert duplicates == []
 
     def test_every_unique_id_is_scoped_to_the_config_entry(self, entities):
-        wrong = [entity.unique_id for _platform, entity in entities if not entity.unique_id.startswith("entry-1_")]
+        wrong = [
+            entity.unique_id
+            for _platform, entity in entities
+            if not entity.unique_id.startswith("entry-1_")
+        ]
         assert wrong == [], "two Classic on one Home Assistant must not collide"
 
     def test_no_two_entities_share_a_name(self, entities):
@@ -208,7 +222,9 @@ class TestWiring:
         )
 
     def test_every_declared_register_is_polled(self, entities):
-        polled = set().union(*[set(registers) for registers in REGISTER_GROUPS.values()])
+        polled = set().union(
+            *[set(registers) for registers in REGISTER_GROUPS.values()]
+        )
         unpolled = [
             f"{entity.unique_id} reads {address}"
             for _platform, entity in entities
@@ -222,13 +238,17 @@ class TestWiring:
         named = set(REGISTER_MAP.values())
         for _platform, entity in entities:
             for address in declared_registers(entity):
-                assert address in named, f"{entity.unique_id} reads {address}, which const.py does not name"
+                assert address in named, (
+                    f"{entity.unique_id} reads {address}, which const.py does not name"
+                )
 
 
 class TestDeviceIdentity:
     def test_no_platform_keeps_its_own_copy_of_the_device_info(self, entities, built):
         _entities, coordinator, entry = built
-        expected = MidniteBaseEntityDescription.get_device_info(coordinator, entry, DOMAIN)
+        expected = MidniteBaseEntityDescription.get_device_info(
+            coordinator, entry, DOMAIN
+        )
         different = [
             entity.unique_id
             for _platform, entity in entities
@@ -247,7 +267,8 @@ class TestFaultFlagsAreVisible:
 
     def test_the_write_protect_sensor_is_on_by_default(self, entities):
         entity = next(
-            entity for _platform, entity in entities
+            entity
+            for _platform, entity in entities
             if entity.unique_id == "entry-1_flag_serialwritelock"
         )
         assert entity.entity_registry_enabled_default is True
@@ -267,5 +288,7 @@ class TestFaultFlagsAreVisible:
         ],
     )
     def test_a_fault_flag_is_enabled(self, entities, unique_id):
-        entity = next(entity for _platform, entity in entities if entity.unique_id == unique_id)
+        entity = next(
+            entity for _platform, entity in entities if entity.unique_id == unique_id
+        )
         assert entity.entity_registry_enabled_default is True

@@ -16,13 +16,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-import pytest
 from fakes import FakeApi, FakeCoordinator
-from homeassistant.components.sensor import SensorDeviceClass
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import Hass
-from homeassistant.helpers.entity import EntityCategory
-
 from midnite_solar.const import (
     CHARGE_STAGES,
     INTERNAL_STATES,
@@ -35,6 +29,12 @@ from midnite_solar.sensor import (
     InternalStateSensor,
     RestReasonSensor,
 )
+import pytest
+
+from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import Hass
+from homeassistant.helpers.entity import EntityCategory
 
 
 @pytest.fixture
@@ -88,7 +88,9 @@ class TestTables:
         """Reasons 1-19, 22 and 25-35 are listed; 20, 21, 23 and 24 are not."""
         assert set(REST_REASONS) == set(range(1, 20)) | {22} | set(range(25, 36))
         assert REST_REASONS[1] == "Anti-Click. Not enough power available (Wake Up)"
-        assert REST_REASONS[35].startswith("Battery voltage is less than Low Battery Disconnect")
+        assert REST_REASONS[35].startswith(
+            "Battery voltage is less than Low Battery Disconnect"
+        )
 
 
 class TestInternalState:
@@ -243,7 +245,8 @@ class TestClassicClockSensors:
     sensor platform; real HA hard-fails a naive value for TIMESTAMP
     ("missing timezone information"), so tagging the naive CTIME wall time
     with HA's own zone is what makes the sensor legal - and it renders the
-    same wall time the Classic's LCD shows."""
+    same wall time the Classic's LCD shows.
+    """
 
     WALL = datetime(2026, 9, 21, 14, 30, 5)
 
@@ -253,18 +256,22 @@ class TestClassicClockSensors:
 
     def _clock_group(self):
         return {
-            REGISTER_MAP["CTIME_SECONDS_MINUTES"]: (30 << 8) | 5,   # 30:05
-            REGISTER_MAP["CTIME_HOURS_WEEKDAY"]: (1 << 8) | 14,     # 14:00, weekday 1
-            REGISTER_MAP["CTIME_DAY_MONTH"]: (9 << 8) | 21,         # Sep 21
+            REGISTER_MAP["CTIME_SECONDS_MINUTES"]: (30 << 8) | 5,  # 30:05
+            REGISTER_MAP["CTIME_HOURS_WEEKDAY"]: (1 << 8) | 14,  # 14:00, weekday 1
+            REGISTER_MAP["CTIME_DAY_MONTH"]: (9 << 8) | 21,  # Sep 21
             REGISTER_MAP["CTIME_YEAR"]: 2026,
             REGISTER_MAP["CTIME2"]: 0,
         }
 
     def _pair(self, entry, clock=None):
         coordinator = FakeCoordinator(
-            Hass(), FakeApi(), {"clock": dict(self._clock_group() if clock is None else clock)}
+            Hass(),
+            FakeApi(),
+            {"clock": dict(self._clock_group() if clock is None else clock)},
         )
-        return ClassicTimeSensor(coordinator, entry), ClassicDateSensor(coordinator, entry)
+        return ClassicTimeSensor(coordinator, entry), ClassicDateSensor(
+            coordinator, entry
+        )
 
     def test_classic_time_is_an_aware_timestamp_of_the_wall_clock(self, entry):
         time_sensor, _ = self._pair(entry)
@@ -287,7 +294,7 @@ class TestClassicClockSensors:
         assert date_sensor.native_value == date(2026, 9, 21)
 
     def test_an_impossible_clock_shows_nothing(self, entry):
-        zeroed = {address: 0 for address in self._clock_group()}
+        zeroed = dict.fromkeys(self._clock_group(), 0)
         time_sensor, date_sensor = self._pair(entry, zeroed)
         # words 4214-4217 of 0 are the impossible year-0 date
         assert time_sensor.native_value is None

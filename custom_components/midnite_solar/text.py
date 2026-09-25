@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 import logging
-from typing import Any, Optional
-
-from .base import MidniteBaseEntityDescription
+from typing import Any
 
 from homeassistant.components.text import TextEntity
 from homeassistant.core import HomeAssistant
@@ -13,6 +12,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .base import MidniteBaseEntityDescription
 from .const import DOMAIN, REGISTER_MAP
 from .coordinator import MidniteSolarUpdateCoordinator
 from .entity_writes import (
@@ -29,6 +29,10 @@ _LOGGER = logging.getLogger(__name__)
 # The low byte of the first register is the first character, so a name is written
 # two characters at a time with the earlier character in the low byte.
 NAME_REGISTERS = tuple(REGISTER_MAP[f"UNIT_NAME_{index}"] for index in range(4))
+
+# The entity's fixed human name, single-sourced: it is both the _attr_name
+# and the label the write helpers quote in their error wording.
+_NAME_LABEL = "Host Name"
 MAX_NAME_LENGTH = 8
 
 
@@ -47,15 +51,18 @@ async def async_setup_entry(
     async_add_entities(texts)
 
 
-def name_from_registers(registers: list[int]) -> str:
+def name_from_registers(registers: Sequence[int | None]) -> str | None:
     """Read the 8-character unit name out of four registers.
 
     Map: "4210 4211 4212 4213 | R/W | ID name (EE) … End with 0 if less than 8
     chars". A shorter name is terminated by a zero byte, so everything from the
-    first zero onwards is padding.
+    first zero onwards is padding. A register that was never read answers
+    None (an invented name would be worse than no name).
     """
-    chars = []
+    chars: list[str] = []
     for register in registers:
+        if register is None:  # an unread word: see the docstring.
+            return None
         for index in (0, 1):
             byte = byte_of(register, index)
             if byte == 0:
@@ -120,36 +127,38 @@ class HostNameText(MidniteSolarText):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the text input."""
         super().__init__(coordinator, entry)
-        self._attr_name = "Host Name"
+        self._attr_name = _NAME_LABEL
         self._attr_unique_id = f"{entry.entry_id}_host_name"
         self._attr_max_length = MAX_NAME_LENGTH
         self._attr_pattern = r"^[A-Za-z0-9_\-\. ]*$"
 
     @property
-    def native_value(self) -> Optional[str]:
+    def native_value(self) -> str | None:
         """Return the unit name the Classic reports."""
         group = self._group
         registers = [group.get(address) for address in NAME_REGISTERS]
-        if any(value is None for value in registers):
-            return None
         return name_from_registers(registers)
 
     async def async_set_value(self, value: str) -> None:
         """Write the name, store it, and read it back."""
+        # Entity.name is typed str | UndefinedType | None in HA; the write
+        # helpers want a plain human label, and this entity always carries
+        # the one below.
+        label = _NAME_LABEL
         registers = registers_for_name(value)
-        for address, register_value in zip(NAME_REGISTERS, registers):
+        for address, register_value in zip(NAME_REGISTERS, registers, strict=True):
             await async_write_setting(
-                self.hass, self.coordinator.api, address, register_value, self.name
+                self.hass, self.coordinator.api, address, register_value, label
             )
         # "(EE)": committed to EEPROM only if auto-save is on; else it reverts on restart.
-        await async_auto_save_if_enabled(self.hass, self.coordinator, self.name)
-        for address, register_value in zip(NAME_REGISTERS, registers):
+        await async_auto_save_if_enabled(self.hass, self.coordinator, label)
+        for address, register_value in zip(NAME_REGISTERS, registers, strict=True):
             await async_verify_write(
                 self.hass,
                 self.coordinator.api,
                 address,
                 register_value,
-                self.name,
+                label,
                 lambda raw: f"0x{raw:04X}",
             )
         await self.coordinator.async_request_refresh()

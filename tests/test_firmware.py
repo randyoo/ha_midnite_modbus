@@ -14,12 +14,7 @@ The register map's rows, verbatim:
 
 from __future__ import annotations
 
-import pytest
 from fakes import FakeApi, FakeCoordinator
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import Hass
-from homeassistant.helpers.entity import EntityCategory
-
 from midnite_solar.const import (
     FIRMWARE_REVISION_SENSORS,
     FIRMWARE_VERSION_SENSORS,
@@ -29,6 +24,11 @@ from midnite_solar.const import (
 from midnite_solar.coordinator import register_blocks
 from midnite_solar.register_values import VERSION_FIELDS, version_from_register
 from midnite_solar.sensor import FirmwareRevisionSensor, FirmwareVersionSensor
+import pytest
+
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import Hass
+from homeassistant.helpers.entity import EntityCategory
 
 
 @pytest.fixture
@@ -62,7 +62,11 @@ class TestVersionDecode:
         the choice is written down somewhere that runs.
         """
         assert version_from_register(0x0100) == "0.1.0"
-        assert [mask for _name, mask, _shift in VERSION_FIELDS] == [0xF000, 0x0F00, 0x00F0]
+        assert [mask for _name, mask, _shift in VERSION_FIELDS] == [
+            0xF000,
+            0x0F00,
+            0x00F0,
+        ]
 
 
 class TestFirmwareGroup:
@@ -87,8 +91,12 @@ class TestVersionSensors:
         coordinator = FakeCoordinator(
             Hass(), FakeApi(), {"firmware": {16385: 0x1234, 16386: 0x2345}}
         )
-        app = FirmwareVersionSensor(coordinator, entry, "APP_VERSION", "App Version", "application code")
-        net = FirmwareVersionSensor(coordinator, entry, "NET_VERSION", "Comms Version", "communications stack")
+        app = FirmwareVersionSensor(
+            coordinator, entry, "APP_VERSION", "App Version", "application code"
+        )
+        net = FirmwareVersionSensor(
+            coordinator, entry, "NET_VERSION", "Comms Version", "communications stack"
+        )
         assert app.native_value == "1.2.3"
         assert net.native_value == "2.3.4"
 
@@ -106,11 +114,17 @@ class TestVersionSensors:
         assert entity.extra_state_attributes == {"describes": "application code"}
 
     def test_the_two_version_registers_are_the_two_stacks(self, entry):
-        assert [row[0] for row in FIRMWARE_VERSION_SENSORS] == ["APP_VERSION", "NET_VERSION"]
+        assert [row[0] for row in FIRMWARE_VERSION_SENSORS] == [
+            "APP_VERSION",
+            "NET_VERSION",
+        ]
 
 
 class TestRevisionSensors:
-    """"([16388] << 16) + [16387]": the second register of the pair is the high word."""
+    """The map's pair formula: "([16388] << 16) + [16387]".
+
+    The second register of the pair is the high word.
+    """
 
     def revisions(self, entry, registers, index=0):
         low_key, high_key, label = FIRMWARE_REVISION_SENSORS[index]

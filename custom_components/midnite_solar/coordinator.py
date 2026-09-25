@@ -3,27 +3,33 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timedelta
 import logging
 import time
-from datetime import timedelta
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.update_coordinator import (
-    DataUpdateCoordinator,
-    UpdateFailed,
-)
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    DEFAULT_BRIDGE_ENABLED,
     DEFAULT_SENSOR_INTERVAL,
+    DEFAULT_WRITE_PIN,
     DOMAIN,
+    REGISTER_BY_ADDRESS,
     REGISTER_GROUPS,
     REGISTER_MAP,
 )
 from .hub import MidniteHub
 from .register_values import serial_from_registers
+
+if TYPE_CHECKING:
+    # Declared for the attribute annotations in __init__ only. The bridge
+    # owns these types and imports this module's siblings, never this
+    # module, so a runtime import here would risk a cycle for nothing.
+    from .bridge import PinGate
+    from .datalogger import Datalogger
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -62,6 +68,7 @@ def register_blocks(registers) -> list:
     blocks.append((start, previous))
     return blocks
 
+
 # Hard cap (seconds) for a single blocking Modbus operation. The Modbus client
 # already uses bounded socket timeouts; this is a final safety net so that a
 # wedged operation can never hang the coordinator (and, with it, Home Assistant).
@@ -95,10 +102,7 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
         """Initialize Update Coordinator."""
 
         super().__init__(
-            hass,
-            _LOGGER,
-            name=DOMAIN,
-            update_interval=timedelta(seconds=interval)
+            hass, _LOGGER, name=DOMAIN, update_interval=timedelta(seconds=interval)
         )
         self.api = MidniteHub(host, port)
         self.interval = interval
@@ -111,18 +115,26 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
         # Wall time of the last fully successful Modbus poll; the bridge
         # answers GET /state with it so a client's "last update" counter
         # shows the WIRE's age, not the age of its own fetch from this cache.
-        self.last_polled = None
+        self.last_polled: datetime | None = None
         # Dispatch throttle state: 0.0 makes the very first dispatch free.
         self._dispatch_due = 0.0
-        self._dispatched_success = None
-        self.device_info = {}
+        self._dispatched_success: bool | None = None
+        # The attributes __init__.py (setup) and bridge.py set on this
+        # coordinator, DECLARED here so both sides type-check instead of
+        # throwing attr-defined at every reader. The bridge sets them after
+        # construction, exactly like HA sets the config entry.
+        self.write_pin: str = DEFAULT_WRITE_PIN
+        self.bridge_enabled: bool = DEFAULT_BRIDGE_ENABLED
+        self._pin_gate: PinGate | None = None
+        self.datalogger: Datalogger | None = None
+        self.logger_sweeper: asyncio.Future[None] | None = None
         # Whether a set-point write should also commit to EEPROM. Off by default:
         # the ForceEEpromUpdate commit writes every pending (EE) register at once,
         # so it is opt-in via the "Auto Save EEPROM" switch, with the "Save to
         # EEPROM now" button for one-off commits. Reset to off on reload/restart.
         self.auto_save_eeprom = False
 
-    async def _async_update_data(self) -> Dict[str, Any]:
+    async def _async_update_data(self) -> dict[str, Any]:
         """Fetch all device and sensor data from api."""
         data = {}
         unavailable_entities = {}
@@ -133,16 +145,20 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
         # Assistant whenever a worker thread is holding the connection lock.
         test_result = await self._safe_read(REGISTER_MAP["UNIT_ID"], 1, retries=1)
         if test_result is None or test_result.isError():
-            _LOGGER.warning("Connection test failed on UNIT_ID. Trying alternative register...")
+            _LOGGER.warning(
+                "Connection test failed on UNIT_ID. Trying alternative register..."
+            )
             # Try a different register that might be more stable
-            test_result = await self._safe_read(REGISTER_MAP["DISP_AVG_VBATT"], 1, retries=1)
+            test_result = await self._safe_read(
+                REGISTER_MAP["DISP_AVG_VBATT"], 1, retries=1
+            )
 
         if test_result is None or test_result.isError():
             _LOGGER.error("Connection tests failed. Device not responding.")
             raise UpdateFailed("Device not responding to connection tests")
 
         unit_id = test_result.registers[0] if test_result.registers else None
-        _LOGGER.debug(f"Connection test successful. UNIT_ID: {unit_id}")
+        _LOGGER.debug("Connection test successful. UNIT_ID: %s", unit_id)
 
         # Read all register groups. A group that fails only marks its own
         # registers unavailable; it does not fail the whole update. A wedged
@@ -150,11 +166,11 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
         # instead of stalling on every remaining group.
         for group_name, registers in REGISTER_GROUPS.items():
             try:
-                result = await self._read_register_group(registers)
+                result = await self._read_register_group(registers, group_name)
                 if result is not None:
                     data[group_name] = result
                 else:
-                    _LOGGER.warning(f"Failed to read register group: {group_name}")
+                    _LOGGER.warning("Failed to read register group: %s", group_name)
                     # Mark all registers in this group as unavailable
                     for reg in registers:
                         unavailable_entities[str(reg)] = False
@@ -162,8 +178,11 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
                 # A read wedged, which means the device went down mid-update.
                 # Fail fast and let the coordinator retry on the next interval.
                 raise
-            except Exception as e:
-                _LOGGER.error(f"Error reading register group {group_name}: {e}")
+            except Exception:  # noqa: BLE001
+                # One group's failure must not fail the whole update: whatever
+                # the wire throws here only marks its group's entities
+                # unavailable (UpdateFailed is caught above and still fails
+                # fast, as it must).
                 for reg in registers:
                     unavailable_entities[str(reg)] = False
 
@@ -192,13 +211,16 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
         bridge) always have the newest regardless of dispatch.
         """
         now = time.monotonic()
-        if self.last_update_success == self._dispatched_success and now < self._dispatch_due:
+        if (
+            self.last_update_success == self._dispatched_success
+            and now < self._dispatch_due
+        ):
             return
         self._dispatched_success = self.last_update_success
         self._dispatch_due = now + self.sensor_interval
         super().async_update_listeners()
 
-    def _hand_over_serial_number(self, data: Dict[str, Any]) -> None:
+    def _hand_over_serial_number(self, data: dict[str, Any]) -> None:
         """Give the hub the serial number that releases the Ethernet write protect.
 
         The map requires the serial number to be written to registers 20492/20493
@@ -231,10 +253,16 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
                 ),
                 timeout=OP_TIMEOUT,
             )
-        except asyncio.TimeoutError:
-            _LOGGER.error(f"Read of address {address} timed out after {OP_TIMEOUT}s; resetting connection")
+        except TimeoutError:
+            _LOGGER.error(
+                "Read of address %s timed out after %ss; resetting connection",
+                address,
+                OP_TIMEOUT,
+            )
             await self._safe_reset()
-            raise UpdateFailed(f"Timed out communicating with device (address {address})") from None
+            raise UpdateFailed(
+                f"Timed out communicating with device (address {address})"
+            ) from None
 
     async def _safe_reset(self) -> None:
         """Reset the Modbus client in the executor, bounded by a timeout."""
@@ -243,23 +271,31 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
                 self.hass.async_add_executor_job(self.api.reset),
                 timeout=RESET_TIMEOUT,
             )
-        except Exception as e:
-            _LOGGER.error(f"Failed to reset Modbus connection: {e}")
+        except Exception as e:  # noqa: BLE001
+            # Recovery best-effort: a failed reset must not raise over the
+            # UpdateFailed the caller is already dealing with.
+            _LOGGER.error("Failed to reset Modbus connection: %s", e)
 
-    async def _read_register_group(self, registers: List[int]) -> Optional[Dict[int, Any]]:
+    async def _read_register_group(
+        self, registers: list[int], group_name: str
+    ) -> dict[int, Any] | None:
         """Read a group of registers as blocks, one request per block."""
         if not registers:
             return None
 
         sorted_regs = sorted(set(registers))
         wanted = set(sorted_regs)
-        result_data: Dict[int, Any] = {}
-        failed_registers: List[int] = []
+        result_data: dict[int, Any] = {}
+        failed_registers: list[int] = []
 
         for first, last in register_blocks(sorted_regs):
             span = last - first + 1
             block = await self._safe_read(first, span, retries=READ_RETRIES)
-            if block is not None and not block.isError() and len(block.registers) == span:
+            if (
+                block is not None
+                and not block.isError()
+                and len(block.registers) == span
+            ):
                 for offset, value in enumerate(block.registers):
                     address = first + offset
                     if address in wanted:
@@ -282,18 +318,18 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
                     result_data[register] = single.registers[0]
                 else:
                     _LOGGER.warning(
-                        "Failed to read register %d (group: %s)",
-                        register,
-                        REGISTER_MAP.get(register, "unknown"),
+                        "Failed to read register %s (group: %s)",
+                        REGISTER_BY_ADDRESS.get(register, f"register {register}"),
+                        group_name,
                     )
                     failed_registers.append(register)
 
         if failed_registers:
-            _LOGGER.debug(f"Failed to read registers: {failed_registers}")
+            _LOGGER.debug("Failed to read registers: %s", failed_registers)
 
-        return result_data if result_data else None
+        return result_data or None
 
-    def get_register_value(self, address: int) -> Optional[int]:
+    def get_register_value(self, address: int) -> int | None:
         """Get a specific register value from the last update."""
         if self.data is None or "data" not in self.data:
             return None
@@ -303,4 +339,3 @@ class MidniteSolarUpdateCoordinator(DataUpdateCoordinator):
                 return self.data["data"][group_name].get(address)
 
         return None
-

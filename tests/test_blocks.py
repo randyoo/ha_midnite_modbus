@@ -4,10 +4,7 @@ from __future__ import annotations
 
 import asyncio
 
-import pytest
 from fakes import FakeApi, ModbusResult
-from homeassistant.core import Hass
-
 from midnite_solar.const import REGISTER_GROUPS, REGISTER_MAP
 from midnite_solar.coordinator import (
     MAX_BLOCK_GAP,
@@ -16,19 +13,23 @@ from midnite_solar.coordinator import (
     register_blocks,
 )
 
+from homeassistant.core import Hass
+
 
 def blocks_for(group):
     return register_blocks(REGISTER_GROUPS[group])
 
 
 def coordinator(api):
-    coordinator = MidniteSolarUpdateCoordinator(Hass(), "192.168.88.53", 502, interval=15)
+    coordinator = MidniteSolarUpdateCoordinator(
+        Hass(), "192.168.88.53", 502, interval=15
+    )
     coordinator.api = api
     return coordinator
 
 
 def read_group(api, registers):
-    return asyncio.run(coordinator(api)._read_register_group(registers))
+    return asyncio.run(coordinator(api)._read_register_group(registers, "test"))
 
 
 class TestRegisterBlocks:
@@ -46,7 +47,9 @@ class TestRegisterBlocks:
         assert register_blocks([4101, 4102, 4200, 4201]) == [(4101, 4102), (4200, 4201)]
 
     def test_a_gap_at_the_limit_still_joins(self):
-        assert register_blocks([4101, 4101 + MAX_BLOCK_GAP]) == [(4101, 4101 + MAX_BLOCK_GAP)]
+        assert register_blocks([4101, 4101 + MAX_BLOCK_GAP]) == [
+            (4101, 4101 + MAX_BLOCK_GAP)
+        ]
 
     def test_a_block_never_exceeds_the_span(self):
         # Pin against an absolute register count, not MAX_BLOCK_SPAN itself: a test
@@ -58,9 +61,9 @@ class TestRegisterBlocks:
             for first, last in blocks_for(group):
                 assert last - first + 1 <= 32, group
         long_run = register_blocks(list(range(5000, 5100)))
-        assert long_run and all(
-            last - first + 1 <= 32 for first, last in long_run
-        ), "a run longer than the cap is actually split"
+        assert long_run and all(last - first + 1 <= 32 for first, last in long_run), (
+            "a run longer than the cap is actually split"
+        )
 
     def test_every_wanted_register_is_covered_exactly_once(self):
         for group, registers in REGISTER_GROUPS.items():
@@ -132,7 +135,11 @@ class TestBlockReads:
             bad_blocks={(4113, 12)},
         )
         data = read_group(api, REGISTER_GROUPS["status"])
-        assert {reg: data[reg] for reg in (4113, 4114, 4115)} == {4113: 600, 4114: 540, 4115: 300}
+        assert {reg: data[reg] for reg in (4113, 4114, 4115)} == {
+            4113: 600,
+            4114: 540,
+            4115: 300,
+        }
         assert api.reads[0] == 4113, "the block was attempted first"
         assert len(api.reads) > 1, "then the registers went individually"
 

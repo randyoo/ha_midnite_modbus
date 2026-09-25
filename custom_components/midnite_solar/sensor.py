@@ -3,16 +3,13 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
-
-from .base import MidniteBaseEntityDescription
+from typing import Any
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.helpers.entity import EntityCategory
 from homeassistant.const import (
     UnitOfElectricCurrent,
     UnitOfEnergy,
@@ -21,17 +18,20 @@ from homeassistant.const import (
     UnitOfTime,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
+from .base import MidniteBaseEntityDescription
 from .const import (
     CHARGE_STAGES,
-    FIRMWARE_REVISION_SENSORS,
-    FIRMWARE_VERSION_SENSORS,
     CLASSIC_STATUS_SENSORS,
     DEVICE_TYPES,
     DOMAIN,
+    FIRMWARE_REVISION_SENSORS,
+    FIRMWARE_VERSION_SENSORS,
     INTERNAL_STATES,
     REGISTER_MAP,
     REST_REASONS,
@@ -39,12 +39,12 @@ from .const import (
 from .coordinator import MidniteSolarUpdateCoordinator
 from .register_values import (
     TemperatureFilter,
+    clock_from_registers,
     combine32,
     format_ipv4,
     format_mac_from_registers,
     scaled_value,
     version_from_register,
-    clock_from_registers,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -57,7 +57,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up Midnite Solar sensors."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    
+
     sensors = [
         DeviceTypeSensor(coordinator, entry),
         BatteryVoltageSensor(coordinator, entry),
@@ -110,18 +110,20 @@ async def async_setup_entry(
         ClassicDateSensor(coordinator, entry),
         ClassicTimeSensor(coordinator, entry),
     ]
-    
+
     async_add_entities(sensors)
 
 
-class MidniteSolarSensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], SensorEntity):
+class MidniteSolarSensor(
+    CoordinatorEntity[MidniteSolarUpdateCoordinator], SensorEntity
+):
     """Base class for all Midnite Solar sensors."""
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the sensor."""
         super().__init__(coordinator)
         self._entry = entry
-        
+
         # Create device info - will be updated dynamically when data becomes available
         self._attr_device_info = {
             "identifiers": {(DOMAIN, entry.entry_id)},
@@ -143,15 +145,19 @@ class MidniteSolarSensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], Senso
         return self.coordinator.data["data"].get(name) or {}
 
     @staticmethod
-    def _register(group: dict, key: str) -> Optional[int]:
+    def _register(group: dict, key: str) -> int | None:
         """Return one register by its const name, or None if it was not read."""
-        from .const import REGISTER_MAP
-
         return group.get(REGISTER_MAP[key])
 
     @property
-    def native_value(self) -> Optional[float]:
-        """Return the state of the sensor."""
+    def native_value(self) -> StateType:
+        """Return the state of the sensor.
+
+        The base declares HA's full StateType because this integration's
+        sensors legitimately report str (IP address, MAC, charge stage,
+        unit name) as well as float and int; the concrete sensors narrow
+        it further.
+        """
         return None
 
 
@@ -171,7 +177,7 @@ class RestartTimeSensor(MidniteSolarSensor):
         self._attr_entity_registry_enabled_default = False  # Disable by default
 
     @property
-    def native_value(self) -> Optional[int]:
+    def native_value(self) -> int | None:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
@@ -182,7 +188,7 @@ class RestartTimeSensor(MidniteSolarSensor):
         return None
 
     @property
-    def extra_state_attributes(self) -> Optional[dict]:
+    def extra_state_attributes(self) -> dict | None:
         """Return additional state attributes."""
         attrs = {}
         if self.coordinator.data and "data" in self.coordinator.data:
@@ -210,7 +216,7 @@ class MatchPointShadowSensor(MidniteSolarSensor):
         self._attr_entity_registry_enabled_default = False  # Disable by default
 
     @property
-    def native_value(self) -> Optional[int]:
+    def native_value(self) -> int | None:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
@@ -250,7 +256,7 @@ class StatusRollSensor(MidniteSolarSensor):
         return self._register(self._group("status"), "STATUSROLL")
 
     @property
-    def native_value(self) -> Optional[int]:
+    def native_value(self) -> int | None:
         """Return the 12-bit value the register carries."""
         value = self._raw()
         if value is None:
@@ -258,7 +264,7 @@ class StatusRollSensor(MidniteSolarSensor):
         return value & 0x0FFF
 
     @property
-    def extra_state_attributes(self) -> Optional[dict]:
+    def extra_state_attributes(self) -> dict | None:
         """Return the roll counter, which is the other half of the register."""
         value = self._raw()
         if value is None:
@@ -283,7 +289,7 @@ class DailyEnergySensor(MidniteSolarSensor):
         self._attr_entity_registry_enabled_default = True
 
     @property
-    def native_value(self) -> Optional[float]:
+    def native_value(self) -> float | None:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
@@ -310,7 +316,7 @@ class HighestInputVoltageSensor(MidniteSolarSensor):
         self._attr_entity_registry_enabled_default = False  # Disable by default
 
     @property
-    def native_value(self) -> Optional[float]:
+    def native_value(self) -> float | None:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
@@ -337,7 +343,7 @@ class LoggingIntervalSensor(MidniteSolarSensor):
         self._attr_entity_registry_enabled_default = False  # Disable by default
 
     @property
-    def native_value(self) -> Optional[int]:
+    def native_value(self) -> int | None:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             settings_data = self.coordinator.data["data"].get("settings")
@@ -348,7 +354,7 @@ class LoggingIntervalSensor(MidniteSolarSensor):
         return None
 
     @property
-    def extra_state_attributes(self) -> Optional[dict]:
+    def extra_state_attributes(self) -> dict | None:
         """Return additional state attributes."""
         attrs = {}
         if self.coordinator.data and "data" in self.coordinator.data:
@@ -376,7 +382,7 @@ class SlidingCurrentLimitSensor(MidniteSolarSensor):
         self._attr_entity_registry_enabled_default = False  # Disable by default
 
     @property
-    def native_value(self) -> Optional[float]:
+    def native_value(self) -> float | None:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             settings_data = self.coordinator.data["data"].get("settings")
@@ -402,7 +408,7 @@ class BatteryVoltageSensor(MidniteSolarSensor):
         self._attr_suggested_display_precision = 1
 
     @property
-    def native_value(self) -> Optional[float]:
+    def native_value(self) -> float | None:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
@@ -427,7 +433,7 @@ class PVoltageSensor(MidniteSolarSensor):
         self._attr_suggested_display_precision = 1
 
     @property
-    def native_value(self) -> Optional[float]:
+    def native_value(self) -> float | None:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
@@ -452,7 +458,7 @@ class BatteryCurrentSensor(MidniteSolarSensor):
         self._attr_suggested_display_precision = 1
 
     @property
-    def native_value(self) -> Optional[float]:
+    def native_value(self) -> float | None:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
@@ -489,13 +495,12 @@ class PowerWattsSensor(MidniteSolarSensor):
         self._attr_state_class = SensorStateClass.MEASUREMENT
 
     @property
-    def native_value(self) -> Optional[float]:
+    def native_value(self) -> float | None:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
-                value = status_data.get(REGISTER_MAP["WATTS"])
-                return value
+                return status_data.get(REGISTER_MAP["WATTS"])
         return None
 
 
@@ -512,7 +517,7 @@ class ChargeStageSensor(MidniteSolarSensor):
         # Options will be populated from CHARGE_STAGES when needed
 
     @property
-    def native_value(self) -> Optional[str]:
+    def native_value(self) -> str | None:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
@@ -521,7 +526,9 @@ class ChargeStageSensor(MidniteSolarSensor):
                 if raw_value is not None:
                     # Extract MSB (high byte) for charge stage
                     charge_stage_value = (raw_value >> 8) & 0xFF
-                    return CHARGE_STAGES.get(charge_stage_value, f"Unknown ({charge_stage_value})")
+                    return CHARGE_STAGES.get(
+                        charge_stage_value, f"Unknown ({charge_stage_value})"
+                    )
         return None
 
 
@@ -544,7 +551,7 @@ class InternalStateSensor(MidniteSolarSensor):
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     @property
-    def native_value(self) -> Optional[str]:
+    def native_value(self) -> str | None:
         """Return the state named in Table 4120-2."""
         raw_value = self._register(self._group("status"), "COMBO_CHARGE_STAGE")
         if raw_value is None:
@@ -564,7 +571,7 @@ class DeviceTypeSensor(MidniteSolarSensor):
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     @property
-    def native_value(self) -> Optional[str]:
+    def native_value(self) -> str | None:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             device_info_data = self.coordinator.data["data"].get("device_info")
@@ -596,7 +603,7 @@ class RestReasonSensor(MidniteSolarSensor):
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     @property
-    def native_value(self) -> Optional[str]:
+    def native_value(self) -> str | None:
         """Return the reason from Table 4275-1, or say it is not resting."""
         reason = self._register(self._group("diagnostics"), "REASON_FOR_RESTING")
         if reason is None:
@@ -630,7 +637,7 @@ class TemperatureSensorBase(MidniteSolarSensor):
         self._filter = TemperatureFilter()
 
     @property
-    def native_value(self) -> Optional[float]:
+    def native_value(self) -> float | None:
         """Return the temperature, or None while a reading is rejected."""
         if not self.coordinator.data or "data" not in self.coordinator.data:
             return None
@@ -644,7 +651,9 @@ class TemperatureSensorBase(MidniteSolarSensor):
         temperature = self._filter.apply(scaled_value(raw))
         if temperature is None:
             _LOGGER.warning(
-                "%s: rejecting implausible reading %.1f °C", self.name, scaled_value(raw)
+                "%s: rejecting implausible reading %.1f °C",
+                self.name,
+                scaled_value(raw),
             )
         return temperature
 
@@ -710,7 +719,7 @@ class DailyAmpHoursSensor(MidniteSolarSensor):
         self._attr_entity_registry_enabled_default = False
 
     @property
-    def native_value(self) -> Optional[float]:
+    def native_value(self) -> float | None:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             energy_data = self.coordinator.data["data"].get("energy")
@@ -739,7 +748,7 @@ class LifetimeEnergySensor(MidniteSolarSensor):
         self._attr_entity_registry_enabled_default = True
 
     @property
-    def native_value(self) -> Optional[float]:
+    def native_value(self) -> float | None:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             energy_data = self.coordinator.data["data"].get("energy")
@@ -751,7 +760,8 @@ class LifetimeEnergySensor(MidniteSolarSensor):
                     # divisor, but the Classic's own display shows one decimal place
                     # (bench: register 109917 reads as 10991.7 kWh). The register
                     # holds tenths of a kWh; divide by ten, as the daily total does.
-                    return combine32(low_value, high_value) / 10.0
+                    total = combine32(low_value, high_value)
+                    return None if total is None else total / 10.0
         return None
 
 
@@ -773,7 +783,7 @@ class LifetimeAmpHoursSensor(MidniteSolarSensor):
         self._attr_entity_registry_enabled_default = False
 
     @property
-    def native_value(self) -> Optional[float]:
+    def native_value(self) -> float | None:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             energy_data = self.coordinator.data["data"].get("energy")
@@ -782,7 +792,8 @@ class LifetimeAmpHoursSensor(MidniteSolarSensor):
                 high_value = energy_data.get(REGISTER_MAP["LIFETIME_AMP_HOURS_1"] + 1)
                 if low_value is not None and high_value is not None:
                     # The map gives "(([4129] << 16) + [4128]) Amp Hours" with no divisor.
-                    return float(combine32(low_value, high_value))
+                    total = combine32(low_value, high_value)
+                    return None if total is None else float(total)
         return None
 
 
@@ -801,7 +812,7 @@ class PVInputCurrentSensor(MidniteSolarSensor):
         self._attr_suggested_display_precision = 1
 
     @property
-    def native_value(self) -> Optional[float]:
+    def native_value(self) -> float | None:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
@@ -831,7 +842,7 @@ class VOCMeasuredSensor(MidniteSolarSensor):
         self._attr_suggested_display_precision = 1
 
     @property
-    def native_value(self) -> Optional[float]:
+    def native_value(self) -> float | None:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
@@ -859,7 +870,7 @@ class FloatTimeTodaySensor(MidniteSolarSensor):
         self._attr_suggested_display_precision = 0
 
     @property
-    def native_value(self) -> Optional[float]:
+    def native_value(self) -> float | None:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             time_data = self.coordinator.data["data"].get("time_settings")
@@ -871,7 +882,7 @@ class FloatTimeTodaySensor(MidniteSolarSensor):
         return None
 
     @property
-    def extra_state_attributes(self) -> Optional[dict]:
+    def extra_state_attributes(self) -> dict | None:
         """Return additional state attributes."""
         attrs = {}
         if self.coordinator.data and "data" in self.coordinator.data:
@@ -901,7 +912,7 @@ class AbsorbTimeRemainingSensor(MidniteSolarSensor):
         self._attr_suggested_display_precision = 0
 
     @property
-    def native_value(self) -> Optional[float]:
+    def native_value(self) -> float | None:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             time_data = self.coordinator.data["data"].get("time_settings")
@@ -913,7 +924,7 @@ class AbsorbTimeRemainingSensor(MidniteSolarSensor):
         return None
 
     @property
-    def extra_state_attributes(self) -> Optional[dict]:
+    def extra_state_attributes(self) -> dict | None:
         """Return additional state attributes."""
         attrs = {}
         if self.coordinator.data and "data" in self.coordinator.data:
@@ -943,7 +954,7 @@ class EqualizeTimeRemainingSensor(MidniteSolarSensor):
         self._attr_suggested_display_precision = 0
 
     @property
-    def native_value(self) -> Optional[float]:
+    def native_value(self) -> float | None:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             time_data = self.coordinator.data["data"].get("time_settings")
@@ -955,7 +966,7 @@ class EqualizeTimeRemainingSensor(MidniteSolarSensor):
         return None
 
     @property
-    def extra_state_attributes(self) -> Optional[dict]:
+    def extra_state_attributes(self) -> dict | None:
         """Return additional state attributes."""
         attrs = {}
         if self.coordinator.data and "data" in self.coordinator.data:
@@ -979,7 +990,7 @@ class MACAddressSensor(MidniteSolarSensor):
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     @property
-    def native_value(self) -> Optional[str]:
+    def native_value(self) -> str | None:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             device_info_data = self.coordinator.data["data"].get("device_info")
@@ -995,9 +1006,6 @@ class MACAddressSensor(MidniteSolarSensor):
         return None
 
 
-
-
-
 class ModbusPortSensor(MidniteSolarSensor):
     """Representation of Modbus port sensor."""
 
@@ -1010,13 +1018,12 @@ class ModbusPortSensor(MidniteSolarSensor):
         self._attr_entity_registry_enabled_default = False  # Disable by default
 
     @property
-    def native_value(self) -> Optional[int]:
+    def native_value(self) -> int | None:
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             settings = self.coordinator.data["data"].get("settings")
             if settings:
-                value = settings.get(REGISTER_MAP["MODBUS_PORT_REGISTER"])
-                return value
+                return settings.get(REGISTER_MAP["MODBUS_PORT_REGISTER"])
         return None
 
 
@@ -1041,7 +1048,7 @@ class NetworkAddressSensor(MidniteSolarSensor):
         self._attr_entity_registry_enabled_default = False  # Disable by default
 
     @property
-    def native_value(self) -> Optional[str]:
+    def native_value(self) -> str | None:
         """Return the dotted quad address."""
         if not self.coordinator.data or "data" not in self.coordinator.data:
             return None
@@ -1132,7 +1139,10 @@ class ClassicStatusSensor(MidniteSolarSensor):
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any, setting):
         """Initialize the sensor for one status register."""
         super().__init__(coordinator, entry)
-        key, group, name, units, kind, diagnostic, enabled = setting
+        # `_diagnostic` is carried by the tuple for its other readers; the
+        # category itself rides the entity description below (see the
+        # CONFIG-category lesson in FINDINGS).
+        key, group, name, units, kind, _diagnostic, enabled = setting
         self._attr_name = name
         self._attr_unique_id = f"{entry.entry_id}_{key.lower()}"
         self._attr_entity_registry_enabled_default = enabled
@@ -1151,9 +1161,13 @@ class ClassicStatusSensor(MidniteSolarSensor):
         self.kind = kind
 
     @property
-    def native_value(self) -> Optional[float]:
+    def native_value(self) -> float | None:
         """Return the value the register map's formula describes."""
-        group = self.coordinator.data.get("data", {}).get(self.status_group) if self.coordinator.data else None
+        group = (
+            self.coordinator.data.get("data", {}).get(self.status_group)
+            if self.coordinator.data
+            else None
+        )
         if not group:
             return None
         raw = group.get(self.register_address)
@@ -1189,7 +1203,7 @@ class FirmwareVersionSensor(MidniteSolarSensor):
         self.describes = describes
 
     @property
-    def native_value(self) -> Optional[str]:
+    def native_value(self) -> str | None:
         """Return the version as major.minor.release."""
         raw = self._group("firmware").get(self.version_address)
         if raw is None:
@@ -1197,7 +1211,7 @@ class FirmwareVersionSensor(MidniteSolarSensor):
         return version_from_register(raw)
 
     @property
-    def extra_state_attributes(self) -> Optional[dict]:
+    def extra_state_attributes(self) -> dict | None:
         """Say which code this version belongs to."""
         return {"describes": self.describes}
 
@@ -1227,7 +1241,7 @@ class FirmwareRevisionSensor(MidniteSolarSensor):
         self.high_address = REGISTER_MAP[high_key]
 
     @property
-    def native_value(self) -> Optional[int]:
+    def native_value(self) -> int | None:
         """Return the build revision as one 32-bit number."""
         group = self._group("firmware")
         low = group.get(self.low_address)

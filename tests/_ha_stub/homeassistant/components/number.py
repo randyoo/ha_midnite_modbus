@@ -1,11 +1,11 @@
 """Home Assistant number platform objects."""
 
-from enum import Enum
+from enum import StrEnum
 
 from homeassistant.helpers.entity import Entity
 
 
-class NumberMode(str, Enum):
+class NumberMode(StrEnum):
     AUTO = "auto"
     BOX = "box"
     SLIDER = "slider"

@@ -47,18 +47,18 @@ class NewSensor(MidniteSolarSensor):
         super().__init__(coordinator, entry)
         self._attr_name = "New Sensor Name"
         self._attr_unique_id = f"{entry.entry_id}_new_sensor"
-        
+
         # Choose appropriate category:
         # - None for main entities (voltage, current, power) - appears in main list
         # - EntityCategory.DIAGNOSTIC for diagnostic info - appears in Diagnostic section
         # - EntityCategory.CONFIG for configurable settings - appears in Configuration section
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
-        
+
         # Set device class and units:
         self._attr_device_class = SensorDeviceClass.VOLTAGE  # or None if not applicable
         self._attr_native_unit_of_measurement = "V"  # or appropriate unit
         self._attr_state_class = SensorStateClass.MEASUREMENT
-        
+
         # REQUIRED: Disable by default
         self._attr_entity_registry_enabled_default = False
 
@@ -67,7 +67,9 @@ class NewSensor(MidniteSolarSensor):
         """Return the state of the sensor."""
         if self.coordinator.data and "data" in self.coordinator.data:
             # Access the data group that matches where you added the register
-            data_group = self.coordinator.data["data"].get("status")  # Match your REGISTER_GROUPS assignment
+            data_group = self.coordinator.data["data"].get(
+                "status"
+            )  # Match your REGISTER_GROUPS assignment
             if data_group:
                 value = data_group.get(REGISTER_MAP["NEW_REGISTER_NAME"])
                 if value is not None:

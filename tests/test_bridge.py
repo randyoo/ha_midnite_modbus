@@ -19,14 +19,7 @@ import asyncio
 import datetime
 import socket
 
-import pytest
-import zeroconf
 from fakes import FakeApi, FakeCoordinator
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST
-from homeassistant.core import Hass
-from homeassistant.exceptions import HomeAssistantError
-
 from midnite_solar import bridge as bridge_module
 from midnite_solar.bridge import (
     BridgeAdvertiser,
@@ -41,8 +34,8 @@ from midnite_solar.bridge import (
     resolve_register,
 )
 from midnite_solar.const import (
-    BRIDGE_API_VERSION,
     BRIDGE_ADS_KEY,
+    BRIDGE_API_VERSION,
     BRIDGE_MDNS_TYPE,
     CLOCK_FILE_ADDRESS,
     CLOCK_FILE_DEVICE,
@@ -53,6 +46,13 @@ from midnite_solar.const import (
     REGISTER_MAP,
 )
 from midnite_solar.text import registers_for_name
+import pytest
+import zeroconf
+
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_HOST
+from homeassistant.core import Hass
+from homeassistant.exceptions import HomeAssistantError
 
 ENTRY_ID = "entry-1"
 CLASSIC_HOST = "192.168.88.24"
@@ -162,14 +162,18 @@ class TestSnapshot:
     def test_the_client_can_see_the_commit_policy(self):
         """The EEPROM commit is opt-in; the snapshot says which mode."""
         assert build_snapshot(a_classic()[1])["auto_save_eeprom"] is False
-        assert build_snapshot(a_classic(auto_save_eeprom=True)[1])["auto_save_eeprom"] is True
+        assert (
+            build_snapshot(a_classic(auto_save_eeprom=True)[1])["auto_save_eeprom"]
+            is True
+        )
 
     def test_the_wire_stamp_says_when_the_classic_was_last_polled(self):
         """A client's own fetch time says nothing about the data's age; the
-        coordinator's successful-poll stamp is the honest answer."""
+        coordinator's successful-poll stamp is the honest answer.
+        """
         _hass, coordinator = a_classic()
         coordinator.last_polled = datetime.datetime(
-            2026, 9, 22, 12, 0, 0, tzinfo=datetime.timezone.utc
+            2026, 9, 22, 12, 0, 0, tzinfo=datetime.UTC
         )
         assert build_snapshot(coordinator)["last_polled"] == "2026-09-22T12:00:00+00:00"
 
@@ -242,7 +246,10 @@ class TestBridgeWrite:
     def test_the_commit_is_still_the_opt_in_one(self):
         answer, api = self.write(4149, 576)
         assert answer["committed"] is False
-        assert (REGISTER_MAP["FORCE_FLAG_BITS"], 1 << FORCE_FLAGS["ForceEEpromUpdate"]) not in api.writes
+        assert (
+            REGISTER_MAP["FORCE_FLAG_BITS"],
+            1 << FORCE_FLAGS["ForceEEpromUpdate"],
+        ) not in api.writes
 
     def test_an_explicit_commit_commits_once_without_the_switch(self):
         answer, api = self.write(4149, 576, commit=True)
@@ -280,7 +287,7 @@ class TestBridgeWrite:
 
 class TestBridgeClockAndReboot:
     def test_the_clock_goes_to_the_private_file_the_app_used(self):
-        answer, (hass, coordinator) = self.run(NOW)
+        answer, (_hass, coordinator) = self.run(NOW)
         assert answer == {"clock": NOW.isoformat()}
         device, payload, address = coordinator.api.internal_writes[0]
         assert (device, address) == (CLOCK_FILE_DEVICE, CLOCK_FILE_ADDRESS)
@@ -305,9 +312,7 @@ class TestBridgeClockAndReboot:
 class TestAdvertisement:
     def advertiser(self, hass=None, coordinator=None):
         hass = hass or Hass()
-        coordinator = coordinator or FakeCoordinator(
-            hass, FakeApi(), identity_groups()
-        )
+        coordinator = coordinator or FakeCoordinator(hass, FakeApi(), identity_groups())
         return BridgeAdvertiser(hass, an_entry(), coordinator), hass
 
     def test_the_record_says_who_and_where_without_being_told_anything(self):
@@ -316,9 +321,7 @@ class TestAdvertisement:
         instance = zeroconf.Zeroconf.instances[0]
         info = instance.registered[0]
         assert info.type == BRIDGE_MDNS_TYPE
-        assert info.name.startswith(
-            "Midnite Bridge CLASSIC7 (60:1d:0f:00:cc:dd)"
-        )
+        assert info.name.startswith("Midnite Bridge CLASSIC7 (60:1d:0f:00:cc:dd)")
         assert info.name.endswith(BRIDGE_MDNS_TYPE)
         # The stub network answers with the canned HA URL; the record must
         # carry its host and port, not the Classic's.
@@ -330,7 +333,8 @@ class TestAdvertisement:
 
     def test_the_a_record_name_is_this_bridges_own_not_a_shared_one(self):
         """A shared server name would resolve a second bridge's clients to
-        the wrong machine; the MAC makes the name unique per Classic."""
+        the wrong machine; the MAC makes the name unique per Classic.
+        """
         advertiser, _hass = self.advertiser()
         advertiser.publish()
         info = zeroconf.Zeroconf.instances[0].registered[0]
@@ -399,7 +403,9 @@ class TestStartStop:
     def test_the_views_are_registered_once_per_home_assistant(self):
         hass = Hass()
         assert ensure_bridge_views(hass) is True
-        assert len(hass.http.views) == 8  # +state +pin +write +clock +reboot +save +datalogger +refresh
+        assert (
+            len(hass.http.views) == 8
+        )  # +state +pin +write +clock +reboot +save +datalogger +refresh
         assert ensure_bridge_views(hass) is False
         assert len(hass.http.views) == 8
 
@@ -416,7 +422,8 @@ class TestStartStop:
         yet - the startup polls own the wire first), and the stop cancels
         it instead of leaking a task onto the loop. Start and stop share
         ONE asyncio.run: a task born in a finished loop is cancelled by
-        that loop's teardown, which would say nothing about the stop."""
+        that loop's teardown, which would say nothing about the stop.
+        """
         hass, coordinator = a_classic()
         # async_stop_bridge finds the coordinator the way Home Assistant
         # stores it - the same seat installed() gives the API tests.
@@ -462,7 +469,8 @@ class TestWritePinGate:
     """The gate, on the ENGINE: a wrong (or missing) PIN buys an exponentially
     longer wait during which the bridge compares NOTHING, so a guesser earns
     one comparison per rung. `now` is passed in so the ladder is pinned without
-    a single real second elapsing (per the suite's no-sleeping rule)."""
+    a single real second elapsing (per the suite's no-sleeping rule).
+    """
 
     def entry(self, pin="135790"):
         _hass, coordinator = a_classic()
@@ -514,11 +522,15 @@ class TestWritePinGate:
         assert check_write_pin(coordinator, "x", now=5000.0)[0] == 401
         # A retry-storm mid-wait is refused 429 and does NOT push the timer
         # back, so guessing can never make the lockout outlast its own rung.
-        deferred = check_write_pin(coordinator, "x", now=5000.0 + PIN_LOCKOUT_STEPS[0] - 1)
+        deferred = check_write_pin(
+            coordinator, "x", now=5000.0 + PIN_LOCKOUT_STEPS[0] - 1
+        )
         assert deferred[0] == 429
         assert deferred[1]["retry_after"] > 0
         # the NEXT miss, once the wait has run, advances exactly one rung
-        next_rung = check_write_pin(coordinator, "x", now=5000.0 + PIN_LOCKOUT_STEPS[0] + 0.5)
+        next_rung = check_write_pin(
+            coordinator, "x", now=5000.0 + PIN_LOCKOUT_STEPS[0] + 0.5
+        )
         assert next_rung[1]["retry_after"] == PIN_LOCKOUT_STEPS[1]
 
     def test_the_bridge_does_not_compare_during_the_wait(self):
@@ -530,7 +542,9 @@ class TestWritePinGate:
         assert check_write_pin(coordinator, "x", now=9000.0)[0] == 401  # start a wait
         wrong = check_write_pin(coordinator, "00000", now=9000.0 + 1)
         right = check_write_pin(coordinator, "135790", now=9000.0 + 1)
-        assert wrong[0] == right[0] == 429, "the right PIN must NOT leak through mid-wait"
+        assert wrong[0] == right[0] == 429, (
+            "the right PIN must NOT leak through mid-wait"
+        )
         assert wrong[1]["retry_after"] == right[1]["retry_after"]
 
     def test_the_right_pin_waits_out_the_lockout_then_clears_the_ladder(self):
@@ -540,9 +554,14 @@ class TestWritePinGate:
         coordinator = self.entry()
         base = 9000.0
         assert check_write_pin(coordinator, "x", now=base)[0] == 401
-        assert check_write_pin(coordinator, "135790", now=base + 0.5)[0] == 429  # mid-wait: refused
         assert (
-            check_write_pin(coordinator, "135790", now=base + PIN_LOCKOUT_STEPS[0] + 0.5) is None
+            check_write_pin(coordinator, "135790", now=base + 0.5)[0] == 429
+        )  # mid-wait: refused
+        assert (
+            check_write_pin(
+                coordinator, "135790", now=base + PIN_LOCKOUT_STEPS[0] + 0.5
+            )
+            is None
         )  # after the wait: lands
         reset = check_write_pin(coordinator, "x", now=base + PIN_LOCKOUT_STEPS[0] + 1.0)
         assert reset[1]["retry_after"] == PIN_LOCKOUT_STEPS[0]

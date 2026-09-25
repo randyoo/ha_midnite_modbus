@@ -10,18 +10,18 @@ from __future__ import annotations
 
 import asyncio
 
-import pytest
 from fakes import FakeApi, FakeCoordinator
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import Hass
-
 from midnite_solar.button import ForceEEpromUpdateButton
-from midnite_solar.const import DOMAIN, REGISTER_MAP
+from midnite_solar.const import REGISTER_MAP
 from midnite_solar.coordinator import MidniteSolarUpdateCoordinator
 from midnite_solar.number import AbsorbVoltageNumber
 from midnite_solar.select import Aux1StateSelect, NominalBatteryVoltageSelect
 from midnite_solar.switch import AutoSaveEepromSwitch
-from midnite_solar.text import NAME_REGISTERS, HostNameText, registers_for_name
+from midnite_solar.text import NAME_REGISTERS, HostNameText
+import pytest
+
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import Hass
 
 COMMIT = (REGISTER_MAP["FORCE_FLAG_BITS"], 0x0004)  # ForceEEpromUpdateWriteF
 ABSORB = REGISTER_MAP["ABSORB_SETPOINT_VOLTAGE"]
@@ -35,7 +35,10 @@ def entry():
 def number_write(auto_save, entry, value=57.6):
     api = FakeApi()
     coordinator = FakeCoordinator(
-        Hass(), api, {"setpoints": {ABSORB: int(value * 10)}}, auto_save_eeprom=auto_save
+        Hass(),
+        api,
+        {"setpoints": {ABSORB: int(value * 10)}},
+        auto_save_eeprom=auto_save,
     )
     entity = AbsorbVoltageNumber(coordinator, entry)
     asyncio.run(entity.async_set_native_value(value))
@@ -46,7 +49,9 @@ class TestProductionDefaultIsOff:
     def test_a_real_coordinator_defaults_auto_save_off(self):
         # The double defaults on for convenience; the class Home Assistant builds
         # must default off, or every set-point write would silently commit.
-        coordinator = MidniteSolarUpdateCoordinator(Hass(), "192.168.88.53", 502, interval=15)
+        coordinator = MidniteSolarUpdateCoordinator(
+            Hass(), "192.168.88.53", 502, interval=15
+        )
         assert coordinator.auto_save_eeprom is False
 
 
@@ -63,16 +68,22 @@ class TestCommitIsGated:
     def test_select_write_does_not_commit_when_auto_save_is_off(self, entry):
         api = FakeApi()
         coordinator = FakeCoordinator(
-            Hass(), api, {"classic_status": {REGISTER_MAP["VBATT_NOMINAL"]: 48}},
+            Hass(),
+            api,
+            {"classic_status": {REGISTER_MAP["VBATT_NOMINAL"]: 48}},
             auto_save_eeprom=False,
         )
-        asyncio.run(NominalBatteryVoltageSelect(coordinator, entry).async_select_option("24 V"))
+        asyncio.run(
+            NominalBatteryVoltageSelect(coordinator, entry).async_select_option("24 V")
+        )
         assert api.writes[0] == (REGISTER_MAP["VBATT_NOMINAL"], 24)
         assert COMMIT not in api.writes
 
     def test_aux_select_write_does_not_commit_when_auto_save_is_off(self, entry):
         api = FakeApi()
-        start = (1 & 0x3F) | (0 << 6) | (0 << 8) | (2 << 14)  # aux1 func 1, aux1 off, aux2 on
+        start = (
+            (1 & 0x3F) | (0 << 6) | (0 << 8) | (2 << 14)
+        )  # aux1 func 1, aux1 off, aux2 on
         coordinator = FakeCoordinator(
             Hass(), api, {"aux_settings": {4165: start}}, auto_save_eeprom=False
         )
@@ -83,7 +94,9 @@ class TestCommitIsGated:
     def test_name_write_does_not_commit_when_auto_save_is_off(self, entry):
         api = FakeApi()
         coordinator = FakeCoordinator(
-            Hass(), api, {"device_info": {a: v for a, v in zip(NAME_REGISTERS, [0] * 4)}},
+            Hass(),
+            api,
+            {"device_info": dict(zip(NAME_REGISTERS, [0] * 4, strict=True))},
             auto_save_eeprom=False,
         )
         asyncio.run(HostNameText(coordinator, entry).async_set_value("CLASSIC"))
@@ -120,7 +133,9 @@ class TestSwitch:
             Hass(), api, {"setpoints": {ABSORB: 576}}, auto_save_eeprom=False
         )
         asyncio.run(AutoSaveEepromSwitch(coordinator, entry).async_turn_on())
-        asyncio.run(AbsorbVoltageNumber(coordinator, entry).async_set_native_value(57.6))
+        asyncio.run(
+            AbsorbVoltageNumber(coordinator, entry).async_set_native_value(57.6)
+        )
         assert COMMIT in api.writes
 
 
@@ -129,7 +144,9 @@ class TestSaveToEepromNowButton:
         api = FakeApi()
         coordinator = FakeCoordinator(Hass(), api, {}, auto_save_eeprom=False)
         asyncio.run(ForceEEpromUpdateButton(coordinator, entry).async_press())
-        assert COMMIT in api.writes, "an explicit press must commit even with auto-save off"
+        assert COMMIT in api.writes, (
+            "an explicit press must commit even with auto-save off"
+        )
 
     def test_the_button_name_is_save_to_eeprom_now_and_keeps_its_unique_id(self, entry):
         coordinator = FakeCoordinator(Hass(), FakeApi(), {})

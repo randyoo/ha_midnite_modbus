@@ -40,15 +40,23 @@ class ConfigEntries:
         self.unloaded.append((entry.entry_id, tuple(platforms)))
         return True
 
-    async def async_update_entry(self, entry, *, data=None, options=None, unique_id=None):
-        """Apply the change the way Home Assistant would."""
+    def async_update_entry(
+        self, entry, *, data=None, options=None, unique_id=None
+    ) -> bool:
+        """Apply the change the way Home Assistant would.
+
+        SYNC, returning True: real HA's async_update_entry has always been
+        a def (the async name is historical); awaiting it raises TypeError.
+        The double says the same thing the runtime does, and records the
+        call so tests can prove the flow stored the change.
+        """
+        self.updates.append((entry.entry_id, data, options))
         if data is not None:
             entry.data = data
         if options is not None:
             entry.options = options
         if unique_id is not None:
             entry.unique_id = unique_id
-        self.updates.append((entry.entry_id, data, options))
         return True
 
     async def async_reload(self, entry_id):

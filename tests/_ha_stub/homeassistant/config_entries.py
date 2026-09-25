@@ -126,7 +126,10 @@ class ConfigFlow:
         when both are None (None != None is False), which is what lets a legacy
         manual entry with no unique id still be reconfigured.
         """
-        if self._reconfigure_entry is not None and self._reconfigure_entry.unique_id != self.unique_id:
+        if (
+            self._reconfigure_entry is not None
+            and self._reconfigure_entry.unique_id != self.unique_id
+        ):
             raise AbortFlow("unique_id_mismatch")
 
     def _get_reconfigure_entry(self):

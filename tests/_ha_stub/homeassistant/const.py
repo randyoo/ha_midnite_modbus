@@ -1,33 +1,33 @@
 """Home Assistant constants used by the integration."""
 
-from enum import Enum
+from enum import StrEnum
 
 CONF_HOST = "host"
 CONF_PORT = "port"
 CONF_NAME = "name"
 
 
-class UnitOfTemperature(str, Enum):
+class UnitOfTemperature(StrEnum):
     CELSIUS = "C"
 
 
-class UnitOfElectricCurrent(str, Enum):
+class UnitOfElectricCurrent(StrEnum):
     AMPERE = "A"
 
 
-class UnitOfElectricPotential(str, Enum):
+class UnitOfElectricPotential(StrEnum):
     VOLT = "V"
 
 
-class UnitOfEnergy(str, Enum):
+class UnitOfEnergy(StrEnum):
     KILO_WATT_HOUR = "kWh"
 
 
-class UnitOfPower(str, Enum):
+class UnitOfPower(StrEnum):
     WATT = "W"
 
 
-class UnitOfTime(str, Enum):
+class UnitOfTime(StrEnum):
     SECONDS = "s"
     MINUTES = "min"
     HOURS = "h"
@@ -35,7 +35,7 @@ class UnitOfTime(str, Enum):
     MILLISECONDS = "ms"
 
 
-class Platform(str, Enum):
+class Platform(StrEnum):
     SENSOR = "sensor"
     BINARY_SENSOR = "binary_sensor"
     NUMBER = "number"

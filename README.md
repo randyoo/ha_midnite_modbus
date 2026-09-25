@@ -81,11 +81,14 @@ FINDINGS section 40, air-app-reverse/PROTOCOL.md section 4.2.)
 
 ## One connection at a time
 
-The Classic's Ethernet port accepts extra TCP connections but its Modbus bridge is
-latest-wins: only one polling client can use it cleanly. Keep other tools
-(scripts, a second Home Assistant) off the Classic while this integration
-polls - or let them not touch it at all: the bridge API below serves the
-same data to anything else through Home Assistant.
+The Classic's Ethernet port serves **one Modbus TCP connection at a time**:
+while one is open, a second connection attempt fails and the existing
+connection keeps working untouched (bench-corrected 2026-09-24 - the older
+docs here said "latest-wins"; it is not). Keep other tools (scripts, a
+second Home Assistant) off the Classic while this integration polls - or
+let them not touch it at all: the bridge API below serves the same data to
+anything else through Home Assistant, and this integration's config entry
+can be disabled to hand the one connection to another client.
 
 ## The bridge API (desktop apps, dashboards, scripts)
 

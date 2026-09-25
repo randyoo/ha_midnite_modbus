@@ -12,13 +12,13 @@ from __future__ import annotations
 import asyncio
 import time
 
-import pytest
 from fakes import FakeApi, ModbusResult
-from homeassistant.core import Hass
-
 from midnite_solar import coordinator as coordinator_module
 from midnite_solar.const import REGISTER_GROUPS, REGISTER_MAP
 from midnite_solar.coordinator import MidniteSolarUpdateCoordinator
+import pytest
+
+from homeassistant.core import Hass
 from homeassistant.exceptions import UpdateFailed
 
 UNIT_ID = REGISTER_MAP["UNIT_ID"]
@@ -28,7 +28,9 @@ SERIAL_LSB = REGISTER_MAP["SERIAL_NUMBER_LSB_RO"]
 
 
 def make(api):
-    coordinator = MidniteSolarUpdateCoordinator(Hass(), "192.168.88.53", 502, interval=15)
+    coordinator = MidniteSolarUpdateCoordinator(
+        Hass(), "192.168.88.53", 502, interval=15
+    )
     coordinator.api = api
     return coordinator
 
@@ -46,7 +48,9 @@ class TestASuccessfulUpdate:
         assert update(FakeApi())["availability"] == {}
 
     def test_the_values_land_on_their_own_registers(self):
-        api = FakeApi(read_values={UNIT_ID: 200, REGISTER_MAP["ABSORB_SETPOINT_VOLTAGE"]: 576})
+        api = FakeApi(
+            read_values={UNIT_ID: 200, REGISTER_MAP["ABSORB_SETPOINT_VOLTAGE"]: 576}
+        )
         data = update(api)
         assert data["data"]["device_info"][UNIT_ID] == 200
         assert data["data"]["setpoints"][REGISTER_MAP["ABSORB_SETPOINT_VOLTAGE"]] == 576
@@ -82,14 +86,24 @@ class TestTheRetryBudgetFitsTheCap:
         # One attempt against a half-dead port: full socket timeout, then a
         # full reconnect (RECONNECT_DELAY plus a fresh connect that itself
         # gets the full timeout), plus that attempt's backoff sleep.
-        per_attempt = MidniteHub.DEFAULT_TIMEOUT + MidniteHub.RECONNECT_DELAY + MidniteHub.DEFAULT_TIMEOUT
+        per_attempt = (
+            MidniteHub.DEFAULT_TIMEOUT
+            + MidniteHub.RECONNECT_DELAY
+            + MidniteHub.DEFAULT_TIMEOUT
+        )
         worst = sum(
             per_attempt + 0.2 * (attempt + 1)
             for attempt in range(coordinator_module.READ_RETRIES)
         )
-        assert worst < coordinator_module.OP_TIMEOUT, f"{worst}s would outlive the {coordinator_module.OP_TIMEOUT}s cap"
-        hub_default = inspect.signature(MidniteHub.read_holding_registers).parameters["retries"].default
-        assert coordinator_module.READ_RETRIES < hub_default, (
+        assert worst < coordinator_module.OP_TIMEOUT, (
+            f"{worst}s would outlive the {coordinator_module.OP_TIMEOUT}s cap"
+        )
+        hub_default = (
+            inspect.signature(MidniteHub.read_holding_registers)
+            .parameters["retries"]
+            .default
+        )
+        assert hub_default > coordinator_module.READ_RETRIES, (
             "the coordinator must ask for fewer retries than the hub defaults to"
         )
 
@@ -119,24 +133,32 @@ class TestTheConnectionTest:
         api = FakeApi(unreadable=True)
         with pytest.raises(UpdateFailed):
             update(api)
-        assert len(api.reads) <= 2, "the connection test does not go on to read 22 blocks"
+        assert len(api.reads) <= 2, (
+            "the connection test does not go on to read 22 blocks"
+        )
 
 
 class TestAGroupThatDoesNotAnswer:
     def test_the_other_groups_still_come_back(self):
-        api = FakeApi(bad_blocks={(4113, 12)}, unreadable_registers=set(range(4113, 4125)))
+        api = FakeApi(
+            bad_blocks={(4113, 12)}, unreadable_registers=set(range(4113, 4125))
+        )
         data = update(api)
         assert "status" not in data["data"]
         assert "setpoints" in data["data"]
 
     def test_the_group_that_failed_is_marked_unavailable(self):
-        api = FakeApi(bad_blocks={(4113, 12)}, unreadable_registers=set(range(4113, 4125)))
+        api = FakeApi(
+            bad_blocks={(4113, 12)}, unreadable_registers=set(range(4113, 4125))
+        )
         data = update(api)
         for address in REGISTER_GROUPS["status"]:
             assert address in [int(key) for key in data["availability"]]
 
     def test_the_registers_that_did_answer_are_not_marked(self):
-        api = FakeApi(bad_blocks={(4113, 12)}, unreadable_registers=set(range(4113, 4125)))
+        api = FakeApi(
+            bad_blocks={(4113, 12)}, unreadable_registers=set(range(4113, 4125))
+        )
         data = update(api)
         assert REGISTER_MAP["ABSORB_SETPOINT_VOLTAGE"] not in [
             int(key) for key in data["availability"]
@@ -155,6 +177,8 @@ class TestAWedgedRead:
     """A read that never returns must fail the update, not hang Home Assistant."""
 
     class Wedged:
+        """An api whose reads never return, so the update must not hang."""
+
         def __init__(self):
             self.resets = 0
             self.reads = []

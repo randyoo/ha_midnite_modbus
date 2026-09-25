@@ -1,8 +1,24 @@
 """Module defines entity descriptions for Midnite Solar components."""
 
 from dataclasses import dataclass
+from typing import Any
 
 from homeassistant.helpers.entity import EntityDescription
+
+from .const import DEVICE_TYPES, REGISTER_MAP
+from .register_values import serial_from_registers
+
+
+def write_label(entity: Any, fallback: str) -> str:
+    """The entity's human name as a plain str, for the write helpers.
+
+    Home Assistant types Entity.name as str | UndefinedType | None; every
+    entity in this integration carries a fixed name, and the fallback covers
+    a double that forgot to set one. Centralised here so the union never
+    leaks into the write-helper signatures.
+    """
+    name = getattr(entity, "name", None)
+    return name if isinstance(name, str) else fallback
 
 
 @dataclass
@@ -27,9 +43,6 @@ class MidniteBaseEntityDescription(EntityDescription):
         serial_data = coordinator.data["data"].get("serial")
         if not serial_data:
             return None
-        from .const import REGISTER_MAP
-        from .register_values import serial_from_registers
-
         msb = serial_data.get(REGISTER_MAP["SERIAL_NUMBER_MSB_RO"])
         lsb = serial_data.get(REGISTER_MAP["SERIAL_NUMBER_LSB_RO"])
         if msb is None or lsb is None:
@@ -50,8 +63,6 @@ class MidniteBaseEntityDescription(EntityDescription):
         if coordinator.data and "data" in coordinator.data:
             device_info_data = coordinator.data["data"].get("device_info")
             if device_info_data:
-                from .const import REGISTER_MAP, DEVICE_TYPES
-                
                 low_word = device_info_data.get(REGISTER_MAP["DEVICE_ID_LOW_WORD"])
                 high_word = device_info_data.get(REGISTER_MAP["DEVICE_ID_HIGH_WORD"])
                 if low_word is not None and high_word is not None:
@@ -60,18 +71,22 @@ class MidniteBaseEntityDescription(EntityDescription):
                     unit_id_value = device_info_data.get(REGISTER_MAP["UNIT_ID"])
                     if unit_id_value is not None:
                         device_type = unit_id_value & 0xFF  # Get LSB (unit type)
-                        model = DEVICE_TYPES.get(device_type, f"Unknown ({device_type})")
+                        model = DEVICE_TYPES.get(
+                            device_type, f"Unknown ({device_type})"
+                        )
                     else:
                         model = "Midnite Solar Device"
-                     
+
                     # Get PCB revision from UNIT_ID register (bits 8-15)
                     pcb_revision = None
                     if unit_id_value is not None:
                         pcb_revision = (unit_id_value >> 8) & 0xFF
-                     
+
                     # Get software build date
                     sw_date_ro = device_info_data.get(REGISTER_MAP["UNIT_SW_DATE_RO"])
-                    sw_date_month_day = device_info_data.get(REGISTER_MAP["UNIT_SW_DATE_MONTH_DAY"])
+                    sw_date_month_day = device_info_data.get(
+                        REGISTER_MAP["UNIT_SW_DATE_MONTH_DAY"]
+                    )
                     sw_build_date = None
                     if sw_date_ro is not None and sw_date_month_day is not None:
                         # Format: YYYY-MM-DD from two registers.
@@ -79,20 +94,26 @@ class MidniteBaseEntityDescription(EntityDescription):
                         # LSB=day. f-string formatting cannot raise ValueError or
                         # TypeError here, so there is nothing to catch.
                         year = sw_date_ro & 0xFFFF  # Get full 16-bit value for year
-                        month = (sw_date_month_day >> 8) & 0xFF  # Extract high byte (MSB)
+                        month = (
+                            sw_date_month_day >> 8
+                        ) & 0xFF  # Extract high byte (MSB)
                         day = sw_date_month_day & 0xFF  # Extract low byte (LSB)
                         sw_build_date = f"{year:04d}-{month:02d}-{day:02d}"
-                     
+
                     return {
                         "identifiers": {(domain, str(device_id))},
                         "name": f"{model} ({device_id})",
                         "manufacturer": "Midnite Solar",
                         "model": model,
-                        "hw_version": f"PCB {pcb_revision}" if pcb_revision is not None else None,
+                        "hw_version": f"PCB {pcb_revision}"
+                        if pcb_revision is not None
+                        else None,
                         "sw_version": sw_build_date,
-                        "serial_number": MidniteBaseEntityDescription.serial_number(coordinator),
+                        "serial_number": MidniteBaseEntityDescription.serial_number(
+                            coordinator
+                        ),
                     }
-        
+
         # Fallback to entry_id if device ID not available
         return {
             "identifiers": {(domain, entry.entry_id)},

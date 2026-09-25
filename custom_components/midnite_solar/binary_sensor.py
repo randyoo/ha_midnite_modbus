@@ -13,9 +13,12 @@ hardware jumper that bypasses the Ethernet write protect is missing.
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
-from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
+from homeassistant.components.binary_sensor import (
+    BinarySensorDeviceClass,
+    BinarySensorEntity,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -73,16 +76,21 @@ async def async_setup_entry(
         InfoFlagBinarySensor(coordinator, entry, flag) for flag in FLAG_ENTITIES
     )
     async_add_entities(
-        NetworkFlagBinarySensor(coordinator, entry, flag) for flag in NETWORK_FLAG_ENTITIES
+        NetworkFlagBinarySensor(coordinator, entry, flag)
+        for flag in NETWORK_FLAG_ENTITIES
     )
 
 
-class InfoFlagBinarySensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], BinarySensorEntity):
+class InfoFlagBinarySensor(
+    CoordinatorEntity[MidniteSolarUpdateCoordinator], BinarySensorEntity
+):
     """One Info Flag Bit from Table 4130-1."""
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 
-    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any, flag: str):
+    def __init__(
+        self, coordinator: MidniteSolarUpdateCoordinator, entry: Any, flag: str
+    ):
         """Initialize the binary sensor for one flag."""
         super().__init__(coordinator)
         self._entry = entry
@@ -108,7 +116,7 @@ class InfoFlagBinarySensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], Bin
         )
 
     @property
-    def info_flags(self) -> Optional[int]:
+    def info_flags(self) -> int | None:
         """Return the 32 Info Flags, or None while they are not readable."""
         if not self.coordinator.data or "data" not in self.coordinator.data:
             return None
@@ -122,7 +130,7 @@ class InfoFlagBinarySensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], Bin
         return combine32(low, high)
 
     @property
-    def is_on(self) -> Optional[bool]:
+    def is_on(self) -> bool | None:
         """Return True if the flag is set."""
         flags = self.info_flags
         if flags is None:
@@ -130,7 +138,7 @@ class InfoFlagBinarySensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], Bin
         return info_flag_set(flags, INFO_FLAGS[self._flag])
 
     @property
-    def extra_state_attributes(self) -> dict[str, Optional[int]]:
+    def extra_state_attributes(self) -> dict[str, int | None]:
         """Return the raw flag words, so a flag can be decoded without HA."""
         flags = self.info_flags
         return {"info_flags": flags if flags is not None else None}
@@ -145,12 +153,16 @@ NETWORK_FLAG_ENTITIES = {
 }
 
 
-class NetworkFlagBinarySensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], BinarySensorEntity):
+class NetworkFlagBinarySensor(
+    CoordinatorEntity[MidniteSolarUpdateCoordinator], BinarySensorEntity
+):
     """One flag from Table 20481-1, register 20481."""
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 
-    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any, flag: str):
+    def __init__(
+        self, coordinator: MidniteSolarUpdateCoordinator, entry: Any, flag: str
+    ):
         """Initialize the binary sensor for one network flag."""
         super().__init__(coordinator)
         self._entry = entry
@@ -168,7 +180,7 @@ class NetworkFlagBinarySensor(CoordinatorEntity[MidniteSolarUpdateCoordinator], 
         )
 
     @property
-    def is_on(self) -> Optional[bool]:
+    def is_on(self) -> bool | None:
         """Return True if the flag is set."""
         if not self.coordinator.data or "data" not in self.coordinator.data:
             return None

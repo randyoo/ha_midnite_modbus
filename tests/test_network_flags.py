@@ -10,19 +10,15 @@ From the register map:
    first clear the DHCP flag in the IP Settings Register (20481)."
 """
 
-import pytest
 from fakes import FakeApi, FakeCoordinator
+from midnite_solar.binary_sensor import NETWORK_FLAG_ENTITIES, NetworkFlagBinarySensor
+from midnite_solar.const import NETWORK_FLAGS, REGISTER_GROUPS, REGISTER_MAP
+from midnite_solar.coordinator import register_blocks
+import pytest
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Hass
 from homeassistant.helpers.entity import EntityCategory
-
-from midnite_solar.binary_sensor import NETWORK_FLAG_ENTITIES, NetworkFlagBinarySensor
-from midnite_solar.const import (
-    NETWORK_FLAGS,
-    REGISTER_GROUPS,
-    REGISTER_MAP,
-)
-from midnite_solar.coordinator import register_blocks
 
 
 @pytest.fixture
@@ -78,7 +74,9 @@ class TestDHCPFlag:
         assert flag_sensor(entry, "DHCP").is_on is None
 
     def test_the_raw_register_travels_with_it(self, entry):
-        assert flag_sensor(entry, "DHCP", 0x0003).extra_state_attributes == {"ip_settings": 3}
+        assert flag_sensor(entry, "DHCP", 0x0003).extra_state_attributes == {
+            "ip_settings": 3
+        }
 
 
 class TestWebAccessFlag:

@@ -26,9 +26,9 @@ time a moment later (FINDINGS section 40: the Classic Ethernet stack owns the cl
 
 from __future__ import annotations
 
-import logging
 from datetime import datetime
-from typing import Any, Optional, Tuple
+import logging
+from typing import Any
 
 from homeassistant.components.http import HomeAssistantView
 from homeassistant.exceptions import HomeAssistantError
@@ -40,6 +40,20 @@ from .const import BRIDGE_URL_PREFIX, DOMAIN, PIN_HEADER
 _LOGGER = logging.getLogger(__name__)
 
 
+class _BodyError(Exception):
+    """Internal plumbing: carries a prepared 400 answer out of body().
+
+    It exists so body() can have ONE honest return type (the JSON object)
+    instead of a tuple whose None-ness mypy cannot correlate across the
+    call sites.
+    """
+
+    def __init__(self, answer: Any) -> None:
+        """Carry the view's prepared JSON answer."""
+        super().__init__("the request body was not a JSON object")
+        self.answer = answer
+
+
 class MidniteBridgeView(HomeAssistantView):
     """Shared plumbing: find the entry's coordinator, answer in JSON."""
 
@@ -48,30 +62,36 @@ class MidniteBridgeView(HomeAssistantView):
     # was doing nothing the PIN does not do better and specific to the MPPT.
     requires_auth = False
 
-    def coordinator_for(self, request: Any, entry_id: str) -> Optional[Any]:
+    def coordinator_for(self, request: Any, entry_id: str) -> Any | None:
+        """Look the entry's coordinator up fresh, so a reload never stacks."""
         return request.app["hass"].data.get(DOMAIN, {}).get(entry_id)
 
     def missing_entry(self, entry_id: str):
+        """404 for an entry this HA does not (or no longer) serves."""
         return self.json(
             {"error": f"no Midnite Solar entry {entry_id}"}, status_code=404
         )
 
     def refused(self, error: Exception):
+        """400 with the integration's own wording, kept verbatim."""
         return self.json({"error": str(error)}, status_code=400)
 
-    async def body(self, request: Any) -> Tuple[Optional[dict], Any]:
-        """(body, error_response): a JSON object, or the answer to give."""
+    async def body(self, request: Any) -> dict:
+        """The request's JSON object, or _BodyError carrying the 400 answer."""
         try:
             body = await request.json()
-        except Exception:
-            return None, self.json(
-                {"error": "the body must be a JSON object"}, status_code=400
-            )
+        except Exception as e:
+            # Anything aiohttp can throw for a body it cannot turn into a
+            # JSON object (not JSON, gzip surprise, size limit) gets the
+            # same 400 answer: the client wrote the body wrong.
+            raise _BodyError(
+                self.json({"error": "the body must be a JSON object"}, status_code=400)
+            ) from e
         if not isinstance(body, dict):
-            return None, self.json(
-                {"error": "the body must be a JSON object"}, status_code=400
+            raise _BodyError(
+                self.json({"error": "the body must be a JSON object"}, status_code=400)
             )
-        return body, None
+        return body
 
     def pin_gate(self, request: Any, coordinator: Any):
         """The write-PIN gate in front of every call that changes the Classic.
@@ -98,6 +118,7 @@ class MidniteStateView(MidniteBridgeView):
     name = "api:midnite:state"
 
     async def get(self, request: Any, entry_id: str):
+        """Answer the last poll, verbatim, without touching the wire."""
         coordinator = self.coordinator_for(request, entry_id)
         if coordinator is None:
             return self.missing_entry(entry_id)
@@ -119,18 +140,22 @@ class MidnitePinView(MidniteBridgeView):
     name = "api:midnite:pin"
 
     async def post(self, request: Any, entry_id: str):
+        """Check a PIN against the gate WITHOUT changing the Classic."""
         coordinator = self.coordinator_for(request, entry_id)
         if coordinator is None:
             return self.missing_entry(entry_id)
-        body, error = await self.body(request)
-        if error is not None:
-            return error
+        try:
+            body = await self.body(request)
+        except _BodyError as bad:
+            return bad.answer
         presented = body.get("pin")
         if not isinstance(presented, str):
             # A probe with no pin field is a malformed request, not a guess:
             # answer 400 WITHOUT consulting the gate, so a client that posts
             # empty bodies cannot spend anyone's lockout ladder.
-            return self.json({"error": "the probe needs a pin as text"}, status_code=400)
+            return self.json(
+                {"error": "the probe needs a pin as text"}, status_code=400
+            )
         refused = bridge.check_write_pin(coordinator, presented)
         if refused is not None:
             status, message = refused
@@ -150,15 +175,17 @@ class MidniteWriteView(MidniteBridgeView):
     name = "api:midnite:write"
 
     async def post(self, request: Any, entry_id: str):
+        """Write one register through the PIN gate and the read-back check."""
         coordinator = self.coordinator_for(request, entry_id)
         if coordinator is None:
             return self.missing_entry(entry_id)
         refused = self.pin_gate(request, coordinator)
         if refused is not None:
             return refused
-        body, error = await self.body(request)
-        if error is not None:
-            return error
+        try:
+            body = await self.body(request)
+        except _BodyError as bad:
+            return bad.answer
         if "register" not in body or "value" not in body:
             return self.json(
                 {"error": "the write needs a register and a value"}, status_code=400
@@ -183,22 +210,24 @@ class MidniteClockView(MidniteBridgeView):
     name = "api:midnite:clock"
 
     async def post(self, request: Any, entry_id: str):
+        """Reboot the Classic; it drops the connection as it restarts."""
         coordinator = self.coordinator_for(request, entry_id)
         if coordinator is None:
             return self.missing_entry(entry_id)
         refused = self.pin_gate(request, coordinator)
         if refused is not None:
             return refused
-        body, error = await self.body(request)
-        if error is not None:
-            return error
+        try:
+            body = await self.body(request)
+        except _BodyError as bad:
+            return bad.answer
         raw = body.get("time")
         if not isinstance(raw, str):
             return self.json(
                 {"error": "the clock needs a time as ISO 8601 text"}, status_code=400
             )
         try:
-            when = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            when = datetime.fromisoformat(raw)  # 3.11+ parses the Z suffix
         except ValueError:
             return self.json(
                 {"error": f"{raw!r} is not ISO 8601 time"}, status_code=400
@@ -206,7 +235,9 @@ class MidniteClockView(MidniteBridgeView):
         if when.tzinfo is not None:
             when = dt_util.as_local(when)
         try:
-            answer = await bridge.async_bridge_clock(request.app["hass"], coordinator, when)
+            answer = await bridge.async_bridge_clock(
+                request.app["hass"], coordinator, when
+            )
         except HomeAssistantError as e:
             return self.refused(e)
         return self.json(answer)
@@ -224,6 +255,7 @@ class MidniteRebootView(MidniteBridgeView):
     name = "api:midnite:reboot"
 
     async def post(self, request: Any, entry_id: str):
+        """Commit every pending (EE) setting with one ForceEEpromUpdate."""
         coordinator = self.coordinator_for(request, entry_id)
         if coordinator is None:
             return self.missing_entry(entry_id)
@@ -249,6 +281,7 @@ class MidniteEepromSaveView(MidniteBridgeView):
     name = "api:midnite:save"
 
     async def post(self, request: Any, entry_id: str):
+        """Sweep the Classic's whole year of stored days onto the one wire."""
         coordinator = self.coordinator_for(request, entry_id)
         if coordinator is None:
             return self.missing_entry(entry_id)
@@ -276,6 +309,7 @@ class MidniteDataloggerView(MidniteBridgeView):
     name = "api:midnite:datalogger"
 
     async def get(self, request: Any, entry_id: str):
+        """Answer the last swept days from the cache; no PIN, no wire."""
         coordinator = self.coordinator_for(request, entry_id)
         if coordinator is None:
             return self.missing_entry(entry_id)
@@ -303,6 +337,7 @@ class MidniteDataloggerRefreshView(MidniteBridgeView):
     name = "api:midnite:datalogger-refresh"
 
     async def post(self, request: Any, entry_id: str):
+        """Answer the reboot endpoint through the PIN gate."""
         coordinator = self.coordinator_for(request, entry_id)
         if coordinator is None:
             return self.missing_entry(entry_id)

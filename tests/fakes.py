@@ -3,21 +3,21 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
-
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from typing import Any
 
 from midnite_solar.const import REGISTER_GROUPS
+
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 
 class ModbusResult:
     """Stands in for a pymodbus response."""
 
-    def __init__(self, registers: Optional[list[int]] = None, error: bool = False):
+    def __init__(self, registers: list[int] | None = None, error: bool = False):
         self.registers = registers or []
         self._error = error
 
-    def isError(self) -> bool:  # noqa: N802 - pymodbus spelling
+    def isError(self) -> bool:
         return self._error
 
 
@@ -30,13 +30,13 @@ class FakeApi:
 
     def __init__(
         self,
-        read_values: Optional[dict[int, int]] = None,
+        read_values: dict[int, int] | None = None,
         fail_writes=False,
         error_writes=False,
         stale_read: bool = False,
         unreadable: bool = False,
-        bad_blocks: Optional[set[tuple[int, int]]] = None,
-        unreadable_registers: Optional[set[int]] = None,
+        bad_blocks: set[tuple[int, int]] | None = None,
+        unreadable_registers: set[int] | None = None,
     ):
         self.read_values = read_values or {}
         self.writes: list[tuple[int, int]] = []
@@ -85,7 +85,9 @@ class FakeApi:
         if count == 1 and address in self.late_values:
             return ModbusResult(registers=[self.late_values[address]])
         return ModbusResult(
-            registers=[self.read_values.get(address + offset, 0) for offset in range(count)]
+            registers=[
+                self.read_values.get(address + offset, 0) for offset in range(count)
+            ]
         )
 
     def write_internal(self, device, data, address=0, retries: int = 2):
@@ -122,7 +124,7 @@ class FakeCoordinator(DataUpdateCoordinator):
         self,
         hass,
         api: FakeApi,
-        groups: Optional[dict[str, dict[int, int]]] = None,
+        groups: dict[str, dict[int, int]] | None = None,
         auto_save_eeprom: bool = True,
     ):
         super().__init__(hass, logging.getLogger(__name__), name="midnite_solar")

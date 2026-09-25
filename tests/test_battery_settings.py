@@ -17,13 +17,7 @@ from __future__ import annotations
 
 import asyncio
 
-import pytest
 from fakes import FakeApi, FakeCoordinator
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import Hass
-from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.entity import EntityCategory
-
 from midnite_solar.const import (
     EE_BACKED_REGISTERS,
     NOMINAL_BATTERY_VOLTAGES,
@@ -32,6 +26,12 @@ from midnite_solar.const import (
 )
 from midnite_solar.number import EndingAmperageNumber, RebulkVoltageNumber
 from midnite_solar.select import NominalBatteryVoltageSelect
+import pytest
+
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import Hass
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.entity import EntityCategory
 
 
 @pytest.fixture
@@ -86,7 +86,18 @@ class TestNominalVoltageTable:
 class TestNominalVoltageSelect:
     def test_the_options_are_volts(self, entry):
         entity = select(FakeApi(), entry, 48)
-        assert entity.options == ["12 V", "24 V", "36 V", "48 V", "60 V", "72 V", "84 V", "96 V", "108 V", "120 V"]
+        assert entity.options == [
+            "12 V",
+            "24 V",
+            "36 V",
+            "48 V",
+            "60 V",
+            "72 V",
+            "84 V",
+            "96 V",
+            "108 V",
+            "120 V",
+        ]
 
     def test_the_stored_volts_read_back_as_themselves(self, entry):
         assert select(FakeApi(), entry, 48).current_option == "48 V"
@@ -142,7 +153,11 @@ class TestEndingAmperage:
 
     def test_writing_sends_tenths_then_commits(self, entry):
         api = FakeApi()
-        asyncio.run(number(EndingAmperageNumber, api, entry, 4246, 50).async_set_native_value(3.5))
+        asyncio.run(
+            number(EndingAmperageNumber, api, entry, 4246, 50).async_set_native_value(
+                3.5
+            )
+        )
         assert api.writes == [(4246, 35), (4160, 0x0004)]
         assert api.reads == [4246]
 
@@ -152,24 +167,37 @@ class TestEndingAmperage:
         assert entity.native_max_value is None
 
     def test_the_step_is_a_tenth_of_an_amp(self, entry):
-        assert number(EndingAmperageNumber, FakeApi(), entry, 4246, 0).native_step == 0.1
+        assert (
+            number(EndingAmperageNumber, FakeApi(), entry, 4246, 0).native_step == 0.1
+        )
 
 
 class TestRebulkVoltage:
     """Register 4249: "([4249] /10) Volts", "Rebulks if battery drops below this for > 90 Seconds"."""
 
     def test_tenths_of_a_volt(self, entry):
-        assert number(RebulkVoltageNumber, FakeApi(), entry, 4249, 520).native_value == 52.0
+        assert (
+            number(RebulkVoltageNumber, FakeApi(), entry, 4249, 520).native_value
+            == 52.0
+        )
 
     def test_writing_sends_tenths_then_commits(self, entry):
         api = FakeApi()
-        asyncio.run(number(RebulkVoltageNumber, api, entry, 4249, 520).async_set_native_value(51.5))
+        asyncio.run(
+            number(RebulkVoltageNumber, api, entry, 4249, 520).async_set_native_value(
+                51.5
+            )
+        )
         assert api.writes == [(4249, 515), (4160, 0x0004)]
 
     def test_a_clamped_write_is_reported(self, entry):
         api = FakeApi(read_values={4249: 520}, stale_read=True)
         with pytest.raises(HomeAssistantError):
-            asyncio.run(number(RebulkVoltageNumber, api, entry, 4249, 520).async_set_native_value(60.0))
+            asyncio.run(
+                number(
+                    RebulkVoltageNumber, api, entry, 4249, 520
+                ).async_set_native_value(60.0)
+            )
 
     def test_the_round_trip_returns_the_number_written(self, entry):
         entity = number(RebulkVoltageNumber, FakeApi(), entry, 4249, 520)

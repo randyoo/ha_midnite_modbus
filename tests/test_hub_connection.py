@@ -8,10 +8,9 @@ use a recorder in place of pymodbus; no socket is opened.
 
 from __future__ import annotations
 
-import pytest
-
 from midnite_solar import hub as hub_module
 from midnite_solar.hub import MidniteHub
+import pytest
 
 
 class Recorder:
@@ -122,7 +121,12 @@ class TestConnectionErrorsAreToldApart:
 
     def test_the_message_is_checked_too(self, monkeypatch):
         hub = make_hub(monkeypatch)
-        assert hub._is_connection_error(RuntimeError("[Errno 104] Connection reset by peer")) is True
+        assert (
+            hub._is_connection_error(
+                RuntimeError("[Errno 104] Connection reset by peer")
+            )
+            is True
+        )
 
     def test_a_wrapped_cause_counts(self, monkeypatch):
         hub = make_hub(monkeypatch)
@@ -142,7 +146,10 @@ class TestConnectionErrorsAreToldApart:
     def test_a_modbus_error_response_is_not_a_connection_error(self, monkeypatch):
         """An exception code from the device means the socket is fine."""
         hub = make_hub(monkeypatch)
-        assert hub._is_connection_error(Exception("Modbus error: illegal data address")) is False
+        assert (
+            hub._is_connection_error(Exception("Modbus error: illegal data address"))
+            is False
+        )
 
 
 class TestReading:
@@ -186,11 +193,15 @@ class TestReading:
         """
         import inspect
 
-        default = inspect.signature(MidniteHub.read_holding_registers).parameters["retries"].default
+        default = (
+            inspect.signature(MidniteHub.read_holding_registers)
+            .parameters["retries"]
+            .default
+        )
         assert default == 5
 
     def test_a_read_that_times_out_reconnects(self, monkeypatch):
-        """pymodbus' "no response" ModbusIOException is a dead socket, not a bad register.
+        """Pymodbus' "no response" ModbusIOException is a dead socket, not a bad register.
 
         On a device that drops idle connections, matching neither errno nor the old
         message fragments meant all retries ran against the same half-open pipe.
@@ -208,11 +219,12 @@ class TestReading:
         Recorder.log = []
         assert hub.read_holding_registers(4113, 1, retries=2) is None
         connects = [event for event in Recorder.log if event[0] == "connect"]
-        assert connects, "a read timeout must force a reconnect, not retry the dead pipe"
+        assert connects, (
+            "a read timeout must force a reconnect, not retry the dead pipe"
+        )
 
     def test_a_dead_socket_is_replaced_and_the_read_retried(self, monkeypatch):
         hub = make_hub(monkeypatch)
-        first = hub._client
 
         class DiesOnRead(Recorder):
             def read_holding_registers(self, address=0, count=1, **kwargs):
@@ -278,7 +290,9 @@ class TestWriting:
         assert result.isError() is True
         assert Recorder.writes.count((4148, 576)) == 2, "it tried twice and stopped"
 
-    def test_a_stale_socket_during_unlock_reconnects_instead_of_raising(self, monkeypatch):
+    def test_a_stale_socket_during_unlock_reconnects_instead_of_raising(
+        self, monkeypatch
+    ):
         """The unlock is a write too; a half-open socket must reconnect, not escape.
 
         Before the fix the raw unlock write sat outside the guarded block, so the
@@ -356,7 +370,9 @@ class TestResetting:
                 super().close()
 
         monkeypatch.setattr(hub_module, "ModbusTcpClient", Logging)
-        monkeypatch.setattr(hub_module.time, "sleep", lambda seconds: order.append("wait"))
+        monkeypatch.setattr(
+            hub_module.time, "sleep", lambda seconds: order.append("wait")
+        )
         hub._client = Logging()
         hub._client.open = True
         order.clear()

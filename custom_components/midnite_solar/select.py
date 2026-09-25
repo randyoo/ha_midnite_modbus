@@ -3,22 +3,21 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
-
-from .base import MidniteBaseEntityDescription
+from typing import Any
 
 from homeassistant.components.select import SelectEntity
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityCategory
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .base import MidniteBaseEntityDescription, write_label
 from .const import (
-    AUX_OFF_AUTO_ON,
     AUX1_FUNCTIONS,
     AUX2_FUNCTIONS,
     AUX_FIELDS,
+    AUX_OFF_AUTO_ON,
     DOMAIN,
     FORCE_FLAGS,
     MPPT_MODES,
@@ -44,7 +43,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up Midnite Solar selectors."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    
+
     selectors = [
         ChargeModeSelector(coordinator, entry),
         MPPTModeSelector(coordinator, entry),
@@ -57,18 +56,20 @@ async def async_setup_entry(
         # A multiple of twelve is a choice out of ten values, so it is a select.
         NominalBatteryVoltageSelect(coordinator, entry),
     ]
-    
+
     async_add_entities(selectors)
 
 
-class MidniteSolarSelect(CoordinatorEntity[MidniteSolarUpdateCoordinator], SelectEntity):
+class MidniteSolarSelect(
+    CoordinatorEntity[MidniteSolarUpdateCoordinator], SelectEntity
+):
     """Base class for all Midnite Solar selectors."""
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the selector."""
         super().__init__(coordinator)
         self._entry = entry
-        
+
         # Create device info - will be updated dynamically when data becomes available
         self._attr_device_info = {
             "identifiers": {(DOMAIN, entry.entry_id)},
@@ -95,7 +96,7 @@ class ChargeModeSelector(MidniteSolarSelect):
         self._attr_options = ["None", "Float", "Bulk", "Equalize"]
 
     @property
-    def current_option(self) -> Optional[str]:
+    def current_option(self) -> str | None:
         """Return the currently selected option."""
         # Check which force flag is active by reading the charge stage
         if self.coordinator.data and "data" in self.coordinator.data:
@@ -105,15 +106,15 @@ class ChargeModeSelector(MidniteSolarSelect):
                 if raw_value is not None:
                     # Extract MSB (high byte) for charge stage
                     charge_stage_value = (raw_value >> 8) & 0xFF
-                    
+
                     # Map charge stages to mode names
                     if charge_stage_value == 5:  # Float
                         return "Float"
-                    elif charge_stage_value == 4:  # BulkMPPT
+                    if charge_stage_value == 4:  # BulkMPPT
                         return "Bulk"
-                    elif charge_stage_value == 7:  # Equalize
+                    if charge_stage_value == 7:  # Equalize
                         return "Equalize"
-        
+
         return "None"
 
     async def async_select_option(self, option: str) -> None:
@@ -121,16 +122,18 @@ class ChargeModeSelector(MidniteSolarSelect):
         if option == "None":
             _LOGGER.info("Force charge mode control: No action")
             return
-        
+
         # Map option to force flag
         flag_map = {
             "Float": FORCE_FLAGS["ForceFloat"],
             "Bulk": FORCE_FLAGS["ForceBulk"],
             "Equalize": FORCE_FLAGS["ForceEqualize"],
         }
-        
+
         if option not in flag_map:
-            raise HomeAssistantError(f"{option} is not a charge mode that can be forced")
+            raise HomeAssistantError(
+                f"{option} is not a charge mode that can be forced"
+            )
         flag_bit = flag_map[option]
         flag_value = 1 << flag_bit
         # Table 4160-1 lists the flags as 32-bit values over two registers, so the
@@ -138,10 +141,10 @@ class ChargeModeSelector(MidniteSolarSelect):
         # failed press has to raise, or Home Assistant shows a charge mode that the
         # Classic never accepted.
         register, word = force_flag_write(flag_value)
-        await async_write_setting(self.hass, self.coordinator.api, register, word, f"Force {option}")
+        await async_write_setting(
+            self.hass, self.coordinator.api, register, word, f"Force {option}"
+        )
         await self.coordinator.async_request_refresh()
-
-
 
 
 class MidniteSolarSettingSelect(MidniteSolarSelect):
@@ -149,7 +152,9 @@ class MidniteSolarSettingSelect(MidniteSolarSelect):
 
     async def _async_write(self, address: int, value: int, label: str) -> None:
         """Write the setting, optionally commit to EEPROM, then refresh."""
-        await async_write_setting(self.hass, self.coordinator.api, address, value, label)
+        await async_write_setting(
+            self.hass, self.coordinator.api, address, value, label
+        )
         await async_auto_save_if_enabled(self.hass, self.coordinator, label)
         await async_verify_write(
             self.hass,
@@ -178,21 +183,25 @@ class MPPTModeSelector(MidniteSolarSettingSelect):
         self._attr_options = [
             name for name in MPPT_MODES.values() if name != "RESERVED"
         ] + [MPPT_OFF]
-        self._attr_entity_category = EntityCategory.DIAGNOSTIC  # Move to Diagnostics category
+        self._attr_entity_category = (
+            EntityCategory.DIAGNOSTIC
+        )  # Move to Diagnostics category
         # The mode selector is a primary control (it is where MPPT gets turned
         # off), and the charge-mode selector beside it was never hidden; a
         # disabled-by-default one meant a fresh install could not see it.
         self._attr_entity_registry_enabled_default = True
 
     @property
-    def current_option(self) -> Optional[str]:
+    def current_option(self) -> str | None:
         """Return the mode, marked "(Off)" when bit 0 is clear.
 
         Table 4164-1 lists the modes with MPPT enabled and says to "Subtract One
         (1) if showing mode as OFF", so an even register value is that mode with
         MPPT disabled, and 0x0000 is MPPT off altogether.
         """
-        value = register_value(self.coordinator.data, "settings", REGISTER_MAP["MPPT_MODE"])
+        value = register_value(
+            self.coordinator.data, "settings", REGISTER_MAP["MPPT_MODE"]
+        )
         if value is None:
             return None
         if value == 0:
@@ -210,11 +219,13 @@ class MPPTModeSelector(MidniteSolarSettingSelect):
         if option == MPPT_OFF:
             value = 0
         else:
-            value = next(
-                (address for address, name in MPPT_MODES.items() if name == option), None
+            found = next(
+                (address for address, name in MPPT_MODES.items() if name == option),
+                None,
             )
-            if value is None:
+            if found is None:
                 raise HomeAssistantError(f"{option} is not a mode in Table 4164-1")
+            value = found
         await self._async_write(REGISTER_MAP["MPPT_MODE"], value, f"MPPT mode {option}")
 
 
@@ -235,14 +246,14 @@ class AuxFieldSelect(MidniteSolarSelect):
     # Values the Classic can report that a user cannot ask for.
     _unselectable: tuple = ()
 
-    def _register(self) -> Optional[int]:
+    def _register(self) -> int | None:
         """Return the current packed Aux register."""
         return register_value(
             self.coordinator.data, "aux_settings", REGISTER_MAP["AUX_1_AND_2_FUNCTION"]
         )
 
     @property
-    def current_option(self) -> Optional[str]:
+    def current_option(self) -> str | None:
         """Return what this field of the register currently says."""
         value = self._register()
         if value is None:
@@ -253,7 +264,9 @@ class AuxFieldSelect(MidniteSolarSelect):
 
     async def async_select_option(self, option: str) -> None:
         """Change this field, leaving every other field of 4165 alone."""
-        code = next((value for value, name in self._labels.items() if name == option), None)
+        code = next(
+            (value for value, name in self._labels.items() if name == option), None
+        )
         if code is None:
             raise HomeAssistantError(f"{option} is not a value the register map gives")
         if code in self._unselectable:
@@ -268,20 +281,23 @@ class AuxFieldSelect(MidniteSolarSelect):
             )
         mask, shift = AUX_FIELDS[self._field]
         new_value = write_field(current, mask, shift, code)
+        # Entity.name is typed str | UndefinedType | None in HA; the write
+        # helpers want a plain human label (see base.write_label).
+        label = write_label(self, "Aux setting")
         await async_write_setting(
             self.hass,
             self.coordinator.api,
             REGISTER_MAP["AUX_1_AND_2_FUNCTION"],
             new_value,
-            self.name,
+            label,
         )
-        await async_auto_save_if_enabled(self.hass, self.coordinator, self.name)
+        await async_auto_save_if_enabled(self.hass, self.coordinator, label)
         await async_verify_write(
             self.hass,
             self.coordinator.api,
             REGISTER_MAP["AUX_1_AND_2_FUNCTION"],
             new_value,
-            self.name,
+            label,
             lambda raw: f"0x{raw:04X}",
         )
         await self.coordinator.async_request_refresh()
@@ -345,7 +361,9 @@ class Aux1StateSelect(AuxStateSelect):
         self._attr_name = "AUX 1 State"
         self._attr_unique_id = f"{entry.entry_id}_aux1_state_select"
         self._attr_options = [
-            name for code, name in self._labels.items() if code not in self._unselectable
+            name
+            for code, name in self._labels.items()
+            if code not in self._unselectable
         ]
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
@@ -362,7 +380,9 @@ class Aux2StateSelect(AuxStateSelect):
         self._attr_name = "AUX 2 State"
         self._attr_unique_id = f"{entry.entry_id}_aux2_state_select"
         self._attr_options = [
-            name for code, name in self._labels.items() if code not in self._unselectable
+            name
+            for code, name in self._labels.items()
+            if code not in self._unselectable
         ]
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
@@ -386,11 +406,13 @@ class NominalBatteryVoltageSelect(MidniteSolarSettingSelect):
         super().__init__(coordinator, entry)
         self._attr_name = "Nominal Battery Voltage"
         self._attr_unique_id = f"{entry.entry_id}_nominal_battery_voltage"
-        self._attr_options = [f"{volts} V" for volts in NOMINAL_BATTERY_VOLTAGES.values()]
+        self._attr_options = [
+            f"{volts} V" for volts in NOMINAL_BATTERY_VOLTAGES.values()
+        ]
         self._attr_entity_category = EntityCategory.CONFIG
 
     @property
-    def current_option(self) -> Optional[str]:
+    def current_option(self) -> str | None:
         """Return the bank voltage the Classic reports.
 
         The register's own value is the volts (48 means 48 V) - bench-confirmed

@@ -14,7 +14,9 @@ import re
 
 import pytest
 
-COMPONENT = pathlib.Path(__file__).resolve().parents[1] / "custom_components" / "midnite_solar"
+COMPONENT = (
+    pathlib.Path(__file__).resolve().parents[1] / "custom_components" / "midnite_solar"
+)
 MANIFEST = json.loads((COMPONENT / "manifest.json").read_text())
 STRINGS = json.loads((COMPONENT / "translations" / "en.json").read_text())
 FLOW_SOURCE = (COMPONENT / "config_flow.py").read_text()
@@ -40,7 +42,6 @@ ALLOWED_KEYS = {
     "documentation",
     "homekit",
     "integration_type",
-    "integration_type",
     "iot_class",
     "iot_standards",
     "issue_tracker",
@@ -64,7 +65,16 @@ IOT_CLASSES = {
     "local_push",
     "calculated",
 }
-INTEGRATION_TYPES = {"device", "entity", "hardware", "helper", "hub", "service", "system", "virtual"}
+INTEGRATION_TYPES = {
+    "device",
+    "entity",
+    "hardware",
+    "helper",
+    "hub",
+    "service",
+    "system",
+    "virtual",
+}
 
 
 def error_keys_the_flow_shows():
@@ -106,7 +116,9 @@ class TestManifest:
         assert (COMPONENT / "config_flow.py").exists()
 
     def test_pymodbus_is_a_requirement(self):
-        assert any("pymodbus" in requirement for requirement in MANIFEST["requirements"])
+        assert any(
+            "pymodbus" in requirement for requirement in MANIFEST["requirements"]
+        )
 
     def test_the_loggers_are_the_libraries_that_log(self):
         assert MANIFEST["loggers"] == ["pymodbus"]
@@ -118,14 +130,24 @@ class TestManifest:
 
     def test_the_dhcp_matchers_are_well_formed(self):
         for matcher in MANIFEST["dhcp"]:
-            assert set(matcher) <= {"hostname", "macaddress", "registered_devices", "manufacturer", "description", "vid", "pid"}
+            assert set(matcher) <= {
+                "hostname",
+                "macaddress",
+                "registered_devices",
+                "manufacturer",
+                "description",
+                "vid",
+                "pid",
+            }
 
     def test_discovery_is_narrowed_to_midnite_hardware(self):
         """A bare "*" hostname would offer this integration for every device on the LAN."""
         hostname_matchers = [m for m in MANIFEST["dhcp"] if "hostname" in m]
         assert hostname_matchers, "DHCP discovery is declared in the manifest"
         for matcher in hostname_matchers:
-            assert matcher.get("macaddress"), "hostname matching needs the OUI beside it"
+            assert matcher.get("macaddress"), (
+                "hostname matching needs the OUI beside it"
+            )
 
     def test_the_documentation_url_points_somewhere(self):
         assert MANIFEST["documentation"].startswith("https://")
@@ -162,7 +184,8 @@ class TestTranslations:
     def test_the_options_flow_step_is_the_one_the_code_uses(self):
         """async_step_init is the step Home Assistant will show; every field
         its schema asks for - both cadences, the bridge toggle, and the write
-        PIN - carries a label, so nothing renders as a bare key."""
+        PIN - carries a label, so nothing renders as a bare key.
+        """
         assert "init" in STRINGS["options"]["step"]
         assert {
             "scan_interval",
@@ -175,7 +198,8 @@ class TestTranslations:
         """A field error the options step raises (errors[CONF_x] = "key") must
         have a string, else the UI shows a bare key. Validation of the write PIN
         is in the step (a schema validator 500'd the form), so its error key has
-        to be translated here."""
+        to be translated here.
+        """
         raised = set(re.findall(r'errors\[[A-Z_]+\] = "([a-z_]+)"', FLOW_SOURCE))
         written = set(STRINGS["options"]["step"]["init"].get("error", {}))
         assert raised, "the options step is expected to raise at least one field error"

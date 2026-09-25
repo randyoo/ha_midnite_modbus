@@ -48,21 +48,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     sensor_interval = entry.options.get(CONF_SENSOR_INTERVAL, DEFAULT_SENSOR_INTERVAL)
 
     _LOGGER.info(
-        f"Setting up Midnite Solar at {host}:{port} (Classic polled every "
-        f"{interval}s, sensors republished at most every {sensor_interval}s)"
+        "Setting up Midnite Solar at %s:%s (Classic polled every %ss, sensors "
+        "republished at most every %ss)",
+        host,
+        port,
+        interval,
+        sensor_interval,
     )
 
     # Create coordinator for data updates
-    coordinator = MidniteSolarUpdateCoordinator(hass, host, port, interval, sensor_interval)
+    coordinator = MidniteSolarUpdateCoordinator(
+        hass, host, port, interval, sensor_interval
+    )
 
     # The write PIN the bridge gates every settings-changing call on (the
     # entry's own, or the default until the entry sets one). Stored here, not
     # read per-request, so an owner changing it reloads the entry and resets
     # the lockout ladder along with the old PIN - the reload IS the point at
     # which a changed PIN becomes live, exactly like the intervals.
-    coordinator.write_pin = str(
-        entry.options.get(CONF_WRITE_PIN, DEFAULT_WRITE_PIN)
-    )
+    coordinator.write_pin = str(entry.options.get(CONF_WRITE_PIN, DEFAULT_WRITE_PIN))
 
     # Publish the coordinator before the first refresh so the teardown below can
     # always find and undo it, and store it before connect so a failed connect
@@ -80,10 +84,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # connect() answers with a bool; a refused-but-no-exception connect must not
         # be logged as a success and carried on from.
         if not connected:
-            raise OSError("the device refused the Modbus connection")
+            # Turned into an exception so the one conversion point below sees a
+            # refused connect the same way it sees a thrown one.
+            raise OSError("the device refused the Modbus connection")  # noqa: TRY301
         _LOGGER.info("Successfully connected to Midnite Solar device")
         await coordinator.async_config_entry_first_refresh()
     except Exception as e:
+        # Broad ON PURPOSE at the setup boundary: on this single-connection
+        # device a failed setup must ALWAYS land in the teardown below and
+        # then in HA's retry, never as a hard setup error that leaves the
+        # coordinator's socket holding the Classic's one session forever.
         await _teardown_coordinator(hass, entry, coordinator)
         raise ConfigEntryNotReady("Could not connect to Midnite Solar device") from e
 
@@ -92,7 +102,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # The bridge (LAN API + mDNS record) comes up after the first refresh so
     # the identity it advertises is the Classic's own, and only when the
     # options say so; the record is withdrawn on every teardown path.
-    bridge_enabled = bool(entry.options.get(CONF_BRIDGE_ENABLED, DEFAULT_BRIDGE_ENABLED))
+    bridge_enabled = bool(
+        entry.options.get(CONF_BRIDGE_ENABLED, DEFAULT_BRIDGE_ENABLED)
+    )
     coordinator.bridge_enabled = bridge_enabled
     if bridge_enabled:
         await async_start_bridge(hass, entry, coordinator)
@@ -114,14 +126,15 @@ async def _teardown_coordinator(
         hass.data[DOMAIN].pop(entry.entry_id, None)
     try:
         await coordinator.async_shutdown()
-    except Exception as e:
-        _LOGGER.error(f"Error shutting down coordinator after a failed setup: {e}")
+    except Exception as e:  # noqa: BLE001
+        # Cleanup must not raise: the failure that got us here is the story.
+        _LOGGER.error("Error shutting down coordinator after a failed setup: %s", e)
     # Guarded so a socket that is already wedged cannot turn the cleanup into a
     # hang (which would block the retry Home Assistant is about to schedule).
     try:
         await hass.async_add_executor_job(coordinator.api.disconnect)
-    except Exception as e:
-        _LOGGER.error(f"Error disconnecting after a failed setup: {e}")
+    except Exception as e:  # noqa: BLE001
+        _LOGGER.error("Error disconnecting after a failed setup: %s", e)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -137,7 +150,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # started its bridge has nothing to withdraw.
     try:
         await async_stop_bridge(hass, entry)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
+        # Withdrawal is best-effort; the unload must proceed whether or not
+        # the advertisement closed cleanly.
         _LOGGER.error("Error stopping the bridge: %s", e)
 
     coordinator = hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
@@ -147,20 +162,26 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # (and leave a second coordinator alive) after a reload.
         try:
             await coordinator.async_shutdown()
-        except Exception as e:
-            _LOGGER.error(f"Error shutting down coordinator: {e}")
+        except Exception as e:  # noqa: BLE001
+            # Cleanup must not raise: the unload is the deliverable.
+            _LOGGER.error("Error shutting down coordinator: %s", e)
         # Disconnect in the executor; guard it so a wedged socket can't block
         # the unload (which would make reload/delete hang).
         try:
             await hass.async_add_executor_job(coordinator.api.disconnect)
-        except Exception as e:
-            _LOGGER.error(f"Error disconnecting from Modbus device: {e}")
+        except Exception as e:  # noqa: BLE001
+            _LOGGER.error("Error disconnecting from Modbus device: %s", e)
 
     return unload_ok
 
 
-async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Handle options updates."""
+async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Handle options updates.
+
+    HA awaits this listener and ignores the result; the HA signature is
+    fixed at Coroutine[HomeAssistant, ConfigEntry, None] - there is
+    nothing to report back.
+    """
     coordinator = hass.data.get(DOMAIN, {}).get(entry.entry_id)
     new_interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
     new_sensor = entry.options.get(CONF_SENSOR_INTERVAL, DEFAULT_SENSOR_INTERVAL)
@@ -176,7 +197,8 @@ async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if (
         coordinator is not None
         and getattr(coordinator, "interval", None) == new_interval
-        and getattr(coordinator, "sensor_interval", DEFAULT_SENSOR_INTERVAL) == new_sensor
+        and getattr(coordinator, "sensor_interval", DEFAULT_SENSOR_INTERVAL)
+        == new_sensor
         and getattr(coordinator, "bridge_enabled", DEFAULT_BRIDGE_ENABLED) == new_bridge
         and getattr(coordinator, "write_pin", DEFAULT_WRITE_PIN) == new_pin
     ):
@@ -188,8 +210,7 @@ async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             new_sensor,
             new_bridge,
         )
-        return True
+        return
 
     _LOGGER.info("Options updated, reloading Midnite Solar integration")
     await hass.config_entries.async_reload(entry.entry_id)
-    return True

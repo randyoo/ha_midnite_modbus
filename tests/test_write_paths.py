@@ -9,37 +9,23 @@ from __future__ import annotations
 
 import asyncio
 
-import pytest
-
 from fakes import FakeApi, FakeCoordinator
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import Hass
-from homeassistant.exceptions import HomeAssistantError
-
+from midnite_solar import number as number_module
 from midnite_solar.button import (
     ForceEEpromUpdateButton,
     ForceSweepButton,
     ResetFaultsButton,
     ResetInfoFlagsButton,
 )
-from midnite_solar import number as number_module
 from midnite_solar.const import (
     AUX_THRESHOLD_SETTINGS,
     EE_BACKED_REGISTERS,
     REGISTER_MAP,
 )
-# The map's own voltage example [64,68,70,72,75,78,81,83,85,87,89,91,93,98,104,112]
-# packed the way the map says: "WindPowerTableV(stp 1) << 8) + WindPowerTableV(stp 0)".
-WIND_STEPS = [64, 68, 70, 72, 75, 78, 81, 83, 85, 87, 89, 91, 93, 98, 104, 112]
-WIND_TABLE = {
-    4301 + even // 2: (WIND_STEPS[even + 1] << 8) | WIND_STEPS[even]
-    for even in range(0, 16, 2)
-}
-
 from midnite_solar.number import (
     AbsorbTimeNumber,
-    AuxThresholdNumber,
     AbsorbVoltageNumber,
+    AuxThresholdNumber,
     BatteryCurrentLimitNumber,
     BatteryTempCompValueNumber,
     EqualizeTimeNumber,
@@ -50,6 +36,19 @@ from midnite_solar.number import (
     WindPowerCurveINumber,
     WindPowerCurveVNumber,
 )
+import pytest
+
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import Hass
+from homeassistant.exceptions import HomeAssistantError
+
+# The map's own voltage example [64,68,70,72,75,78,81,83,85,87,89,91,93,98,104,112]
+# packed the way the map says: "WindPowerTableV(stp 1) << 8) + WindPowerTableV(stp 0)".
+WIND_STEPS = [64, 68, 70, 72, 75, 78, 81, 83, 85, 87, 89, 91, 93, 98, 104, 112]
+WIND_TABLE = {
+    4301 + even // 2: (WIND_STEPS[even + 1] << 8) | WIND_STEPS[even]
+    for even in range(0, 16, 2)
+}
 
 
 @pytest.fixture
@@ -72,7 +71,9 @@ def make_coordinator(hass, api, group="setpoints", registers=None):
 
 
 def absorb(hass, api, entry, value=57.6):
-    coordinator = make_coordinator(hass, api, registers={REGISTER_MAP["ABSORB_SETPOINT_VOLTAGE"]: int(value * 10)})
+    coordinator = make_coordinator(
+        hass, api, registers={REGISTER_MAP["ABSORB_SETPOINT_VOLTAGE"]: int(value * 10)}
+    )
     number = AbsorbVoltageNumber(coordinator, entry)
     asyncio.run(number.async_set_native_value(value))
     return number, coordinator
@@ -97,7 +98,9 @@ class TestAbsorbVoltage:
         assert api.writes[1][0] == REGISTER_MAP["FORCE_FLAG_BITS"] == 4160
         assert coordinator.refresh_requests == 1
 
-    @pytest.mark.parametrize(("value", "raw"), [(13.6, 136), (28.8, 288), (48.0, 480), (57.6, 576)])
+    @pytest.mark.parametrize(
+        ("value", "raw"), [(13.6, 136), (28.8, 288), (48.0, 480), (57.6, 576)]
+    )
     def test_every_set_point_scales_to_tenths(self, hass, api, entry, value, raw):
         absorb(hass, api, entry, value=value)
         assert api.writes[0] == (4149, raw)
@@ -117,18 +120,26 @@ class TestOtherSetPoints:
 
     def test_equalize_voltage_is_committed(self, hass, api, entry):
         coordinator = make_coordinator(hass, api, registers={4151: 630})
-        asyncio.run(EqualizeVoltageNumber(coordinator, entry).async_set_native_value(63.0))
+        asyncio.run(
+            EqualizeVoltageNumber(coordinator, entry).async_set_native_value(63.0)
+        )
         assert api.writes == [(4151, 630), (4160, 0x0004)]
 
     def test_battery_current_limit_follows_the_spec_example(self, hass, api, entry):
         """Spec: "e g. 23.4 A = 234" for register 4148."""
-        coordinator = make_coordinator(hass, api, group="eeprom_settings", registers={4148: 234})
-        asyncio.run(BatteryCurrentLimitNumber(coordinator, entry).async_set_native_value(23.4))
+        coordinator = make_coordinator(
+            hass, api, group="eeprom_settings", registers={4148: 234}
+        )
+        asyncio.run(
+            BatteryCurrentLimitNumber(coordinator, entry).async_set_native_value(23.4)
+        )
         assert api.writes == [(4148, 234), (4160, 0x0004)]
 
     def test_absorb_time_is_written_in_seconds_not_tenths(self, hass, api, entry):
         """Spec: "4154 R/W Absorb Time (EE) [4154] seconds" - the entity is in minutes."""
-        coordinator = make_coordinator(hass, api, group="eeprom_settings", registers={4154: 7200})
+        coordinator = make_coordinator(
+            hass, api, group="eeprom_settings", registers={4154: 7200}
+        )
         number = AbsorbTimeNumber(coordinator, entry)
         asyncio.run(number.async_set_native_value(120))
         assert api.writes == [(4154, 7200), (4160, 0x0004)]
@@ -136,7 +147,9 @@ class TestOtherSetPoints:
 
     def test_min_absorb_time_is_plain_seconds(self, hass, api, entry):
         """Spec: "4153 R/W Minimum Absorb Time (EE) [4153] seconds"."""
-        coordinator = make_coordinator(hass, api, group="time_settings", registers={4153: 300})
+        coordinator = make_coordinator(
+            hass, api, group="time_settings", registers={4153: 300}
+        )
         number = MinAbsorbTimeNumber(coordinator, entry)
         asyncio.run(number.async_set_native_value(300))
         assert api.writes == [(4153, 300), (4160, 0x0004)]
@@ -144,7 +157,9 @@ class TestOtherSetPoints:
 
     def test_equalize_time_is_written_in_seconds(self, hass, api, entry):
         """Spec: "4162 R/W Equalize Time (EE) [4162] Seconds"."""
-        coordinator = make_coordinator(hass, api, group="eeprom_settings", registers={4162: 5400})
+        coordinator = make_coordinator(
+            hass, api, group="eeprom_settings", registers={4162: 5400}
+        )
         number = EqualizeTimeNumber(coordinator, entry)
         asyncio.run(number.async_set_native_value(90))
         assert api.writes == [(4162, 5400), (4160, 0x0004)]
@@ -152,7 +167,9 @@ class TestOtherSetPoints:
 
     def test_temp_comp_value_is_stored_as_a_magnitude(self, hass, api, entry):
         """Spec: "4157 ... -([4157] /10) mV/degree C/cell" - the register holds the magnitude."""
-        coordinator = make_coordinator(hass, api, group="eeprom_settings", registers={4157: 30})
+        coordinator = make_coordinator(
+            hass, api, group="eeprom_settings", registers={4157: 30}
+        )
         number = BatteryTempCompValueNumber(coordinator, entry)
         assert number.native_value == pytest.approx(-3.0)
         asyncio.run(number.async_set_native_value(-3.0))
@@ -175,7 +192,9 @@ class TestOtherSetPoints:
             register_address = 4238  # SiestaTime
             is_raw_value = True
 
-        coordinator = make_coordinator(hass, api, group="time_settings", registers={4238: 300})
+        coordinator = make_coordinator(
+            hass, api, group="time_settings", registers={4238: 300}
+        )
         number = PlainNumber(coordinator, entry)
         asyncio.run(number._async_set_value(300))
         assert api.writes == [(4238, 300)]
@@ -188,19 +207,25 @@ class TestWriteFailures:
         api = FakeApi(fail_writes=True)
         coordinator = make_coordinator(hass, api, registers={4149: 0})
         with pytest.raises(HomeAssistantError):
-            asyncio.run(AbsorbVoltageNumber(coordinator, entry).async_set_native_value(57.6))
+            asyncio.run(
+                AbsorbVoltageNumber(coordinator, entry).async_set_native_value(57.6)
+            )
 
     def test_modbus_exception_response_is_raised(self, hass, entry):
         api = FakeApi(error_writes=True)
         coordinator = make_coordinator(hass, api, registers={4149: 0})
         with pytest.raises(HomeAssistantError):
-            asyncio.run(AbsorbVoltageNumber(coordinator, entry).async_set_native_value(57.6))
+            asyncio.run(
+                AbsorbVoltageNumber(coordinator, entry).async_set_native_value(57.6)
+            )
 
     def test_no_eeprom_commit_is_sent_after_a_failed_write(self, hass, entry):
         api = FakeApi(fail_writes=True)
         coordinator = make_coordinator(hass, api, registers={4149: 0})
         with pytest.raises(HomeAssistantError):
-            asyncio.run(AbsorbVoltageNumber(coordinator, entry).async_set_native_value(57.6))
+            asyncio.run(
+                AbsorbVoltageNumber(coordinator, entry).async_set_native_value(57.6)
+            )
         assert api.writes == [(4149, 576)]
 
 
@@ -229,12 +254,18 @@ class TestEepromBackedList:
         assert REGISTER_MAP[key] in EE_BACKED_REGISTERS
 
     def test_read_only_and_plain_registers_are_not_listed(self):
-        assert REGISTER_MAP["SLIDING_CURRENT_LIMIT"] not in EE_BACKED_REGISTERS  # 4152, read only
+        assert (
+            REGISTER_MAP["SLIDING_CURRENT_LIMIT"] not in EE_BACKED_REGISTERS
+        )  # 4152, read only
         assert 4238 not in EE_BACKED_REGISTERS  # SiestaTime, no (EE) marker
 
     def test_whole_wind_tables_are_listed(self):
-        assert {REGISTER_MAP[f"WIND_POWER_TABLE_V_REG_{step}"] for step in range(8)} <= EE_BACKED_REGISTERS
-        assert {REGISTER_MAP[f"WIND_POWER_TABLE_I_REG_{step}"] for step in range(8)} <= EE_BACKED_REGISTERS
+        assert {
+            REGISTER_MAP[f"WIND_POWER_TABLE_V_REG_{step}"] for step in range(8)
+        } <= EE_BACKED_REGISTERS
+        assert {
+            REGISTER_MAP[f"WIND_POWER_TABLE_I_REG_{step}"] for step in range(8)
+        } <= EE_BACKED_REGISTERS
 
 
 class TestEveryNumberCommits:
@@ -264,11 +295,11 @@ class TestEveryNumberCommits:
         ]
 
     @staticmethod
-    def build(cls, coordinator, entry):
+    def build(klass, coordinator, entry):
         """AuxThresholdNumber is one class covering thirteen registers."""
-        if cls is AuxThresholdNumber:
-            return cls(coordinator, entry, AUX_THRESHOLD_SETTINGS[0])
-        return cls(coordinator, entry)
+        if klass is AuxThresholdNumber:
+            return klass(coordinator, entry, AUX_THRESHOLD_SETTINGS[0])
+        return klass(coordinator, entry)
 
     def test_all_number_classes_are_covered(self):
         assert len(self.number_classes()) == 18
@@ -286,7 +317,7 @@ class TestEveryNumberCommits:
             api,
             {
                 "setpoints": {},
-                "wind_power_curve": {address: 0x4342 for address in range(4301, 4317)},
+                "wind_power_curve": dict.fromkeys(range(4301, 4317), 17218),
             },
         )
 
@@ -307,7 +338,9 @@ class TestEveryNumberCommits:
     def test_commit_always_follows_the_setting(self, hass, entry):
         for cls in self.number_classes():
             api = FakeApi()
-            number = self.build(cls, self.coordinator_with_tables_read(hass, api), entry)
+            number = self.build(
+                cls, self.coordinator_with_tables_read(hass, api), entry
+            )
             asyncio.run(number._async_set_value(1))
             if number.register_address in EE_BACKED_REGISTERS:
                 assert api.writes[1] == (4160, 0x0004), cls.__name__
@@ -325,7 +358,9 @@ class TestButtons:
             (ResetFaultsButton, (4161, 0x0080)),  # ForceResetFaultsF, high word
         ],
     )
-    def test_press_writes_the_documented_flag(self, hass, api, entry, button_class, expected):
+    def test_press_writes_the_documented_flag(
+        self, hass, api, entry, button_class, expected
+    ):
         coordinator = make_coordinator(hass, api)
         asyncio.run(button_class(coordinator, entry).async_press())
         assert api.writes == [expected]
@@ -351,29 +386,39 @@ class TestWindPowerTableSteps:
         ("step", "address", "expected"),
         [(0, 4301, 64), (1, 4301, 68), (2, 4302, 70), (15, 4308, 112)],
     )
-    def test_each_step_reads_its_own_byte(self, hass, api, entry, step, address, expected):
+    def test_each_step_reads_its_own_byte(
+        self, hass, api, entry, step, address, expected
+    ):
         api = FakeApi()
-        coordinator = make_coordinator(hass, api, group="wind_power_curve", registers=dict(WIND_TABLE))
+        coordinator = make_coordinator(
+            hass, api, group="wind_power_curve", registers=dict(WIND_TABLE)
+        )
         number = WindPowerCurveVNumber(coordinator, entry, step)
         assert number.register_address == address
         assert number.native_value == expected
 
     def test_writing_a_step_leaves_its_neighbour_alone(self, hass, api, entry):
-        coordinator = make_coordinator(hass, api, group="wind_power_curve", registers=dict(WIND_TABLE))
+        coordinator = make_coordinator(
+            hass, api, group="wind_power_curve", registers=dict(WIND_TABLE)
+        )
         number = WindPowerCurveVNumber(coordinator, entry, 0)
         asyncio.run(number.async_set_native_value(70))
         # 4301 held step1 = 68 (0x44) and step0 = 64 (0x40); only the low byte moves.
         assert api.writes[0] == (4301, 0x4446)
 
     def test_writing_the_high_byte_step_keeps_the_low_byte(self, hass, api, entry):
-        coordinator = make_coordinator(hass, api, group="wind_power_curve", registers=dict(WIND_TABLE))
+        coordinator = make_coordinator(
+            hass, api, group="wind_power_curve", registers=dict(WIND_TABLE)
+        )
         number = WindPowerCurveVNumber(coordinator, entry, 1)
         asyncio.run(number.async_set_native_value(75))
         assert api.writes[0] == (4301, 0x4B40)
 
     def test_steps_are_not_scaled_by_ten(self, hass, api, entry):
         """The running copy wrote 930 into an 8-bit field for a step of 93."""
-        coordinator = make_coordinator(hass, api, group="wind_power_curve", registers=dict(WIND_TABLE))
+        coordinator = make_coordinator(
+            hass, api, group="wind_power_curve", registers=dict(WIND_TABLE)
+        )
         number = WindPowerCurveVNumber(coordinator, entry, 10)
         assert number.register_address == 4306
         asyncio.run(number.async_set_native_value(100))
@@ -384,7 +429,9 @@ class TestWindPowerTableSteps:
         """Spec example table I: [0,2,4,6,8,10,15,20,25,30,35,40,45,50,55,60]."""
         # Current example: [0,2,4,6,8,10,15,20,25,30,35,40,45,50,55,60]
         registers = {4309: (2 << 8) | 0, 4310: (6 << 8) | 4, 4316: (60 << 8) | 55}
-        coordinator = make_coordinator(hass, api, group="wind_power_curve", registers=registers)
+        coordinator = make_coordinator(
+            hass, api, group="wind_power_curve", registers=registers
+        )
         assert WindPowerCurveINumber(coordinator, entry, 0).native_value == 0
         assert WindPowerCurveINumber(coordinator, entry, 1).native_value == 2
         assert WindPowerCurveINumber(coordinator, entry, 15).native_value == 60
@@ -392,27 +439,45 @@ class TestWindPowerTableSteps:
     def test_every_step_gets_an_eeprom_commit(self, hass, api, entry):
         # Current example [0,2,4,6,8,10,15,20,...]: step 6 (15 A) shares 4312 with step 7.
         registers = {4312: (20 << 8) | 15}
-        coordinator = make_coordinator(hass, api, group="wind_power_curve", registers=registers)
+        coordinator = make_coordinator(
+            hass, api, group="wind_power_curve", registers=registers
+        )
         number = WindPowerCurveINumber(coordinator, entry, 7)
         asyncio.run(number.async_set_native_value(18))
         assert api.writes == [(4312, (18 << 8) | 15), (4160, 0x0004)]
 
     def test_out_of_range_step_is_rejected_before_writing(self, hass, api, entry):
-        coordinator = make_coordinator(hass, api, group="wind_power_curve", registers=dict(WIND_TABLE))
+        coordinator = make_coordinator(
+            hass, api, group="wind_power_curve", registers=dict(WIND_TABLE)
+        )
         number = WindPowerCurveVNumber(coordinator, entry, 0)
         with pytest.raises(HomeAssistantError):
             asyncio.run(number._async_set_value(300))
         assert api.writes == []
 
     def test_unique_ids_follow_the_step_number(self, hass, api, entry):
-        coordinator = make_coordinator(hass, api, group="wind_power_curve", registers=dict(WIND_TABLE))
-        assert WindPowerCurveVNumber(coordinator, entry, 0).unique_id == "entry-1_wind_power_curve_v0"
-        assert WindPowerCurveINumber(coordinator, entry, 15).unique_id == "entry-1_wind_power_curve_i15"
+        coordinator = make_coordinator(
+            hass, api, group="wind_power_curve", registers=dict(WIND_TABLE)
+        )
+        assert (
+            WindPowerCurveVNumber(coordinator, entry, 0).unique_id
+            == "entry-1_wind_power_curve_v0"
+        )
+        assert (
+            WindPowerCurveINumber(coordinator, entry, 15).unique_id
+            == "entry-1_wind_power_curve_i15"
+        )
 
     def test_step_range_is_the_byte_range(self, hass, api, entry):
-        coordinator = make_coordinator(hass, api, group="wind_power_curve", registers=dict(WIND_TABLE))
+        coordinator = make_coordinator(
+            hass, api, group="wind_power_curve", registers=dict(WIND_TABLE)
+        )
         number = WindPowerCurveVNumber(coordinator, entry, 3)
-        assert (number.native_min_value, number.native_max_value, number.native_step) == (0, 255, 1)
+        assert (
+            number.native_min_value,
+            number.native_max_value,
+            number.native_step,
+        ) == (0, 255, 1)
 
     def test_writing_before_the_register_is_read_refuses(self, hass, api, entry):
         """Packing against an assumed 0 would zero the neighbour on the Classic.
@@ -422,7 +487,9 @@ class TestWindPowerTableSteps:
         only safe write is none. (The Aux selects refuse the same thing.)
         """
         group = {}  # the group exists but the register was never read
-        coordinator = make_coordinator(hass, api, group="wind_power_curve", registers=group)
+        coordinator = make_coordinator(
+            hass, api, group="wind_power_curve", registers=group
+        )
         number = WindPowerCurveVNumber(coordinator, entry, 1)
         with pytest.raises(HomeAssistantError):
             asyncio.run(number.async_set_native_value(75))
@@ -442,7 +509,9 @@ class TestWindPowerTableSteps:
         register between the write and the read-back. A whole-register
         comparison would report this good write as refused.
         """
-        coordinator = make_coordinator(hass, api, group="wind_power_curve", registers=dict(WIND_TABLE))
+        coordinator = make_coordinator(
+            hass, api, group="wind_power_curve", registers=dict(WIND_TABLE)
+        )
         number = WindPowerCurveVNumber(coordinator, entry, 0)
         # Written: (68 << 8) | 70 = 0x4446. The device answers 0x4846: our low
         # byte landed, the high byte moved from 68 to 72 behind us.
@@ -452,7 +521,9 @@ class TestWindPowerTableSteps:
 
     def test_a_stale_readback_of_the_own_byte_is_still_refused(self, hass, api, entry):
         """The write-protected Classic ignores the write: the byte says so."""
-        coordinator = make_coordinator(hass, api, group="wind_power_curve", registers=dict(WIND_TABLE))
+        coordinator = make_coordinator(
+            hass, api, group="wind_power_curve", registers=dict(WIND_TABLE)
+        )
         number = WindPowerCurveVNumber(coordinator, entry, 0)
         api.stale_read = True  # the Classic keeps the old register (0x4440)
         with pytest.raises(HomeAssistantError):
@@ -474,7 +545,9 @@ class TestForceChargeMode:
             ("Equalize", (4160, 0x0080)),  # ForceEqualizeF
         ],
     )
-    def test_forcing_a_mode_writes_the_documented_flag(self, hass, entry, option, expected):
+    def test_forcing_a_mode_writes_the_documented_flag(
+        self, hass, entry, option, expected
+    ):
         from midnite_solar.select import ChargeModeSelector
 
         api = FakeApi()
@@ -496,7 +569,9 @@ class TestForceChargeMode:
         api = FakeApi(error_writes=True)
         coordinator = make_coordinator(hass, api)
         with pytest.raises(HomeAssistantError):
-            asyncio.run(ChargeModeSelector(coordinator, entry).async_select_option("Float"))
+            asyncio.run(
+                ChargeModeSelector(coordinator, entry).async_select_option("Float")
+            )
 
     def test_a_reset_connection_is_reported(self, hass, entry):
         from midnite_solar.select import ChargeModeSelector
@@ -504,14 +579,18 @@ class TestForceChargeMode:
         api = FakeApi(fail_writes=True)
         coordinator = make_coordinator(hass, api)
         with pytest.raises(HomeAssistantError):
-            asyncio.run(ChargeModeSelector(coordinator, entry).async_select_option("Bulk"))
+            asyncio.run(
+                ChargeModeSelector(coordinator, entry).async_select_option("Bulk")
+            )
 
     def test_an_option_that_cannot_be_forced_is_refused(self, hass, entry):
         from midnite_solar.select import ChargeModeSelector
 
         coordinator = make_coordinator(hass, FakeApi())
         with pytest.raises(HomeAssistantError):
-            asyncio.run(ChargeModeSelector(coordinator, entry).async_select_option("Absorb"))
+            asyncio.run(
+                ChargeModeSelector(coordinator, entry).async_select_option("Absorb")
+            )
 
     def test_the_force_registers_are_not_read_back(self, hass, entry):
         """Table 4160-1 is headed "(Write Only)", so there is nothing to read."""
@@ -519,7 +598,9 @@ class TestForceChargeMode:
 
         api = FakeApi()
         coordinator = make_coordinator(hass, api)
-        asyncio.run(ChargeModeSelector(coordinator, entry).async_select_option("Equalize"))
+        asyncio.run(
+            ChargeModeSelector(coordinator, entry).async_select_option("Equalize")
+        )
         assert api.reads == []
 
     def test_a_successful_force_refreshes_the_status(self, hass, entry):

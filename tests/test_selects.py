@@ -10,30 +10,28 @@ from __future__ import annotations
 
 import asyncio
 
-import pytest
-
 from fakes import FakeApi, FakeCoordinator
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import Hass
-from homeassistant.exceptions import HomeAssistantError
-
 from midnite_solar.const import (
     AUX1_FUNCTIONS,
     AUX2_FUNCTIONS,
     AUX_FIELDS,
     AUX_OFF_AUTO_ON,
     MPPT_MODES,
-    REGISTER_MAP,
 )
 from midnite_solar.register_values import read_field, write_field
 from midnite_solar.select import (
     MPPT_OFF,
     Aux1FunctionSelector,
     Aux1StateSelect,
-    Aux2StateSelect,
     Aux2FunctionSelector,
+    Aux2StateSelect,
     MPPTModeSelector,
 )
+import pytest
+
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import Hass
+from homeassistant.exceptions import HomeAssistantError
 
 AUX_REGISTER = 4165
 
@@ -69,9 +67,7 @@ class TestAuxFieldLayout:
         "Aux2OffAutoOn = ((Aux12FunctionS & 0xc000) >> 14);": ("aux2_mode", 0xC000, 14),
     }
 
-    @pytest.mark.parametrize(
-        ("sentence", "expected"), sorted(SPEC_DECODES.items())
-    )
+    @pytest.mark.parametrize(("sentence", "expected"), sorted(SPEC_DECODES.items()))
     def test_each_documented_decode_is_the_field_we_use(self, sentence, expected):
         name, mask, shift = expected
         assert AUX_FIELDS[name] == (mask, shift), sentence
@@ -109,14 +105,47 @@ class TestAuxFunctionSelects:
     """Tables 4165-3 and 4165-4."""
 
     def test_aux1_codes_are_the_map_values(self):
-        assert set(AUX1_FUNCTIONS) == {1, 2, 3, 4, 7, 8, 13, 14, 15, 16, 17, 18, 19, 20, 21}
+        assert set(AUX1_FUNCTIONS) == {
+            1,
+            2,
+            3,
+            4,
+            7,
+            8,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+        }
 
     def test_aux1_has_no_value_zero(self):
         """Table 4165-3 starts at 1; 0 is not a function the Classic accepts."""
         assert 0 not in AUX1_FUNCTIONS
 
     def test_aux2_codes_are_the_map_values(self):
-        assert set(AUX2_FUNCTIONS) == {0, 1, 2, 3, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18}
+        assert set(AUX2_FUNCTIONS) == {
+            0,
+            1,
+            2,
+            3,
+            6,
+            7,
+            8,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+        }
 
     def test_reserved_function_codes_are_not_offered(self):
         assert "RESERVED" not in AUX1_FUNCTIONS.values()
@@ -165,7 +194,9 @@ class TestAuxFunctionSelects:
         assert api.writes == []
 
     def test_an_unknown_option_is_refused(self, entry):
-        selector_obj, api = selector(Aux1FunctionSelector, entry, {AUX_REGISTER: aux_value()})
+        selector_obj, api = selector(
+            Aux1FunctionSelector, entry, {AUX_REGISTER: aux_value()}
+        )
         with pytest.raises(HomeAssistantError):
             asyncio.run(selector_obj.async_select_option("Off"))
         assert api.writes == []
@@ -178,7 +209,9 @@ class TestAuxFunctionSelects:
 
     def test_an_unset_code_is_reported_not_hidden(self, entry):
         """Register left in a state the tables do not describe."""
-        selector_obj, _ = selector(Aux1FunctionSelector, entry, {AUX_REGISTER: aux_value(aux1_function=5)})
+        selector_obj, _ = selector(
+            Aux1FunctionSelector, entry, {AUX_REGISTER: aux_value(aux1_function=5)}
+        )
         assert selector_obj.current_option == "Unset (5)"
 
 
@@ -204,32 +237,48 @@ class TestMPPTMode:
         ]
 
     def test_reserved_rows_are_not_offered_as_modes(self, entry):
-        selector_obj, _ = selector(MPPTModeSelector, entry, {4164: 0x0001}, group="settings")
+        selector_obj, _ = selector(
+            MPPTModeSelector, entry, {4164: 0x0001}, group="settings"
+        )
         assert "RESERVED" not in selector_obj.options
         assert MPPT_OFF in selector_obj.options
 
-    @pytest.mark.parametrize(("value", "expected"), [(0x000B, "SOLAR"), (0x0001, "PV_Uset")])
+    @pytest.mark.parametrize(
+        ("value", "expected"), [(0x000B, "SOLAR"), (0x0001, "PV_Uset")]
+    )
     def test_enabled_modes_read_back(self, entry, value, expected):
-        selector_obj, _ = selector(MPPTModeSelector, entry, {4164: value}, group="settings")
+        selector_obj, _ = selector(
+            MPPTModeSelector, entry, {4164: value}, group="settings"
+        )
         assert selector_obj.current_option == expected
 
-    @pytest.mark.parametrize(("value", "expected"), [(0x0002, "DYNAMIC (Off)"), (0x000A, "SOLAR (Off)")])
+    @pytest.mark.parametrize(
+        ("value", "expected"), [(0x0002, "DYNAMIC (Off)"), (0x000A, "SOLAR (Off)")]
+    )
     def test_an_even_value_is_that_mode_with_mppt_off(self, entry, value, expected):
-        selector_obj, _ = selector(MPPTModeSelector, entry, {4164: value}, group="settings")
+        selector_obj, _ = selector(
+            MPPTModeSelector, entry, {4164: value}, group="settings"
+        )
         assert selector_obj.current_option == expected
 
     def test_zero_is_mppt_off_altogether(self, entry):
-        selector_obj, _ = selector(MPPTModeSelector, entry, {4164: 0x0000}, group="settings")
+        selector_obj, _ = selector(
+            MPPTModeSelector, entry, {4164: 0x0000}, group="settings"
+        )
         assert selector_obj.current_option == MPPT_OFF
 
     def test_mppt_can_be_switched_off(self, entry):
         """The running copy could only ever write the enabled values."""
-        selector_obj, api = selector(MPPTModeSelector, entry, {4164: 0x000B}, group="settings")
+        selector_obj, api = selector(
+            MPPTModeSelector, entry, {4164: 0x000B}, group="settings"
+        )
         asyncio.run(selector_obj.async_select_option(MPPT_OFF))
         assert api.writes == [(4164, 0x0000), (4160, 0x0004)]
 
     def test_selecting_a_mode_writes_the_enabled_value(self, entry):
-        selector_obj, api = selector(MPPTModeSelector, entry, {4164: 0x0001}, group="settings")
+        selector_obj, api = selector(
+            MPPTModeSelector, entry, {4164: 0x0001}, group="settings"
+        )
         asyncio.run(selector_obj.async_select_option("SOLAR"))
         assert api.writes == [(4164, 0x000B), (4160, 0x0004)]
 
@@ -287,7 +336,8 @@ class TestAuxStateSelects:
     @pytest.mark.parametrize("cls", [Aux1StateSelect, Aux2StateSelect])
     def test_every_offered_state_option_is_selectable(self, entry, cls):
         """The gap the sweep missed: it checked the state shown, never that each
-        option in the dropdown can actually be chosen without raising."""
+        option in the dropdown can actually be chosen without raising.
+        """
         selector_obj, _ = selector(cls, entry, {AUX_REGISTER: aux_value()})
         for option in selector_obj.options:
             asyncio.run(selector_obj.async_select_option(option))
@@ -324,7 +374,9 @@ class TestAuxStateSelects:
         ), "only bits 14-15 may change"
 
     def test_a_state_write_is_committed_and_read_back(self, entry):
-        selector_obj, api = selector(Aux2StateSelect, entry, {AUX_REGISTER: aux_value()})
+        selector_obj, api = selector(
+            Aux2StateSelect, entry, {AUX_REGISTER: aux_value()}
+        )
         asyncio.run(selector_obj.async_select_option("Auto"))
         assert [address for address, _ in api.writes] == [AUX_REGISTER, 4160]
         assert api.writes[1] == (4160, 0x0004)
@@ -379,7 +431,9 @@ class TestOptionsAreRealOptions:
                 and not current.startswith(self.DISPLAY_ONLY)
                 and not current.endswith(self.DISPLAY_SUFFIX)
             ):
-                bad.append(f"{cls.__name__} register {register} value {raw:#06x}: {current!r} not in {selector_obj.options}")
+                bad.append(
+                    f"{cls.__name__} register {register} value {raw:#06x}: {current!r} not in {selector_obj.options}"
+                )
         return bad
 
     @pytest.fixture
@@ -389,18 +443,31 @@ class TestOptionsAreRealOptions:
 
     def test_every_mppt_register_value_shows_a_real_option(self, entry):
         self.entry = entry
-        assert self.sweep(MPPTModeSelector, 4164, "settings", range(0, 32)) == []
+        assert self.sweep(MPPTModeSelector, 4164, "settings", range(32)) == []
 
     def test_every_aux1_function_code_shows_a_real_option(self, entry):
         self.entry = entry
-        assert self.sweep(Aux1FunctionSelector, AUX_REGISTER, "aux_settings", range(0, 64)) == []
+        assert (
+            self.sweep(Aux1FunctionSelector, AUX_REGISTER, "aux_settings", range(64))
+            == []
+        )
 
     def test_every_aux2_function_code_shows_a_real_option(self, entry):
         self.entry = entry
-        assert self.sweep(Aux2FunctionSelector, AUX_REGISTER, "aux_settings", range(0, 64)) == []
+        assert (
+            self.sweep(Aux2FunctionSelector, AUX_REGISTER, "aux_settings", range(64))
+            == []
+        )
 
     def test_every_aux_state_code_shows_a_real_option(self, entry):
         self.entry = entry
         # The state field is bits 6-7 of 4165; sweep the whole register.
-        assert self.sweep(Aux1StateSelect, AUX_REGISTER, "aux_settings", range(0, 256)) == []
-        assert self.sweep(Aux2StateSelect, AUX_REGISTER, "aux_settings", range(0, 65536, 997)) == []
+        assert (
+            self.sweep(Aux1StateSelect, AUX_REGISTER, "aux_settings", range(256)) == []
+        )
+        assert (
+            self.sweep(
+                Aux2StateSelect, AUX_REGISTER, "aux_settings", range(0, 65536, 997)
+            )
+            == []
+        )

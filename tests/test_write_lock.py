@@ -9,12 +9,7 @@ is dropped". This integration is Modbus TCP, so every write was ignored.
 
 from __future__ import annotations
 
-import pytest
-
 from fakes import FakeApi, FakeCoordinator, ModbusResult
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import Hass
-
 from midnite_solar.binary_sensor import InfoFlagBinarySensor
 from midnite_solar.const import INFO_FLAGS, REGISTER_GROUPS, REGISTER_MAP
 from midnite_solar.coordinator import MidniteSolarUpdateCoordinator
@@ -24,6 +19,10 @@ from midnite_solar.register_values import (
     serial_from_registers,
     unlock_values,
 )
+import pytest
+
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import Hass
 
 # The map's own worked example: "the serial number is: 0x12345678 (hex)".
 SERIAL = 0x12345678
@@ -120,7 +119,9 @@ class TestHubUnlock:
         assert clients[0].writes.count((20491, 0x1234)) == 1
         assert len(clients[0].writes) == 4
 
-    def test_nothing_is_written_while_locked_and_the_serial_is_unknown(self, monkeypatch):
+    def test_nothing_is_written_while_locked_and_the_serial_is_unknown(
+        self, monkeypatch
+    ):
         hub, clients = make_hub(monkeypatch)
         with pytest.raises(WriteLockedError):
             hub.write_register(4149, 576)
@@ -244,7 +245,7 @@ class TestInfoFlagSensors:
         return InfoFlagBinarySensor(coordinator, entry, flag)
 
     def test_words_combine_as_the_map_says(self, entry):
-        """([4131] << 16) + [4130]"""
+        """The map's formula: "([4131] << 16) + [4130]"."""
         sensor_obj = self.sensor(entry, "GroundFaultF", 0x0200, 0x0001)
         assert sensor_obj.info_flags == 0x00010200
 
@@ -279,9 +280,13 @@ class TestInfoFlagSensors:
 
 
 class TestTheGrantEndsWithTheSocket:
-    """"Setting this will last until the TCP/IP connection is dropped"."""
+    """The map's own promise, quoted: "Setting this will last until the
+    TCP/IP connection is dropped".
+    """
 
-    def test_a_disconnect_on_a_socket_the_classic_already_dropped_clears_the_grant(self, monkeypatch):
+    def test_a_disconnect_on_a_socket_the_classic_already_dropped_clears_the_grant(
+        self, monkeypatch
+    ):
         """A Classic drops an idle link without telling us; the grant went with it."""
         hub, clients = make_hub(monkeypatch)
         hub.set_serial_number(SERIAL)

@@ -19,13 +19,12 @@ from __future__ import annotations
 
 import asyncio
 
+from fakes import FakeApi, FakeCoordinator
+from midnite_solar.const import REGISTER_GROUPS, REGISTER_MAP
 import pytest
 
-from fakes import FakeApi, FakeCoordinator
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Hass
-
-from midnite_solar.const import REGISTER_GROUPS, REGISTER_MAP
 
 
 def group_that_polls(address):
@@ -44,7 +43,7 @@ class TestGetRegisterValueIsGroupAware:
         address = REGISTER_MAP["ABSORB_SETPOINT_VOLTAGE"]
         real_group = group_that_polls(address)
         wrong_group = next(
-            name for name in REGISTER_GROUPS if name != real_group and name != "serial"
+            name for name in REGISTER_GROUPS if name not in (real_group, "serial")
         )
         coordinator = FakeCoordinator(Hass(), FakeApi(), {wrong_group: {address: 576}})
         assert coordinator.get_register_value(address) is None
@@ -100,11 +99,13 @@ class TestConfigEntryUnloadModel:
 
 class TestBridgeDoubles:
     """The bridge's doubles are held to real behaviour too: an easier fake
-    than aiohttp/zeroconf would test the double, not the bridge."""
+    than aiohttp/zeroconf would test the double, not the bridge.
+    """
 
     def test_view_responses_serialise_eagerly_like_a_real_response(self):
-        """aiohttp builds its body at self.json time; a body it could not
-        send must fail in the test the way it fails on the wire."""
+        """Aiohttp builds its body at self.json time; a body it could not
+        send must fail in the test the way it fails on the wire.
+        """
         from homeassistant.components.http import HomeAssistantView
 
         view = HomeAssistantView()
@@ -114,14 +115,16 @@ class TestBridgeDoubles:
 
     def test_the_view_base_answers_unauthenticated_until_told_otherwise(self):
         """Real HomeAssistantView.requires_auth defaults False - so the
-        bridge's own True (pinned in test_bridge_api.py) has to SET it."""
+        bridge's own True (pinned in test_bridge_api.py) has to SET it.
+        """
         from homeassistant.components.http import HomeAssistantView
 
         assert HomeAssistantView.requires_auth is False
 
     def test_the_zeroconf_double_records_exactly_the_used_surface(self):
         """BridgeAdvertiser only ever calls these four; a fifth call site
-        would raise AttributeError here rather than silently pass."""
+        would raise AttributeError here rather than silently pass.
+        """
         import zeroconf
 
         client = zeroconf.Zeroconf()
@@ -142,7 +145,8 @@ class TestBridgeDoubles:
 
     def test_internal_reads_record_the_retries_they_were_given(self):
         """The sweep's bounded retry budget is a contract; a fake that
-        dropped the number could not show the sweep exceeding it."""
+        dropped the number could not show the sweep exceeding it.
+        """
         from fakes import RecordingInternalApi
 
         api = RecordingInternalApi(payload=b"\x01" * 64)

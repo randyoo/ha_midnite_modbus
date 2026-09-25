@@ -1,11 +1,11 @@
 """Home Assistant sensor platform objects."""
 
-from enum import Enum
+from enum import StrEnum
 
 from homeassistant.helpers.entity import Entity
 
 
-class SensorDeviceClass(str, Enum):
+class SensorDeviceClass(StrEnum):
     VOLTAGE = "voltage"
     CURRENT = "current"
     POWER = "power"
@@ -18,7 +18,7 @@ class SensorDeviceClass(str, Enum):
     DATA_SIZE = "data_size"
 
 
-class SensorStateClass(str, Enum):
+class SensorStateClass(StrEnum):
     MEASUREMENT = "measurement"
     TOTAL = "total"
     TOTAL_INCREASING = "total_increasing"

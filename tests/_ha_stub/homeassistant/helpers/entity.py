@@ -1,11 +1,11 @@
 """Home Assistant entity base objects."""
 
-from dataclasses import dataclass, field
-from enum import Enum
-from typing import Any, Optional
+from dataclasses import dataclass
+from enum import StrEnum
+from typing import Any
 
 
-class EntityCategory(str, Enum):
+class EntityCategory(StrEnum):
     CONFIG = "config"
     DIAGNOSTIC = "diagnostic"
 
@@ -15,11 +15,11 @@ class EntityDescription:
     """Minimal entity description, enough to be subclassed by a dataclass."""
 
     key: str = ""
-    name: Optional[str] = None
-    translation_key: Optional[str] = None
-    entity_category: Optional[EntityCategory] = None
+    name: str | None = None
+    translation_key: str | None = None
+    entity_category: EntityCategory | None = None
     entity_registry_enabled_default: bool = True
-    icon: Optional[str] = None
+    icon: str | None = None
 
 
 class Entity:

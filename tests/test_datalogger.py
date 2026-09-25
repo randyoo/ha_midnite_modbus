@@ -19,12 +19,8 @@ import asyncio
 import datetime
 from types import SimpleNamespace
 
-import pytest
 from fakes import FakeApi, RecordingInternalApi
-from homeassistant.core import Hass
-
-from midnite_solar import bridge as bridge_module
-from midnite_solar import datalogger
+from midnite_solar import bridge as bridge_module, datalogger
 from midnite_solar.coordinator import OP_TIMEOUT
 from midnite_solar.datalogger import (
     DAYS_PER_READ,
@@ -42,6 +38,9 @@ from midnite_solar.datalogger import (
     decode_time_of_day,
     unpack_newest_first,
 )
+import pytest
+
+from homeassistant.core import Hass
 
 
 def newest_first_payload(values: list) -> bytes:
@@ -57,7 +56,8 @@ def date_raw(day: datetime.date) -> int:
     """Pack a date the way the ring is ANCHORED to pack it (FINDINGS 46):
     month in 4 bits, day in the next 5, year-2000 above - the app's
     parseTsLow bit ops, whose local-variable NAMES are swapped but whose
-    printed m/d/yyyy reads correctly (0x3559 -> "9/21/2026")."""
+    printed m/d/yyyy reads correctly (0x3559 -> "9/21/2026").
+    """
     return ((day.year - 2000) & 0x7F) << 9 | (day.day & 0x1F) << 4 | day.month & 0x0F
 
 
@@ -116,7 +116,7 @@ class TestDateQuirks:
         assert decode_date(0x198) == datetime.date(2000, 8, 25)
 
     def test_the_app_displays_m_d_y_through_swapped_names(self):
-        """parseTsLow's VARIABLES are misnamed, its DISPLAY is not.
+        """ParseTsLow's VARIABLES are misnamed, its DISPLAY is not.
 
         It extracts low-nibble as _loc2_ "day" and the next five as _loc3_
         "month", then prints _loc2_/_loc3_/year: for 0x3559 that prints
@@ -137,10 +137,12 @@ class TestDateQuirks:
         Under the anchored layout they are the month-8 low nibble with
         days 27..31 of 2000 - consecutive real run days it was discarding.
         Absence is still only a decode verdict: the Classic answers EVERY
-        slot; and a day that cannot exist (Feb 30) still decodes to None."""
+        slot; and a day that cannot exist (Feb 30) still decodes to None.
+        """
         for raw, day in zip(
             (0x1F8, 0x1E8, 0x1D8, 0x1C8, 0x1B8),
             (31, 30, 29, 28, 27),
+            strict=True,
         ):
             assert decode_date(raw) == datetime.date(2000, 8, day)
         assert decode_date((30 << 4) | 2) is None  # 2000-02-30 cannot exist
@@ -225,14 +227,21 @@ class TestSweep:
 
     def test_the_sweep_reads_the_whole_window(self, monkeypatch):
         api = self.dated_api()
-        store, answer = run_sweep(api, monkeypatch)
+        _store, answer = run_sweep(api, monkeypatch)
         assert answer["sweep"]["reads"] == SWEEP_BLOCKS * len(SWEEP_CATEGORIES)
-        assert api.internal_reads[0] == (LOGGER_FILE_DEVICE, READ_BYTES, day_address(3, 0), SWEEP_READ_RETRIES)
+        assert api.internal_reads[0] == (
+            LOGGER_FILE_DEVICE,
+            READ_BYTES,
+            day_address(3, 0),
+            SWEEP_READ_RETRIES,
+        )
 
     def test_the_read_order_per_block_is_the_apps(self, monkeypatch):
         api = self.dated_api()
         run_sweep(api, monkeypatch)
-        first_block = [a for _d, _l, a, _r in api.internal_reads][: len(SWEEP_CATEGORIES)]
+        first_block = [a for _d, _l, a, _r in api.internal_reads][
+            : len(SWEEP_CATEGORIES)
+        ]
         assert first_block == [day_address(c, 0) for c in SWEEP_CATEGORIES]
 
     def test_a_dated_day_comes_back(self, monkeypatch):
@@ -265,7 +274,8 @@ class TestSweep:
 
     def test_reads_are_paced_so_the_poll_can_interleave(self):
         """The gap is real and nonzero: 96 back-to-back reads would starve
-        the coordinator's own poll against the one hub lock."""
+        the coordinator's own poll against the one hub lock.
+        """
         assert datalogger.READ_GAP_SECONDS > 0
 
     def test_the_sweep_flags_the_store_for_its_whole_run(self, monkeypatch):
@@ -283,11 +293,11 @@ class TestSweep:
         store = Datalogger()
         # The store the bridge uses must be THIS store - else the spy
         # watches a different object than the one the flag is raised on.
-        coordinator = SimpleNamespace(api=FlagSpy(payload=b"\x00" * 64), datalogger=store)
-        assert store.as_dict()["sweeping"] is False
-        answer = asyncio.run(
-            bridge_module.async_bridge_datalogger(Hass(), coordinator)
+        coordinator = SimpleNamespace(
+            api=FlagSpy(payload=b"\x00" * 64), datalogger=store
         )
+        assert store.as_dict()["sweeping"] is False
+        answer = asyncio.run(bridge_module.async_bridge_datalogger(Hass(), coordinator))
         assert len(seen) == SWEEP_BLOCKS * len(SWEEP_CATEGORIES)
         assert all(seen), "the flag must stand for every read of the sweep"
         # The answer that COMPLETES the sweep is written after the flag
@@ -302,9 +312,7 @@ class TestSweep:
         store = Datalogger()
         store.sweeping = True
         coordinator = SimpleNamespace(api=api, datalogger=store)
-        answer = asyncio.run(
-            bridge_module.async_bridge_datalogger(Hass(), coordinator)
-        )
+        answer = asyncio.run(bridge_module.async_bridge_datalogger(Hass(), coordinator))
         assert answer["sweeping"] is True
         assert api.internal_reads == [], "the joiner put reads on the wire"
         assert store.sweeping is True, "the joiner must not clear the flag"

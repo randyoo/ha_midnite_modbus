@@ -84,13 +84,16 @@ class WriteInternalPDU(ModbusPDU):
 
     def encode(self) -> bytes:
         """Encode the request frame after the unit byte, payload included."""
-        return struct.pack(
-            ">BBHI",
-            self.device,
-            self.length,
-            INTERNAL_MARKER,
-            self.file_address,
-        ) + self.data
+        return (
+            struct.pack(
+                ">BBHI",
+                self.device,
+                self.length,
+                INTERNAL_MARKER,
+                self.file_address,
+            )
+            + self.data
+        )
 
     def decode(self, data: bytes) -> None:
         """Decode the echoed header; a write response carries no payload."""

@@ -5,37 +5,27 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from .base import MidniteBaseEntityDescription
-
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.const import (
     UnitOfElectricCurrent,
     UnitOfElectricPotential,
-    UnitOfTemperature,
     UnitOfTime,
 )
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityCategory
-from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import (
-    AUX_THRESHOLD_SETTINGS,
-    DOMAIN,
-    EE_BACKED_REGISTERS,
-    FORCE_FLAGS,
-    REGISTER_MAP,
-)
+from .base import MidniteBaseEntityDescription, write_label
+from .const import AUX_THRESHOLD_SETTINGS, DOMAIN, EE_BACKED_REGISTERS, REGISTER_MAP
 from .coordinator import MidniteSolarUpdateCoordinator
-from .entity_writes import async_auto_save_if_enabled, async_verify_write, async_write_setting
-from .register_values import (
-    byte_of,
-    force_flag_write,
-    pack_byte_pair,
-    scaled_register,
-    scaled_value,
+from .entity_writes import (
+    async_auto_save_if_enabled,
+    async_verify_write,
+    async_write_setting,
 )
+from .register_values import byte_of, pack_byte_pair, scaled_register, scaled_value
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -47,7 +37,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up Midnite Solar numbers."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    
+
     numbers = [
         AbsorbVoltageNumber(coordinator, entry),
         FloatVoltageNumber(coordinator, entry),
@@ -74,16 +64,30 @@ async def async_setup_entry(
         *(WindPowerCurveVNumber(coordinator, entry, step) for step in range(16)),
         *(WindPowerCurveINumber(coordinator, entry, step) for step in range(16)),
     ]
-    
+
     async_add_entities(numbers)
 
 
-class MidniteSolarNumber(CoordinatorEntity[MidniteSolarUpdateCoordinator], NumberEntity):
+class MidniteSolarNumber(
+    CoordinatorEntity[MidniteSolarUpdateCoordinator], NumberEntity
+):
     """Base class for all Midnite Solar numbers."""
 
-    _attr_native_min_value: float | None = None
-    _attr_native_max_value: float | None = None
-    _attr_native_step: float | None = None
+    # HA annotates these NumberEntity class attributes as plain float while
+    # its native_* properties return float | None and treat None as "not
+    # configured yet". This base keeps the runtime default (the concrete
+    # classes set real values, the wind pair computes them); the ignores
+    # mark HA's own annotation wart, and warn_unused_ignores keeps them
+    # honest if HA ever types these as Optional.
+    _attr_native_min_value: float | None = None  # type: ignore[assignment]
+    _attr_native_max_value: float | None = None  # type: ignore[assignment]
+    _attr_native_step: float | None = None  # type: ignore[assignment]
+
+    # Every concrete number supplies its own register_address: a plain
+    # attribute set in __init__, or a computed property (the wind-table
+    # pair). The base only ever READS it, and Any is the honest type for a
+    # base reading what only its subclasses define.
+    register_address: Any
 
     # How the entity's units differ from the register's own units. Most set
     # points are tenths ("([4149] /10) Volts"); times are plain seconds, and the
@@ -97,7 +101,7 @@ class MidniteSolarNumber(CoordinatorEntity[MidniteSolarUpdateCoordinator], Numbe
         """Initialize the number."""
         super().__init__(coordinator)
         self._entry = entry
-        
+
         # Create device info - use serial number if available, otherwise use entry_id
         # We'll update this dynamically when data becomes available via property override
         self._attr_device_info = {
@@ -116,7 +120,7 @@ class MidniteSolarNumber(CoordinatorEntity[MidniteSolarUpdateCoordinator], Numbe
     def _to_register_value(self, value: float) -> int:
         """Convert the user-facing value to the integer the register holds."""
         if self.seconds_in_register:
-            return int(round(value * 60))
+            return round(value * 60)
         if self.is_negative:
             return scaled_register(-value)
         if self.is_time_value or self.is_raw_value:
@@ -149,6 +153,7 @@ class MidniteSolarNumber(CoordinatorEntity[MidniteSolarUpdateCoordinator], Numbe
 
     async def _async_set_value(self, value: float) -> None:
         """Set the value on the device and store it."""
+        label = write_label(self, "setting")
         register_value = self._to_register_value(value)
         _LOGGER.debug(
             "Writing %s to register %s (raw value %s)",
@@ -157,10 +162,14 @@ class MidniteSolarNumber(CoordinatorEntity[MidniteSolarUpdateCoordinator], Numbe
             register_value,
         )
         await async_write_setting(
-            self.hass, self.coordinator.api, self.register_address, register_value, self.name
+            self.hass,
+            self.coordinator.api,
+            self.register_address,
+            register_value,
+            label,
         )
         if self.register_address in EE_BACKED_REGISTERS:
-            await async_auto_save_if_enabled(self.hass, self.coordinator, self.name)
+            await async_auto_save_if_enabled(self.hass, self.coordinator, label)
         await self._verify_write(register_value)
         await self.coordinator.async_request_refresh()
 
@@ -171,8 +180,10 @@ class MidniteSolarNumber(CoordinatorEntity[MidniteSolarUpdateCoordinator], Numbe
             self.coordinator.api,
             self.register_address,
             register_value,
-            self.name,
-            lambda raw: f"{self._from_register_value(raw)} {self.native_unit_of_measurement or ''}".strip(),
+            write_label(self, "setting"),
+            lambda raw: (
+                f"{self._from_register_value(raw)} {self.native_unit_of_measurement or ''}".strip()
+            ),
         )
 
 
@@ -215,7 +226,9 @@ class WindPowerTableNumber(MidniteSolarNumber):
     _attr_native_max_value = 255
     _attr_native_step = 1
 
-    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any, step: int = 0):
+    def __init__(
+        self, coordinator: MidniteSolarUpdateCoordinator, entry: Any, step: int = 0
+    ):
         """Initialize the number for one table step."""
         super().__init__(coordinator, entry)
         # step_index, not step: Home Assistant 2026.x's NumberEntity owns a
@@ -224,7 +237,9 @@ class WindPowerTableNumber(MidniteSolarNumber):
         # setter", dev bench 2026-09-20).
         self.step_index = step
         self._attr_name = f"Wind Power Curve {self._id_suffix.upper()}{step}"
-        self._attr_unique_id = f"{entry.entry_id}_wind_power_curve_{self._id_suffix}{step}"
+        self._attr_unique_id = (
+            f"{entry.entry_id}_wind_power_curve_{self._id_suffix}{step}"
+        )
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
 
@@ -271,9 +286,13 @@ class WindPowerTableNumber(MidniteSolarNumber):
             self.coordinator.api,
             self.register_address,
             register_value,
-            self.name,
-            lambda raw: f"{byte_of(raw, index)} {self.native_unit_of_measurement or ''}".strip(),
-            compare=lambda kept, written: byte_of(kept, index) == byte_of(written, index),
+            write_label(self, "wind step"),
+            lambda raw: (
+                f"{byte_of(raw, index)} {self.native_unit_of_measurement or ''}".strip()
+            ),
+            compare=lambda kept, written: (
+                byte_of(kept, index) == byte_of(written, index)
+            ),
         )
 
 
@@ -283,7 +302,9 @@ class WindPowerCurveVNumber(WindPowerTableNumber):
     _table_first_register = REGISTER_MAP["WIND_POWER_TABLE_V_REG_0"]
     _id_suffix = "v"
 
-    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any, step: int = 0):
+    def __init__(
+        self, coordinator: MidniteSolarUpdateCoordinator, entry: Any, step: int = 0
+    ):
         """Initialize the number."""
         super().__init__(coordinator, entry, step)
         self._attr_native_unit_of_measurement = UnitOfElectricPotential.VOLT
@@ -295,7 +316,9 @@ class WindPowerCurveINumber(WindPowerTableNumber):
     _table_first_register = REGISTER_MAP["WIND_POWER_TABLE_I_REG_0"]
     _id_suffix = "i"
 
-    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any, step: int = 0):
+    def __init__(
+        self, coordinator: MidniteSolarUpdateCoordinator, entry: Any, step: int = 0
+    ):
         """Initialize the number."""
         super().__init__(coordinator, entry, step)
         self._attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
@@ -320,6 +343,8 @@ class MinAbsorbTimeNumber(MidniteSolarNumber):
         self.is_time_value = True  # Don't divide by 10
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
+
+
 class MaxBatteryTempCompVoltageNumber(MidniteSolarNumber):
     """Number to set maximum battery temperature compensation voltage."""
 
@@ -338,6 +363,7 @@ class MaxBatteryTempCompVoltageNumber(MidniteSolarNumber):
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
 
+
 class MinBatteryTempCompVoltageNumber(MidniteSolarNumber):
     """Number to set minimum battery temperature compensation voltage."""
 
@@ -355,6 +381,7 @@ class MinBatteryTempCompVoltageNumber(MidniteSolarNumber):
         self._attr_native_step = 0.1
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
+
 
 class BatteryTempCompValueNumber(MidniteSolarNumber):
     """Number to set battery temperature compensation value per 2V cell."""
@@ -380,6 +407,8 @@ class BatteryTempCompValueNumber(MidniteSolarNumber):
         self._attr_native_step = 0.5
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
+
+
 class EqualizeRetryDaysNumber(MidniteSolarNumber):
     """Number to set equalize retry days until giving up."""
 
@@ -398,6 +427,7 @@ class EqualizeRetryDaysNumber(MidniteSolarNumber):
         self.is_raw_value = True  # Don't divide by 10 for days
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_entity_registry_enabled_default = False  # Disable by default
+
 
 class ModbusAddressNumber(MidniteSolarNumber):
     """Number to set Modbus address."""
@@ -418,6 +448,7 @@ class ModbusAddressNumber(MidniteSolarNumber):
         self.is_raw_value = True  # Don't divide by 10 for Modbus address
         self._attr_native_unit_of_measurement = None  # No unit for Modbus address
 
+
 class FloatVoltageNumber(MidniteSolarNumber):
     """Number to set float voltage."""
 
@@ -434,6 +465,7 @@ class FloatVoltageNumber(MidniteSolarNumber):
         self._attr_native_min_value = 10.0
         self._attr_native_max_value = 65.0
         self._attr_native_step = 0.1
+
 
 class EqualizeVoltageNumber(MidniteSolarNumber):
     """Number to set equalize voltage."""
@@ -452,6 +484,7 @@ class EqualizeVoltageNumber(MidniteSolarNumber):
         self._attr_native_max_value = 65.0
         self._attr_native_step = 0.1
 
+
 class BatteryCurrentLimitNumber(MidniteSolarNumber):
     """Number to set battery output current limit."""
 
@@ -468,6 +501,7 @@ class BatteryCurrentLimitNumber(MidniteSolarNumber):
         self._attr_native_max_value = 100.0
         self._attr_native_step = 1.0
         self._attr_entity_category = EntityCategory.CONFIG
+
 
 class AbsorbTimeNumber(MidniteSolarNumber):
     """Number to set absorb time."""
@@ -492,6 +526,8 @@ class AbsorbTimeNumber(MidniteSolarNumber):
         self._attr_has_entity_name = True
         self._attr_suggested_display_precision = 0  # Whole minutes only
         self._attr_entity_category = EntityCategory.CONFIG
+
+
 class EqualizeTimeNumber(MidniteSolarNumber):
     """Number to set equalize time."""
 
@@ -515,6 +551,8 @@ class EqualizeTimeNumber(MidniteSolarNumber):
         self._attr_has_entity_name = True
         self._attr_suggested_display_precision = 0  # Whole minutes only
         self._attr_entity_category = EntityCategory.CONFIG
+
+
 class EqualizeIntervalDaysNumber(MidniteSolarNumber):
     """Number to set equalize interval in days."""
 
@@ -535,6 +573,7 @@ class EqualizeIntervalDaysNumber(MidniteSolarNumber):
         self._attr_native_max_value = 365  # 1 year
         self._attr_native_step = 1
         self._attr_entity_category = EntityCategory.CONFIG
+
 
 class AuxThresholdNumber(MidniteSolarNumber):
     """One Aux 1 / Aux 2 threshold: a set point in tenths of a volt or milliseconds.

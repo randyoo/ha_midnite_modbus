@@ -5,18 +5,17 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from .base import MidniteBaseEntityDescription
-
 from homeassistant.components.button import ButtonEntity
-from homeassistant.helpers.entity import EntityCategory
 from homeassistant.core import HomeAssistant
-from homeassistant.util import dt as dt_util
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN, FORCE_FLAGS, REGISTER_MAP
+from .base import MidniteBaseEntityDescription, write_label
+from .const import DOMAIN, FORCE_FLAGS
 from .coordinator import MidniteSolarUpdateCoordinator
-from .entity_writes import async_write_setting, async_set_clock, async_reboot_classic
+from .entity_writes import async_reboot_classic, async_set_clock, async_write_setting
 from .register_values import force_flag_write
 
 _LOGGER = logging.getLogger(__name__)
@@ -43,12 +42,16 @@ async def async_setup_entry(
     async_add_entities(buttons)
 
 
-class MidniteSolarButton(CoordinatorEntity[MidniteSolarUpdateCoordinator], ButtonEntity):
+class MidniteSolarButton(
+    CoordinatorEntity[MidniteSolarUpdateCoordinator], ButtonEntity
+):
     """Base class for all Midnite Solar buttons."""
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 
-    def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any, flag: str):
+    def __init__(
+        self, coordinator: MidniteSolarUpdateCoordinator, entry: Any, flag: str
+    ):
         """Initialize the button."""
         super().__init__(coordinator)
         self._entry = entry
@@ -77,10 +80,17 @@ class MidniteSolarButton(CoordinatorEntity[MidniteSolarUpdateCoordinator], Butto
         """
         flag_value = 1 << FORCE_FLAGS[self._flag]
         register, word = force_flag_write(flag_value)
-        _LOGGER.info("Writing force flag %s: 0x%x to register %d", self._flag, flag_value, register)
+        _LOGGER.info(
+            "Writing force flag %s: 0x%x to register %d",
+            self._flag,
+            flag_value,
+            register,
+        )
         # A button that reports nothing and does nothing is indistinguishable from
         # a Classic that ignored the press, so the failure has to reach the UI.
-        await async_write_setting(self.hass, self.coordinator.api, register, word, self.name)
+        await async_write_setting(
+            self.hass, self.coordinator.api, register, word, write_label(self, "button")
+        )
         await self.coordinator.async_request_refresh()
 
 

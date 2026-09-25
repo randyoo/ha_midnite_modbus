@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from collections import deque
 from datetime import datetime
-from typing import Deque, Optional, Tuple
 
 # Register holding the low 16 bits of the write-only Force Flag Bits, and the
 # register holding the high 16 bits: "4160 / 4161 W Force Flag Bits
@@ -34,7 +33,7 @@ def scaled_register(value: float, divisor: float = 10.0) -> int:
 
     Rounds rather than truncates, so 57.6 V becomes 576 and not 575.
     """
-    return int(round(value * divisor))
+    return round(value * divisor)
 
 
 def signed16(raw: int) -> int:
@@ -42,12 +41,16 @@ def signed16(raw: int) -> int:
     return raw - 65536 if raw > 32767 else raw
 
 
-def combine32(low: int, high: int) -> int:
+def combine32(low: int | None, high: int | None) -> int | None:
     """Combine two 16-bit registers into a 32-bit value.
 
     The register map always spells this "([hi] << 16) + [lo]", so the lower
-    address carries the low word.
+    address carries the low word. A word that was never read decodes to
+    None: inventing a value from half a pair is how phantom identities get
+    advertised.
     """
+    if low is None or high is None:
+        return None
     return (high << 16) | low
 
 
@@ -75,7 +78,7 @@ def pack_byte_pair(current: int, index: int, byte: int) -> int:
     return (current & 0x00FF) | (byte << 8)
 
 
-def force_flag_write(flag_value: int) -> Tuple[int, int]:
+def force_flag_write(flag_value: int) -> tuple[int, int]:
     """Return (register, value) needed to raise a Force Flag Bit.
 
     Table 4160-1 lists the flags as 32-bit values spread over registers 4160
@@ -90,7 +93,9 @@ def force_flag_write(flag_value: int) -> Tuple[int, int]:
     return FORCE_FLAG_BITS_HIGH_REGISTER, flag_value >> 16
 
 
-def format_mac_from_registers(part1: int, part2: int, part3: int) -> str:
+def format_mac_from_registers(
+    part1: int | None, part2: int | None, part3: int | None
+) -> str | None:
     """Format the MAC address held in registers 4106, 4107 and 4108.
 
     The map composes it "[4108]MSB : [4108]LSB : [4107]MSB : [4107]LSB :
@@ -98,8 +103,11 @@ def format_mac_from_registers(part1: int, part2: int, part3: int) -> str:
     byte first. Bench-confirmed: the Classic's Ethernet port that prints 60:1D:0F:00:CC:DD
     reads back part1=0xCCDD, part2=0x0F00, part3=0x601D. The result uses Home
     Assistant's canonical form (lower case, colon separated) because unique
-    ids are compared as strings.
+    ids are compared as strings. A part that was never read answers None,
+    never a MAC invented from two registers.
     """
+    if part1 is None or part2 is None or part3 is None:
+        return None
     mac_bytes = [
         (part3 >> 8) & 0xFF,
         part3 & 0xFF,
@@ -123,9 +131,7 @@ def format_ipv4(low: int, high: int) -> str:
     The hardware wins, as it does wherever this map contradicts itself.
     """
     return ".".join(
-        str(byte)
-        for word in (low, high)
-        for byte in (word & 0xFF, (word >> 8) & 0xFF)
+        str(byte) for word in (low, high) for byte in (word & 0xFF, (word >> 8) & 0xFF)
     )
 
 
@@ -161,7 +167,7 @@ class TemperatureFilter:
         self.max_value = max_value
         self.max_deviation = max_deviation
         self.max_rejections = max_rejections
-        self._accepted: Deque[float] = deque(maxlen=window)
+        self._accepted: deque[float] = deque(maxlen=window)
         self._rejections = 0
 
     @property
@@ -177,7 +183,7 @@ class TemperatureFilter:
             return ordered[mid]
         return (ordered[mid - 1] + ordered[mid]) / 2
 
-    def apply(self, value: float) -> Optional[float]:
+    def apply(self, value: float) -> float | None:
         """Return the value to publish, or None when the reading is rejected."""
         if not self.min_value <= value <= self.max_value:
             return self._reject(value, f"out of range ({value:.1f} °C)")
@@ -185,13 +191,14 @@ class TemperatureFilter:
             median = self._median()
             if abs(value - median) > self.max_deviation:
                 return self._reject(
-                    value, f"deviates from median {median:.1f} °C by {abs(value - median):.1f} °C"
+                    value,
+                    f"deviates from median {median:.1f} °C by {abs(value - median):.1f} °C",
                 )
         self._rejections = 0
         self._accepted.append(value)
         return value
 
-    def _reject(self, value: float, reason: str) -> Optional[float]:
+    def _reject(self, value: float, reason: str) -> float | None:
         """Count a rejection, or give up and restart the baseline here.
 
         When the escape hatch fires the filter starts a fresh baseline at this
@@ -216,7 +223,7 @@ def serial_from_registers(msb: int, lsb: int) -> int:
     return (msb << 16) | lsb
 
 
-def unlock_values(serial: int) -> Tuple[int, int]:
+def unlock_values(serial: int) -> tuple[int, int]:
     """Return the two words to write to 20492/20493 to unlock Ethernet writes.
 
     The map's example: "the serial number is: 0x12345678 (hex) -> 20492 = MSB
@@ -246,7 +253,7 @@ def write_field(value: int, mask: int, shift: int, field_value: int) -> int:
     Needed because the Aux selects share register 4165: writing the whole
     register would clobber the other output's function.
     """
-    width = bin(mask).count("1")
+    width = mask.bit_count()
     if not 0 <= field_value < (1 << width):
         raise ValueError(f"{field_value} does not fit in a {width}-bit field")
     return (value & ~mask) | ((field_value << shift) & mask)
@@ -262,7 +269,9 @@ VERSION_FIELDS = (("major", 0xF000, 12), ("minor", 0x0F00, 8), ("release", 0x00F
 
 def version_from_register(raw: int) -> str:
     """Return the "major.minor.release" the version register holds."""
-    return ".".join(str(read_field(raw, mask, shift)) for _name, mask, shift in VERSION_FIELDS)
+    return ".".join(
+        str(read_field(raw, mask, shift)) for _name, mask, shift in VERSION_FIELDS
+    )
 
 
 def clock_file_payload(now) -> list:
@@ -291,10 +300,10 @@ def clock_file_payload(now) -> list:
 
 
 def clock_from_registers(
-    seconds_minutes: Optional[int],
-    hours_weekday: Optional[int],
-    day_month: Optional[int],
-    year: Optional[int],
+    seconds_minutes: int | None,
+    hours_weekday: int | None,
+    day_month: int | None,
+    year: int | None,
 ):
     """Decode the Classic's clock words into a naive datetime, or None.
 
@@ -310,7 +319,12 @@ def clock_from_registers(
     A word that was never read, or a value that cannot be a real date
     (firmware garbage), yields None instead of a wrong clock.
     """
-    if None in (seconds_minutes, hours_weekday, day_month, year):
+    if (
+        seconds_minutes is None
+        or hours_weekday is None
+        or day_month is None
+        or year is None
+    ):
         return None
     second = seconds_minutes & 0x3F
     minute = (seconds_minutes >> 8) & 0x3F

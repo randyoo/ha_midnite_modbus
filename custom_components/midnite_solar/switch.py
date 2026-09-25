@@ -16,16 +16,19 @@ from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from homeassistant.exceptions import HomeAssistantError
-
 from .base import MidniteBaseEntityDescription
 from .const import DOMAIN, EE_BACKED_REGISTERS, ENABLE_FLAG_TOGGLES, REGISTER_MAP
 from .coordinator import MidniteSolarUpdateCoordinator
-from .entity_writes import async_auto_save_if_enabled, async_verify_write, async_write_setting
+from .entity_writes import (
+    async_auto_save_if_enabled,
+    async_verify_write,
+    async_write_setting,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -45,7 +48,9 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class AutoSaveEepromSwitch(CoordinatorEntity[MidniteSolarUpdateCoordinator], SwitchEntity):
+class AutoSaveEepromSwitch(
+    CoordinatorEntity[MidniteSolarUpdateCoordinator], SwitchEntity
+):
     """Enable or disable the automatic EEPROM commit after a setting write."""
 
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
@@ -84,7 +89,9 @@ class AutoSaveEepromSwitch(CoordinatorEntity[MidniteSolarUpdateCoordinator], Swi
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Stop committing setting writes; they become volatile again."""
-        _LOGGER.info("Auto-save EEPROM disabled: setting writes stay unsaved until commit")
+        _LOGGER.info(
+            "Auto-save EEPROM disabled: setting writes stay unsaved until commit"
+        )
         self.coordinator.auto_save_eeprom = False
         self.async_write_ha_state()
 
@@ -141,7 +148,9 @@ class EnableFlagSwitch(CoordinatorEntity[MidniteSolarUpdateCoordinator], SwitchE
                 self.coordinator.api.read_holding_registers, self.register_address, 1
             )
         except Exception as e:
-            raise HomeAssistantError(f"Could not read register {self.register_address} to change it: {e}") from e
+            raise HomeAssistantError(
+                f"Could not read register {self.register_address} to change it: {e}"
+            ) from e
         if result is None or result.isError() or not result.registers:
             raise HomeAssistantError(
                 f"The Classic did not answer the read of register {self.register_address}"
@@ -149,7 +158,9 @@ class EnableFlagSwitch(CoordinatorEntity[MidniteSolarUpdateCoordinator], SwitchE
         current = result.registers[0]
         value = (current | self._mask) if on else (current & ~self._mask)
         label = f"{self.name} {'on' if on else 'off'}"
-        await async_write_setting(self.hass, self.coordinator.api, self.register_address, value, label)
+        await async_write_setting(
+            self.hass, self.coordinator.api, self.register_address, value, label
+        )
         if self.register_address in EE_BACKED_REGISTERS:
             await async_auto_save_if_enabled(self.hass, self.coordinator, label)
         await async_verify_write(
@@ -165,10 +176,20 @@ class EnableFlagSwitch(CoordinatorEntity[MidniteSolarUpdateCoordinator], SwitchE
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Set the enable bit."""
-        _LOGGER.info("Enabling %s (register %d bit %d)", self.name, self.register_address, self._bit)
+        _LOGGER.info(
+            "Enabling %s (register %d bit %d)",
+            self.name,
+            self.register_address,
+            self._bit,
+        )
         await self._async_set_bit(True)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Clear the enable bit."""
-        _LOGGER.info("Disabling %s (register %d bit %d)", self.name, self.register_address, self._bit)
+        _LOGGER.info(
+            "Disabling %s (register %d bit %d)",
+            self.name,
+            self.register_address,
+            self._bit,
+        )
         await self._async_set_bit(False)

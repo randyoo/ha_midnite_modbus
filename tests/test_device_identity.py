@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import pytest
 from fakes import FakeApi, FakeCoordinator
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import Hass
-
 from midnite_solar.base import MidniteBaseEntityDescription
 from midnite_solar.const import REGISTER_MAP
+import pytest
+
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import Hass
 
 DOMAIN = "midnite_solar"
 
@@ -43,14 +43,19 @@ class TestSerialNumber:
         )
         # A string: the device registry deprecates int serials outright
         # ("will stop working in 2026.12.0", logged on the dev bench).
-        assert MidniteBaseEntityDescription.serial_number(coordinator) == "10597059"  # 0x00A1B2C3
+        assert (
+            MidniteBaseEntityDescription.serial_number(coordinator) == "10597059"
+        )  # 0x00A1B2C3
 
     def test_the_serial_reaches_the_device_info(self, entry):
         info = MidniteBaseEntityDescription.get_device_info(
             FakeCoordinator(
                 Hass(),
                 FakeApi(),
-                {"device_info": device_group(), "serial": {28673: 0x00A1, 28674: 0xB2C3}},
+                {
+                    "device_info": device_group(),
+                    "serial": {28673: 0x00A1, 28674: 0xB2C3},
+                },
             ),
             entry,
             DOMAIN,
@@ -60,9 +65,12 @@ class TestSerialNumber:
     def test_a_device_that_has_not_been_read_yet_reports_no_serial(self, entry):
         coordinator = FakeCoordinator(Hass(), FakeApi(), {})
         assert MidniteBaseEntityDescription.serial_number(coordinator) is None
-        assert MidniteBaseEntityDescription.get_device_info(coordinator, entry, DOMAIN)[
-            "serial_number"
-        ] is None
+        assert (
+            MidniteBaseEntityDescription.get_device_info(coordinator, entry, DOMAIN)[
+                "serial_number"
+            ]
+            is None
+        )
 
     def test_half_a_serial_is_not_a_serial(self, entry):
         coordinator = FakeCoordinator(Hass(), FakeApi(), {"serial": {28673: 0x00A1}})
@@ -99,6 +107,8 @@ class TestDeviceIdentity:
         assert isinstance(plain, staticmethod)
         inner = plain.__func__
         assert not isinstance(inner, staticmethod)
-        coordinator = FakeCoordinator(Hass(), FakeApi(), {"device_info": device_group()})
+        coordinator = FakeCoordinator(
+            Hass(), FakeApi(), {"device_info": device_group()}
+        )
         assert callable(inner)
         assert inner(coordinator, entry, DOMAIN)["manufacturer"] == "Midnite Solar"

@@ -17,17 +17,13 @@ import asyncio
 import json
 import time
 
-import pytest
-import zeroconf
 from fakes import FakeApi, FakeCoordinator, FakeRequest, RecordingInternalApi
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, CONF_PORT
-from homeassistant.core import Hass
-
 import midnite_solar as integration
-from midnite_solar import bridge as bridge_module
-from midnite_solar import coordinator as coordinator_module
-from midnite_solar import datalogger
+from midnite_solar import (
+    bridge as bridge_module,
+    coordinator as coordinator_module,
+    datalogger,
+)
 from midnite_solar.bridge import BridgeAdvertiser, beacon_payload, ensure_bridge_views
 from midnite_solar.bridge_api import BRIDGE_VIEWS
 from midnite_solar.const import (
@@ -41,7 +37,13 @@ from midnite_solar.const import (
     PIN_HEADER,
     REGISTER_MAP,
 )
+import pytest
 from test_bridge import NOW, identity_groups
+import zeroconf
+
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_HOST, CONF_PORT
+from homeassistant.core import Hass
 
 ENTRY_ID = "entry-1"
 HOST = "192.168.88.53"
@@ -62,7 +64,8 @@ NO_PIN = _NoPin()
 class _FakeMonotonic:
     """A stand-in for the `time` module INSIDE bridge.py (its only time call
     is check_write_pin's time.monotonic), so a test can spend the lockout
-    ladder in wrist-seconds without disturbing asyncio's own clock."""
+    ladder in wrist-seconds without disturbing asyncio's own clock.
+    """
 
     def __init__(self, start: float = 10_000.0) -> None:
         self.now = start
@@ -112,7 +115,8 @@ def view_for(hass, suffix):
 def post(hass, suffix, body, entry_id=ENTRY_ID, pin=SET_PIN):
     """Drive a POST. By default it carries the right write PIN so the many
     non-auth tests stay about their own subject; pass pin="..." for a wrong
-    one or pin=NO_PIN to omit the header (the gate tests do exactly that)."""
+    one or pin=NO_PIN to omit the header (the gate tests do exactly that).
+    """
     view = view_for(hass, suffix)
     headers = {} if isinstance(pin, _NoPin) else {PIN_HEADER: pin}
     return asyncio.run(view.post(FakeRequest(hass, body, headers), entry_id))
@@ -135,7 +139,8 @@ def clean_environment():
 class TestRegistration:
     def test_the_bridge_is_open_no_home_assistant_token(self):
         """By explicit choice the bridge takes no HA token; the write PIN (not
-        the token) is the write gate, so no view may claim requires_auth."""
+        the token) is the write gate, so no view may claim requires_auth.
+        """
         for view in BRIDGE_VIEWS:
             assert view.requires_auth is False
 
@@ -177,12 +182,13 @@ class TestStateView:
 
     def test_the_state_carries_the_bridges_last_wire_poll(self):
         """The app's "last update" counter ages with THIS, not with its own
-        fetch: a cache served all day still reports how old its numbers are."""
+        fetch: a cache served all day still reports how old its numbers are.
+        """
         import datetime
 
         hass, coordinator = installed()
         coordinator.last_polled = datetime.datetime(
-            2026, 9, 22, 12, 0, 0, tzinfo=datetime.timezone.utc
+            2026, 9, 22, 12, 0, 0, tzinfo=datetime.UTC
         )
         response = get(hass, "state")
         assert response.body["last_polled"] == "2026-09-22T12:00:00+00:00"
@@ -192,7 +198,8 @@ class TestWritePinGate:
     """The bridge carries NO Home Assistant token, so the write PIN is the
     ENTIRE gate on every call that changes the Classic: a real 6-digit PIN is
     required (the all-zeros placeholder leaves writes OFF), wrong guesses hit a
-    strict lockout, and the cheap reads pay nothing."""
+    strict lockout, and the cheap reads pay nothing.
+    """
 
     def test_the_probe_accepts_the_configured_pin(self):
         hass, _ = installed()  # armed with SET_PIN
@@ -215,7 +222,8 @@ class TestWritePinGate:
     def test_writes_stay_off_until_a_real_pin_is_configured(self, unset):
         """No usable default, enforced at the gate: while the entry's PIN is
         the placeholder (or malformed), EVERY write is refused 403 telling the
-        owner to set one, and the device is never touched."""
+        owner to set one, and the device is never touched.
+        """
         api = FakeApi()
         hass, _ = installed(api=api, pin=unset)
         refused = post(hass, "write", {"register": ABSORB, "value": 576}, pin="000000")
@@ -225,12 +233,15 @@ class TestWritePinGate:
         # the probe says the same, so the app surfaces the instruction verbatim
         assert post(hass, "pin", {"pin": unset}, pin=NO_PIN).status == 403
 
-    @pytest.mark.parametrize("suffix,body", [
-        ("write", {"register": ABSORB, "value": 576}),
-        ("clock", {"time": CLOCK_TEXT_Z}),
-        ("reboot", {}),
-        ("save", {}),
-    ])
+    @pytest.mark.parametrize(
+        ("suffix", "body"),
+        [
+            ("write", {"register": ABSORB, "value": 576}),
+            ("clock", {"time": CLOCK_TEXT_Z}),
+            ("reboot", {}),
+            ("save", {}),
+        ],
+    )
     def test_every_mutating_endpoint_refuses_a_missing_pin(self, suffix, body):
         # The header absent is refused AND (via the shared gate) counted, so a
         # caller cannot learn that some endpoint skips the PIN for free.
@@ -240,12 +251,15 @@ class TestWritePinGate:
         assert response.status == 401
         assert api.writes == [], f"{suffix} must not touch the device without the PIN"
 
-    @pytest.mark.parametrize("suffix,body", [
-        ("write", {"register": ABSORB, "value": 576}),
-        ("clock", {"time": CLOCK_TEXT_Z}),
-        ("reboot", {}),
-        ("save", {}),
-    ])
+    @pytest.mark.parametrize(
+        ("suffix", "body"),
+        [
+            ("write", {"register": ABSORB, "value": 576}),
+            ("clock", {"time": CLOCK_TEXT_Z}),
+            ("reboot", {}),
+            ("save", {}),
+        ],
+    )
     def test_every_mutating_endpoint_refuses_the_wrong_pin(self, suffix, body):
         api = FakeApi()
         hass, _ = installed(api=api)
@@ -255,7 +269,8 @@ class TestWritePinGate:
 
     def test_the_reads_are_never_pin_gated(self):
         """State and the stored datalogger change nothing, so they answer with
-        no PIN at all - the fast bridge poll stays fast."""
+        no PIN at all - the fast bridge poll stays fast.
+        """
         hass, _ = installed()
         assert get(hass, "state").status == 200
         assert get(hass, "datalogger").status == 200
@@ -345,7 +360,9 @@ class TestWritePinGate:
 class TestWriteView:
     def test_a_write_by_name_answers_with_the_register_it_landed_on(self):
         hass, coordinator = installed()
-        response = post(hass, "write", {"register": "ABSORB_SETPOINT_VOLTAGE", "value": 576})
+        response = post(
+            hass, "write", {"register": "ABSORB_SETPOINT_VOLTAGE", "value": 576}
+        )
         assert response.status == 200
         assert response.body == {
             "register": ABSORB,
@@ -450,7 +467,8 @@ class TestDataloggerViews:
 
     def test_the_open_get_admits_a_sweep_is_in_flight(self):
         """The background collector's pass says "chart loading" through the
-        OPEN read - the client waits without asking (or PINning) anything."""
+        OPEN read - the client waits without asking (or PINning) anything.
+        """
         hass, coordinator = installed()
         get(hass, "datalogger")  # materialises the store like any first read
         coordinator.datalogger.sweeping = True
@@ -519,7 +537,8 @@ class TestBridgeLifecycle:
 
     def test_the_bridge_gets_its_background_sweeper(self):
         """Bridge on: the entry grows a collector task that no client asked
-        for - the chart fills itself. Unload cancels it."""
+        for - the chart fills itself. Unload cancels it.
+        """
         hass, entry = self.set_up({CONF_BRIDGE_ENABLED: True})
         coordinator = hass.data[DOMAIN][ENTRY_ID]
         assert isinstance(coordinator.logger_sweeper, asyncio.Task)
@@ -528,15 +547,16 @@ class TestBridgeLifecycle:
 
     def test_a_bridgeless_entry_sweeps_nothing(self):
         """Bridge off (the default): no collector task - a plain HA install
-        puts no extra sweep traffic on the Classic."""
-        hass, entry = self.set_up({})
+        puts no extra sweep traffic on the Classic.
+        """
+        hass, _entry = self.set_up({})
         coordinator = hass.data[DOMAIN][ENTRY_ID]
         assert getattr(coordinator, "logger_sweeper", None) is None
 
     def test_toggling_the_bridge_option_reloads_the_entry(self):
         """The bridge applies on reload; the listener must notice the toggle."""
         hass, entry = self.set_up({CONF_BRIDGE_ENABLED: True})
-        instance = zeroconf.Zeroconf.instances[0]
+        assert zeroconf.Zeroconf.instances, "the bridge published a record"
         entry.options = {CONF_BRIDGE_ENABLED: False}
         asyncio.run(integration.update_listener(hass, entry))
         assert hass.config_entries.reloads == [ENTRY_ID]
@@ -554,7 +574,8 @@ class TestBeacon:
     """The UDP beacon is the half of discovery that survives the firewalls
     that eat mDNS. Only the contract and the cadence are pinned here; the
     bytes actually reaching a client is proven on the wire in a bench session,
-    never from the hardware-free suite (which must open no socket at all)."""
+    never from the hardware-free suite (which must open no socket at all).
+    """
 
     def _entry(self, host=HOST):
         return ConfigEntry(
@@ -569,7 +590,8 @@ class TestBeacon:
 
     def test_the_beacon_body_is_the_whole_call(self):
         """A listener needs nothing else to dial us: the HA address and port,
-        the entry to call it by, the API version, and the Classic behind it."""
+        the entry to call it by, the API version, and the Classic behind it.
+        """
         body = json.loads(
             beacon_payload(self._entry(), self._coordinator(), "192.168.88.36", 8123)
         )
@@ -586,7 +608,8 @@ class TestBeacon:
 
     def test_the_advertiser_beats_and_close_silences_it(self):
         """Beat, then beat again, then silence after close - cadence pinned
-        through a faked broadcaster, so no socket is involved."""
+        through a faked broadcaster, so no socket is involved.
+        """
         beats = []
         advertiser = BridgeAdvertiser(
             Hass(),
@@ -608,10 +631,38 @@ class TestBeacon:
         time.sleep(0.1)  # several intervals' worth
         assert len(beats) == after  # close() set the event; the thread is gone
 
+    def test_a_bad_beat_is_skipped_not_fatal(self):
+        """The router-reboot shape (bench 2026-09-24): one sendto exception
+        during an interface flap used to end the thread for good while the
+        API stayed perfect. A beat that fails is skipped (and logged); the
+        cadence survives, and the recovery beat proves it.
+        """
+        beats = []
+
+        def flaky(payload, addr):
+            beats.append((payload, addr))
+            if len(beats) == 1:
+                raise OSError(50, "Network is down")  # one flap
+
+        advertiser = BridgeAdvertiser(
+            Hass(),
+            self._entry(),
+            self._coordinator(),
+            broadcaster=flaky,
+        )
+        advertiser._beacon_interval = 0.02
+        advertiser.publish()
+        deadline = time.monotonic() + 2.0
+        while len(beats) < 2 and time.monotonic() < deadline:
+            time.sleep(0.02)
+        advertiser.close()
+        assert len(beats) >= 2, "the beat died at the first failed send"
+
     def test_a_running_suite_never_opens_a_beacon_socket(self, monkeypatch):
         """The load-bearing safety. Setup starts the beat thread, but its first
         act is to wait the interval and an unload silences it long before that
-        wait is due, so the default (real) broadcaster is never called."""
+        wait is due, so the default (real) broadcaster is never called.
+        """
         beats = []
         monkeypatch.setattr(
             bridge_module, "broadcast_beacon", lambda payload, addr: beats.append(addr)
@@ -627,7 +678,8 @@ class TestBeacon:
     def test_even_without_an_unload_the_beat_never_fires_in_test(self):
         """A published-but-never-unloaded advertiser still cannot beat within
         a run: the interval dwarfs any single test and the daemon thread dies
-        at interpreter exit (the whole suite runs in a fraction of it)."""
+        at interpreter exit (the whole suite runs in a fraction of it).
+        """
         beats = []
         advertiser = BridgeAdvertiser(
             Hass(),

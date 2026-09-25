@@ -13,12 +13,7 @@ from __future__ import annotations
 
 import asyncio
 
-import pytest
 from fakes import FakeApi, FakeCoordinator
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import Hass
-from homeassistant.exceptions import HomeAssistantError
-
 from midnite_solar.const import DOMAIN, REGISTER_MAP
 from midnite_solar.text import (
     NAME_REGISTERS,
@@ -26,6 +21,11 @@ from midnite_solar.text import (
     name_from_registers,
     registers_for_name,
 )
+import pytest
+
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import Hass
+from homeassistant.exceptions import HomeAssistantError
 
 MAP_EXAMPLE = [0x4C43, 0x5341, 0x4953, 0x0043]
 
@@ -36,7 +36,9 @@ def entry():
 
 
 def text_entity(api, registers=None, entry=None):
-    group = {} if registers is None else {address: value for address, value in zip(NAME_REGISTERS, registers)}
+    group = (
+        {} if registers is None else dict(zip(NAME_REGISTERS, registers, strict=True))
+    )
     coordinator = FakeCoordinator(Hass(), api, {"device_info": group})
     coordinator.hass = Hass()
     entity = HostNameText(coordinator, entry)
@@ -121,7 +123,9 @@ class TestWrites:
         api = FakeApi()
         asyncio.run(text_entity(api, MAP_EXAMPLE, entry).async_set_value("HYDRO 1"))
         written = dict(api.writes[:-1])
-        assert written == dict(zip(NAME_REGISTERS, registers_for_name("HYDRO 1")))
+        assert written == dict(
+            zip(NAME_REGISTERS, registers_for_name("HYDRO 1"), strict=True)
+        )
         assert api.writes[-1] == (4160, 0x0004), "the map marks ID name (EE)"
 
     def test_every_written_register_is_read_back(self, entry):
@@ -164,7 +168,10 @@ class TestDeviceInfo:
         coordinator = FakeCoordinator(
             Hass(),
             api,
-            {"device_info": {address: value for address, value in zip(NAME_REGISTERS, MAP_EXAMPLE)}, "serial": {28673: 0x11, 28674: 0x22}},
+            {
+                "device_info": dict(zip(NAME_REGISTERS, MAP_EXAMPLE, strict=True)),
+                "serial": {28673: 0x11, 28674: 0x22},
+            },
         )
         info = HostNameText(coordinator, entry).device_info
         assert info["serial_number"] == "1114146"  # 0x00110022; the registry takes text

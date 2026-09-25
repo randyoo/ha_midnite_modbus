@@ -16,27 +16,25 @@ from __future__ import annotations
 
 import asyncio
 
-import pytest
 from fakes import FakeApi, FakeCoordinator
+from midnite_solar.const import ENABLE_FLAG_TOGGLES, REGISTER_GROUPS, REGISTER_MAP
+from midnite_solar.switch import EnableFlagSwitch
+import pytest
+
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Hass
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityCategory
 
-from midnite_solar.const import (
-    ENABLE_FLAG_TOGGLES,
-    REGISTER_GROUPS,
-    REGISTER_MAP,
-)
-from midnite_solar.switch import EnableFlagSwitch
-
 R1, R2 = REGISTER_MAP["ENABLE_FLAGS_1"], REGISTER_MAP["ENABLE_FLAGS_2"]
 
 
 def toggles():
-    return {key: (R1 if register_key == "ENABLE_FLAGS_1" else R2, bit)
-            for key, _label, register_key, bit, _tip in ENABLE_FLAG_TOGGLES}
+    return {
+        key: (R1 if register_key == "ENABLE_FLAGS_1" else R2, bit)
+        for key, _label, register_key, bit, _tip in ENABLE_FLAG_TOGGLES
+    }
 
 
 def switch(api, entry, key, group_values):
@@ -63,8 +61,13 @@ def entry():
 class TestToggleTable:
     def test_the_seven_app_toggles_are_all_there(self):
         assert set(toggles()) == {
-            "ground_fault", "arc_fault", "night_auto_reset",
-            "networked_batt_temp", "low_max_mode", "insomnia_mode", "log_at_night",
+            "ground_fault",
+            "arc_fault",
+            "night_auto_reset",
+            "networked_batt_temp",
+            "low_max_mode",
+            "insomnia_mode",
+            "log_at_night",
         }
 
     def test_the_two_registers_are_polled_where_the_switches_read(self):
@@ -104,7 +107,9 @@ class TestToggling:
 
     def test_turning_off_clears_only_this_bit(self, entry):
         api = FakeApi(read_values={R2: 0x48C4})
-        asyncio.run(switch(api, entry, "night_auto_reset", {R2: 0x48C4}).async_turn_off())
+        asyncio.run(
+            switch(api, entry, "night_auto_reset", {R2: 0x48C4}).async_turn_off()
+        )
         assert api.writes[0] == (R2, 0x48C4 & ~(1 << 2))
 
     def test_ground_fault_is_on_4187_not_4186(self, entry):
@@ -123,7 +128,9 @@ class TestToggling:
     def test_a_refused_bit_change_says_so(self, entry):
         api = FakeApi(read_values={R2: 0x0000}, stale_read=True)
         with pytest.raises(HomeAssistantError) as err:
-            asyncio.run(switch(api, entry, "insomnia_mode", {R2: 0x0000}).async_turn_on())
+            asyncio.run(
+                switch(api, entry, "insomnia_mode", {R2: 0x0000}).async_turn_on()
+            )
         assert "ignored or clamped" in str(err.value)
 
     def test_a_neighbour_bit_changed_by_another_tool_is_not_blamed(self, entry):
@@ -155,9 +162,19 @@ class TestToggling:
 class TestCommit:
     def test_the_toggle_commits_when_auto_save_is_on(self, entry):
         api = FakeApi(read_values={R2: 0x0000})
-        coordinator = FakeCoordinator(Hass(), api, {"settings": {R2: 0}}, auto_save_eeprom=True)
+        coordinator = FakeCoordinator(
+            Hass(), api, {"settings": {R2: 0}}, auto_save_eeprom=True
+        )
         coordinator.hass = Hass()
-        entity = EnableFlagSwitch(coordinator, entry, "insomnia_mode", "Insomnia Mode", "ENABLE_FLAGS_2", 12, "")
+        entity = EnableFlagSwitch(
+            coordinator,
+            entry,
+            "insomnia_mode",
+            "Insomnia Mode",
+            "ENABLE_FLAGS_2",
+            12,
+            "",
+        )
         entity.hass = coordinator.hass
         asyncio.run(entity.async_turn_on())
         assert (R2, 1 << 12) in api.writes
@@ -165,9 +182,19 @@ class TestCommit:
 
     def test_the_toggle_does_not_commit_when_auto_save_is_off(self, entry):
         api = FakeApi(read_values={R2: 0x0000})
-        coordinator = FakeCoordinator(Hass(), api, {"settings": {R2: 0}}, auto_save_eeprom=False)
+        coordinator = FakeCoordinator(
+            Hass(), api, {"settings": {R2: 0}}, auto_save_eeprom=False
+        )
         coordinator.hass = Hass()
-        entity = EnableFlagSwitch(coordinator, entry, "insomnia_mode", "Insomnia Mode", "ENABLE_FLAGS_2", 12, "")
+        entity = EnableFlagSwitch(
+            coordinator,
+            entry,
+            "insomnia_mode",
+            "Insomnia Mode",
+            "ENABLE_FLAGS_2",
+            12,
+            "",
+        )
         entity.hass = coordinator.hass
         asyncio.run(entity.async_turn_off())
         assert api.writes[0] == (R2, 0)
@@ -177,7 +204,15 @@ class TestCommit:
         api = FakeApi(unreadable=True)
         coordinator = FakeCoordinator(Hass(), api, {"settings": {R2: 0}})
         coordinator.hass = Hass()
-        entity = EnableFlagSwitch(coordinator, entry, "insomnia_mode", "Insomnia Mode", "ENABLE_FLAGS_2", 12, "")
+        entity = EnableFlagSwitch(
+            coordinator,
+            entry,
+            "insomnia_mode",
+            "Insomnia Mode",
+            "ENABLE_FLAGS_2",
+            12,
+            "",
+        )
         entity.hass = coordinator.hass
         with pytest.raises(HomeAssistantError):
             asyncio.run(entity.async_turn_on())

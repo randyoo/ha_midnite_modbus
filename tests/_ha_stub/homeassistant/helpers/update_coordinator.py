@@ -9,7 +9,7 @@ from .entity import Entity
 
 _DataT = TypeVar("_DataT")
 
-__all__ = ["DataUpdateCoordinator", "CoordinatorEntity", "UpdateFailed"]
+__all__ = ["CoordinatorEntity", "DataUpdateCoordinator", "UpdateFailed"]
 
 
 class DataUpdateCoordinator:
@@ -20,7 +20,9 @@ class DataUpdateCoordinator:
     reason setup can fail with "not ready" instead of an error.
     """
 
-    def __init__(self, hass, logger, *, name=None, update_interval=None, config_entry=None):
+    def __init__(
+        self, hass, logger, *, name=None, update_interval=None, config_entry=None
+    ):
         self.hass = hass
         self.logger = logger or logging.getLogger(__name__)
         self.name = name
@@ -42,7 +44,9 @@ class DataUpdateCoordinator:
             self.data = await self._async_update_data()
             self.last_update_success = True
         except UpdateFailed as err:
-            raise ConfigEntryNotReady(f"Communication with {self.name} failed: {err}") from err
+            raise ConfigEntryNotReady(
+                f"Communication with {self.name} failed: {err}"
+            ) from err
 
     async def async_shutdown(self):
         """Cancel the scheduled refresh."""

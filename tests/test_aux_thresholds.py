@@ -26,18 +26,18 @@ from __future__ import annotations
 
 import asyncio
 
-import pytest
 from fakes import FakeApi, FakeCoordinator
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import Hass
-from homeassistant.helpers.entity import EntityCategory
-
 from midnite_solar.const import (
     AUX_THRESHOLD_SETTINGS,
     EE_BACKED_REGISTERS,
     REGISTER_MAP,
 )
 from midnite_solar.number import AuxThresholdNumber
+import pytest
+
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import Hass
+from homeassistant.helpers.entity import EntityCategory
 
 # (key, register, tenths) exactly as the map's own formulas have them.
 SPEC_THRESHOLDS = {
@@ -66,7 +66,9 @@ def entry():
 
 def threshold(key, api, raw=0, entry=None):
     setting = SETTINGS[key]
-    coordinator = FakeCoordinator(Hass(), api, {"aux_settings": {REGISTER_MAP[key]: raw}})
+    coordinator = FakeCoordinator(
+        Hass(), api, {"aux_settings": {REGISTER_MAP[key]: raw}}
+    )
     coordinator.hass = Hass()
     entity = AuxThresholdNumber(coordinator, entry, setting)
     entity.hass = coordinator.hass

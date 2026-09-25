@@ -1,6 +1,4 @@
 """Home Assistant typing helpers."""
 
-from typing import Any, Optional, Union
-
-StateType = Union[str, int, float, None, Any]
+StateType = str | int | float | None
 UNDEFINED = None

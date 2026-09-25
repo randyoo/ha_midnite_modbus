@@ -1,0 +1,37 @@
+{
+  // VS Code dev setup, mirroring the CI in tool/check.sh.
+  //
+  // The DEFAULT interpreter is the bench venv: it has the REAL homeassistant
+  // (py.typed) installed, which is what makes Pylance AND mypy resolve the
+  // integration's HA imports against the runtime the component actually
+  // runs on. The lint tools themselves live in the separate pinned
+  // lint-env (tools/lint-env in the workspace root) - versions mirror Home
+  // Assistant core's own CI pins.
+  "python.defaultInterpreterPath": "${workspaceFolder}/../ha-env/venv/bin/python",
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/custom_components",
+    "${workspaceFolder}/tests",
+    "${workspaceFolder}/tests/_ha_stub"
+  ],
+  "python.analysis.diagnosticMode": "workspace",
+  "[python]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "explicit",
+      "source.organizeImports.ruff": "explicit"
+    }
+  },
+  // Ruff extension: pinned binary from lint-env, repo's core-mirrored config.
+  // If ${workspaceFolder} ever fails to expand here, put the absolute path
+  // in (the workspace has moved once before; check.sh always works).
+  "ruff.path": ["${workspaceFolder}/../tools/lint-env/bin"],
+  "ruff.configuration": "${workspaceFolder}/.ruff.toml",
+  "ruff.importStrategy": "fromEnvironment",
+  // Mypy extension: run lint-env's pinned mypy; mypy.ini then decides
+  // everything (files, strictness ladder, python_executable = bench venv).
+  "mypy-type-checker.importStrategy": "fromEnvironment",
+  "mypy-type-checker.executionPath": "${workspaceFolder}/../tools/lint-env/bin/activate",
+  "mypy-type-checker.path": ["${workspaceFolder}/../tools/lint-env/bin"],
+  "mypy-type-checker.args": ["--config-file=${workspaceFolder}/mypy.ini"]
+}

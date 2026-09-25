@@ -11,13 +11,7 @@ from __future__ import annotations
 
 import asyncio
 
-import pytest
 from fakes import FakeApi
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, CONF_PORT
-from homeassistant.core import Hass
-from homeassistant.exceptions import ConfigEntryNotReady, UpdateFailed
-
 import midnite_solar as integration
 from midnite_solar import coordinator as coordinator_module
 from midnite_solar.const import (
@@ -29,6 +23,12 @@ from midnite_solar.const import (
     DEFAULT_WRITE_PIN,
     DOMAIN,
 )
+import pytest
+
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_HOST, CONF_PORT
+from homeassistant.core import Hass
+from homeassistant.exceptions import ConfigEntryNotReady
 
 HOST = "192.168.88.53"
 PLATFORMS = {"sensor", "binary_sensor", "button", "number", "text", "select", "switch"}
@@ -114,7 +114,9 @@ class TestSetup:
         hass = Hass()
         config_entry = entry()
         set_up(hass, config_entry)
-        assert DOMAIN in hass.data and hass.data[DOMAIN][config_entry.entry_id] is not None
+        assert (
+            DOMAIN in hass.data and hass.data[DOMAIN][config_entry.entry_id] is not None
+        )
 
     def test_the_device_is_connected_once(self):
         hass = Hass()
@@ -192,7 +194,8 @@ class TestSetup:
 
     def test_the_write_pin_option_reaches_the_gate(self):
         """The bridge reads the PIN off the coordinator; setup must carry the
-        entry's own value there or the gate would guard with the default."""
+        entry's own value there or the gate would guard with the default.
+        """
         hass = Hass()
         config_entry = entry(options={CONF_WRITE_PIN: "135790"})
         set_up(hass, config_entry)
@@ -201,7 +204,8 @@ class TestSetup:
 
     def test_the_write_pin_defaults_to_the_placeholder(self):
         """An entry that never set a PIN carries the all-zeros placeholder,
-        which the write gate treats as WRITES OFF (there is no usable default)."""
+        which the write gate treats as WRITES OFF (there is no usable default).
+        """
         hass = Hass()
         config_entry = entry(options={})
         set_up(hass, config_entry)
@@ -226,7 +230,10 @@ class TestUnload:
         set_up(hass, config_entry)
         coordinator = hass.data[DOMAIN][config_entry.entry_id]
         calls = []
-        original_shutdown, original_disconnect = coordinator.async_shutdown, coordinator.api.disconnect
+        original_shutdown, original_disconnect = (
+            coordinator.async_shutdown,
+            coordinator.api.disconnect,
+        )
 
         async def shutdown():
             calls.append("shutdown")
@@ -279,9 +286,10 @@ class TestOptionsChange:
         asyncio.run(integration.update_listener(hass, config_entry))
         assert hass.config_entries.reloads == [config_entry.entry_id]
 
-    def test_the_listener_reports_success(self):
-        hass = Hass()
-        assert asyncio.run(integration.update_listener(Hass(), entry())) is True
+    def test_the_listener_completes(self):
+        # HA awaits the listener and ignores the result (its signature
+        # returns None); "success" means it did not raise.
+        assert asyncio.run(integration.update_listener(Hass(), entry())) is None
 
 
 class TestFailedSetupCleanup:
@@ -386,7 +394,8 @@ class TestUpdateListenerLifecycle:
 
     def test_a_write_pin_change_still_reloads(self):
         """A reload is the ONE thing that makes a new PIN live (and resets the
-        lockout ladder, which is right when the owner just rotated the PIN)."""
+        lockout ladder, which is right when the owner just rotated the PIN).
+        """
         hass = Hass()
         config_entry = entry()
         set_up(hass, config_entry)
@@ -412,7 +421,9 @@ class TestUnloadRobustness:
         config_entry = entry()
         set_up(hass, config_entry)
         assert asyncio.run(integration.async_unload_entry(hass, config_entry)) is True
-        assert asyncio.run(integration.async_unload_entry(hass, config_entry)) is not None
+        assert (
+            asyncio.run(integration.async_unload_entry(hass, config_entry)) is not None
+        )
 
     def test_a_failed_platform_unload_still_shuts_the_coordinator_down(self):
         """A live coordinator left behind would poll the single-connection device."""

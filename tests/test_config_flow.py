@@ -11,12 +11,6 @@ from __future__ import annotations
 
 import asyncio
 
-import pytest
-from homeassistant.config_entries import AbortFlow, ConfigEntry, ConfigFlow
-from homeassistant.const import CONF_HOST, CONF_PORT
-from homeassistant.core import Hass
-from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
-
 from midnite_solar import config_flow as flow_module
 from midnite_solar.config_flow import MidniteSolarConfigFlow
 from midnite_solar.const import (
@@ -27,8 +21,13 @@ from midnite_solar.const import (
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SENSOR_INTERVAL,
     DEFAULT_WRITE_PIN,
-    DOMAIN,
 )
+import pytest
+
+from homeassistant.config_entries import AbortFlow, ConfigEntry, ConfigFlow
+from homeassistant.const import CONF_HOST, CONF_PORT
+from homeassistant.core import Hass
+from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 
 ORIGINAL_CLIENT = flow_module.ModbusTcpClient
 
@@ -151,7 +150,9 @@ def default_for(result, key):
     raise AssertionError(f"{key} is not in the form")
 
 
-def set_up_manually(instance, host=HOST, port=DEFAULT_PORT, interval=DEFAULT_SCAN_INTERVAL):
+def set_up_manually(
+    instance, host=HOST, port=DEFAULT_PORT, interval=DEFAULT_SCAN_INTERVAL
+):
     return asyncio.run(
         instance.async_step_user(
             {CONF_HOST: host, CONF_PORT: port, CONF_SCAN_INTERVAL: interval}
@@ -165,7 +166,11 @@ class TestManualEntry:
         outcome = asyncio.run(result)
         assert outcome["type"] == "form"
         assert outcome["step_id"] == "user"
-        assert set(outcome["data_schema"].schema.keys()) == {CONF_HOST, CONF_PORT, CONF_SCAN_INTERVAL}
+        assert set(outcome["data_schema"].schema.keys()) == {
+            CONF_HOST,
+            CONF_PORT,
+            CONF_SCAN_INTERVAL,
+        }
 
     def test_the_default_port_is_the_modbus_port(self):
         assert DEFAULT_PORT == 502
@@ -246,7 +251,9 @@ class TestManualEntry:
             set_up_manually(instance)
         assert err.value.reason == "already_configured"
 
-    def test_a_different_port_is_a_different_device_as_far_as_the_flow_is_concerned(self):
+    def test_a_different_port_is_a_different_device_as_far_as_the_flow_is_concerned(
+        self,
+    ):
         instance = flow(entries=[entry(port=5021)])
         outcome = set_up_manually(instance, port=502)
         assert outcome["type"] == "create_entry"
@@ -313,7 +320,9 @@ class TestDhcpDiscovery:
         """A half-dead 502 port that raises must not leak a file descriptor."""
         outcome, _instance = self.discovery(ExplodingReadClient)
         assert outcome["type"] == "form"
-        assert FakeClient.clients[-1].closed, "the discovery socket is closed even on error"
+        assert FakeClient.clients[-1].closed, (
+            "the discovery socket is closed even on error"
+        )
 
     def test_the_discovery_client_is_bounded_not_pymodbus_defaults(self):
         """The hub bounds every socket; discovery must not sit on 3 s x 3 retries."""
@@ -332,7 +341,10 @@ class TestOptions:
         UI, and the Flutter app's enable-the-bridge step never appears.
         Locked here because the test double had no such gate (2026-09-22).
         """
-        assert MidniteSolarConfigFlow.async_get_options_flow is not ConfigFlow.async_get_options_flow
+        assert (
+            MidniteSolarConfigFlow.async_get_options_flow
+            is not ConfigFlow.async_get_options_flow
+        )
         assert MidniteSolarConfigFlow.async_supports_options_flow(entry()) is True
 
     def test_the_options_flow_carries_the_entry_being_edited(self):
@@ -362,7 +374,8 @@ class TestOptions:
 
     def test_the_sensor_interval_has_its_own_form_field(self):
         """Two cadences, two fields: fast Modbus for the bridge cache, slow
-        republish so the recorder is not fed every polled tenth of a volt."""
+        republish so the recorder is not fed every polled tenth of a volt.
+        """
         existing = entry(options={CONF_SENSOR_INTERVAL: 300})
         handler = MidniteSolarConfigFlow.async_get_options_flow(existing)
         outcome = asyncio.run(handler.async_step_init(None))
@@ -376,15 +389,14 @@ class TestOptions:
     def test_both_intervals_are_stored_when_both_are_edited(self):
         handler = MidniteSolarConfigFlow.async_get_options_flow(entry(options={}))
         outcome = asyncio.run(
-            handler.async_step_init(
-                {CONF_SCAN_INTERVAL: 5, CONF_SENSOR_INTERVAL: 300}
-            )
+            handler.async_step_init({CONF_SCAN_INTERVAL: 5, CONF_SENSOR_INTERVAL: 300})
         )
         assert outcome["data"] == {CONF_SCAN_INTERVAL: 5, CONF_SENSOR_INTERVAL: 300}
 
     def test_the_write_pin_field_is_prefilled_with_the_placeholder(self):
         """The field shows the all-zeros PLACEHOLDER (so an unset entry is
-        visibly unset) - but it is not a usable PIN, only a starting value."""
+        visibly unset) - but it is not a usable PIN, only a starting value.
+        """
         handler = MidniteSolarConfigFlow.async_get_options_flow(entry(options={}))
         outcome = asyncio.run(handler.async_step_init(None))
         assert default_for(outcome, CONF_WRITE_PIN) == DEFAULT_WRITE_PIN == "000000"
@@ -440,7 +452,9 @@ class TestOptions:
 
 class TestImport:
     def test_an_import_creates_an_entry(self):
-        outcome = asyncio.run(flow().async_step_import({CONF_HOST: HOST, CONF_PORT: 502}))
+        outcome = asyncio.run(
+            flow().async_step_import({CONF_HOST: HOST, CONF_PORT: 502})
+        )
         assert outcome["type"] == "create_entry"
         assert outcome["data"] == {CONF_HOST: HOST, CONF_PORT: 502}
 
@@ -452,14 +466,18 @@ class TestImport:
 
     def test_import_aborts_when_the_classic_cannot_be_read(self):
         outcome = asyncio.run(
-            flow(ErrorReadingClient).async_step_import({CONF_HOST: HOST, CONF_PORT: 502})
+            flow(ErrorReadingClient).async_step_import(
+                {CONF_HOST: HOST, CONF_PORT: 502}
+            )
         )
         assert outcome == {"type": "abort", "reason": "cannot_read"}
 
     def test_importing_a_device_that_is_already_set_up_is_aborted(self):
         with pytest.raises(AbortFlow) as err:
             asyncio.run(
-                flow(entries=[entry()]).async_step_import({CONF_HOST: HOST, CONF_PORT: 502})
+                flow(entries=[entry()]).async_step_import(
+                    {CONF_HOST: HOST, CONF_PORT: 502}
+                )
             )
         assert err.value.reason == "already_configured"
 
@@ -508,7 +526,9 @@ class TestReconfigure:
         existing = entry()
         handler = flow(entries=[existing], reconfigure_entry=existing)
         outcome = asyncio.run(
-            handler.async_step_reconfigure({CONF_HOST: HOST, CONF_PORT: 502, CONF_SCAN_INTERVAL: 20})
+            handler.async_step_reconfigure(
+                {CONF_HOST: HOST, CONF_PORT: 502, CONF_SCAN_INTERVAL: 20}
+            )
         )
         assert outcome["type"] == "abort"
         assert outcome["reason"] == "reconfigure_success"

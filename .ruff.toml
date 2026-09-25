@@ -1,0 +1,202 @@
+# Ruff gate, mirrored from Home Assistant core's own [.ruff.lint] config
+# (core dev, ruff 0.16.8) and adapted for a custom integration: the rule
+# families and the ignores are core's, so a future submission meets the
+# same bar the core repo enforces. The core-only leftovers are dropped
+# with a comment, not silently, so re-mirroring from core stays honest:
+#
+#   * the flake8-import-conventions PLATFORM_SCHEMA aliases (a core repo
+#     table; a custom integration never imports those modules);
+#   * the voluptuous->probatio banned-api entry (core-dev 2026.10 only;
+#     this integration targets the running HA's voluptuous, and gating on
+#     a rule the installed runtime cannot satisfy would be theatre);
+#   * core's per-file-ignores for script/*, benchmarks/ and util N806
+#     (no such trees here);
+#   * banned-api "tests" stays: this repo's tests import the component
+#     package, never the tests package, and if that ever changes the
+#     rule SHOULD shout.
+
+required-version = ">=0.16.8"
+
+line-length = 88
+target-version = "py314"
+
+[lint]
+select = [
+  "A001",   # Variable {name} is shadowing a Python builtin
+  "ASYNC",  # flake8-async
+  "B",      # flake8-bugbear
+  "BLE",
+  "C",      # complexity
+  "COM818", # Trailing comma on bare tuple prohibited
+  "D",      # docstrings
+  "DTZ003", # Use datetime.now(tz=) instead of datetime.utcnow()
+  "DTZ004", # Use datetime.fromtimestamp(ts, tz=) instead of datetime.utcfromtimestamp(ts)
+  "DTZ011", # Use datetime.now(tz=).date() instead of date.today()
+  "E",      # pycodestyle
+  "F",      # pyflakes/autoflake
+  "F541",   # f-string without any placeholders
+  "FLY",    # flynt
+  "FURB",   # refurb
+  "G",      # flake8-logging-format
+  "I",      # isort
+  "INP",    # flake8-no-pep420
+  "ISC",    # flake8-implicit-str-concat
+  "ICN001", # import conventions; {name} should be imported as {asname}
+  "ICN002", # import conventions; {name} should not be imported as {asname}
+  "LOG",    # flake8-logging
+  "N804",   # First argument of a class method should be named cls
+  "N805",   # First argument of a method should be named self
+  "N806",   # Variable {name} in function should be snake_case
+  "N815",   # Variable {name} in class scope should not be mixedCase
+  "PERF",   # Perflint
+  "PGH",    # pygrep-hooks
+  "PIE",    # flake8-pie
+  "PL",     # pylint
+  "PT",     # flake8-pytest-style
+  "PTH",    # flake8-pathlib
+  "PYI",    # flake8-pyi
+  "RET",    # flake8-return
+  "RSE",    # flake8-raise
+  "RUF",    # Ruff-specific rules
+  "S107",   # Possible hardcoded password assigned to function default
+  "S102",   # Use of exec detected
+  "S103",   # bad-file-permissions
+  "S108",   # hardcoded-temp-file
+  "S301",   # suspicious-pickle-usage
+  "S306",   # suspicious-mktemp-usage
+  "S307",   # suspicious-eval-usage
+  "S313",   # suspicious-xml-c-element-tree-usage
+  "S314",   # suspicious-xml-element-tree-usage
+  "S315",   # suspicious-xml-expat-reader-usage
+  "S316",   # suspicious-xml-expat-builder-usage
+  "S317",   # suspicious-sax-usage
+  "S318",   # suspicious-mini-dom-usage
+  "S319",   # suspicious-pull-dom-usage
+  "S601",   # paramiko-call
+  "S602",   # subprocess-popen-with-shell-equals-true
+  "S604",   # call-with-shell-equals-true
+  "S608",   # hardcoded-sql-expression
+  "S609",   # unix-command-wildcard-injection
+  "SIM",    # flake8-simplify
+  "SLF",    # flake8-self
+  "SLOT",   # flake8-slots
+  "T100",   # Trace found: {name} used
+  "T20",    # flake8-print
+  "TC",     # flake8-type-checking
+  "TID",    # Tidy imports
+  "TRY",    # tryceratops
+  "UP",     # pyupgrade
+  "UP031",  # Use format specifiers instead of percent format
+  "UP032",  # Use f-string instead of `format` call
+  "W",      # pycodestyle
+]
+
+ignore = [
+  # core's own ignores, kept verbatim:
+  "ASYNC109", # async function with a `timeout` parameter; use asyncio.timeout
+  "ASYNC110", # use asyncio.Event instead of sleeping in a while loop
+  "ASYNC240", # use an async function for entering the file system
+  "B008",     # function call in argument defaults (common in HA)
+  "B019",     # lru_cache on methods can leak memory
+  "D202",     # no blank lines allowed after function docstring
+  "D203",     # 1 blank line required before class docstring
+  "D213",     # multi-line docstring summary at the second line
+  "D406",     # section name should end with a newline
+  "D407",     # section name underlining
+  "D417",     # missing argument descriptions - document only non-obvious ones
+  "E501",     # line too long
+  "PLC1901",  # empty-string falsiness simplification; false positives
+  "PLR0911",  # too many return statements
+  "PLR0912",  # too many branches
+  "PLR0913",  # too many arguments to function call
+  "PLR0915",  # too many statements
+  "PLR0917",  # too many positional arguments
+  "PLR2004",  # magic value used in comparison
+  "PLW0108",  # unnecessary lambda wrapping a call
+  "PLW1641",  # __eq__ without __hash__
+  "PLW2901",  # loop variable overwritten by inner loop
+  "PT011",    # pytest.raises too broad without match=
+  "PT018",    # assertion should be split into multiple parts
+  "RUF001",   # string contains ambiguous unicode character
+  "RUF012",   # mutable class attributes need ClassVar
+  "RUF015",   # prefer next(...) over single element slice
+  "RUF043",   # match= pattern with unescaped metacharacters
+  "SIM102",   # single if instead of nested if statements
+  "SIM103",   # return the condition directly
+  "SIM108",   # ternary instead of if-else
+  "SIM115",   # context handler for opening files
+  "TC001",    # move application import into a type-checking block
+  "TC002",    # move third-party import into a type-checking block
+  "TC003",    # move standard library import into a type-checking block
+  "TC006",    # quote typing.cast expressions
+  "TRY003",   # long messages outside the exception class
+  "TRY400",   # logging.exception instead of logging.error
+  "UP047",    # non-PEP 696 generic function
+  "UP049",    # private type parameter names
+  "W191", "E111", "E114", "E117", "D206", "D300", "Q", "COM812", "COM819", # formatter conflicts
+  "PLE0605",  # ruff does not understand __all__ built by a function
+  "FURB116",
+  "ISC004",
+  "LOG004",
+
+  # custom-integration additions, each with a reason:
+  "ASYNC2",   # blocking calls in async functions: the hub IS blocking pymodbus
+              # and every hub call arrives via async_add_executor_job /
+              # async_forward (the executor boundary is the architecture;
+              # ASYNC2 would fight it). ASYNC1 stays on: it still catches a
+              # coroutine that awaits nothing it must await.
+  "INP001",   # tests/_ha_stub/** is a package-shaped stand-in for real HA
+              # modules, not PEP 420 namespace packages to add __main__ to.
+  "T201",     # print in this file's own tools is those probes' UI (mirrors
+              # core's script/* ignore); raised per-path below if needed.
+]
+
+[lint.flake8-tidy-imports.banned-api]
+"async_timeout".msg = "use asyncio.timeout instead"
+"pytz".msg = "use zoneinfo instead"
+# NO voluptuous entry on purpose: core-dev bans it because 2026.10 speaks
+# probatio, but this integration targets the installed runtime's config
+# flows, and that runtime's cv does NOT re-export the vol.* vocabulary
+# (Schema/Coerce/Range/All). A gate that forces an import the runtime
+# cannot satisfy is theatre; re-add this entry when the integration is
+# ported to the runtime that made the ban possible.
+
+[lint.isort]
+force-sort-within-sections = true
+known-first-party = ["homeassistant"]
+combine-as-imports = true
+split-on-trailing-comma = false
+
+[lint.per-file-ignores]
+# The suite and its doubles: asserts everywhere, pathlib when a test wants
+# a fixture path (core ignores PTH for its tests too), private-access is
+# how a double proves the real thing, and test functions are named in
+# sentences rather than documented. The HA double must mirror real HA
+# module-for-module, so docstring-shape rules cannot fight its shape.
+"tests/**" = ["PTH", "SLF001", "PERF401", "B011", "PGH003", "D100", "D101", "D102", "D103", "D104", "D105", "D107", "ANN", "PIE790",
+  # test functions document their scenario in running prose (the first line
+  # IS the scenario name); docstring paragraph shape is public-API etiquette
+  # the doubles and scenarios have no business with.
+  "D205",
+  # imports inside test bodies are the suite's import-lazy hygiene (the
+  # sys.path doubles settle first); zero runtime cost, zero bug surface.
+  "PLC0415"]
+# Tool scripts write to stdout on purpose (core ignores T20 for script/*).
+"tool/**" = ["T20", "INP001", "E", "W"]
+# The HA double mirrors real HA module-for-module for the fakes' harness:
+# CoordinatorEntity's __class_getitem__ hack RETURNS THE CLASS (the doubles
+# rely on subscripted construction being the identity), which PEP 698 type
+# parameters do not reproduce. Modernising it would make the double LIE
+# about the real thing - the opposite of tests/fakes.py parity doctrine.
+"tests/_ha_stub/**" = ["UP046"]
+
+[lint.mccabe]
+max-complexity = 25
+
+[lint.pydocstyle]
+convention = "google"
+property-decorators = ["functools.cached_property", "propcache.api.cached_property"]
+
+[format]
+line-ending = "lf"
+quote-style = "double"

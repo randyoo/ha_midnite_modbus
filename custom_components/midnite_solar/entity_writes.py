@@ -11,14 +11,26 @@ EEPROM now" press - because the commit writes every pending (EE) register at onc
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from homeassistant.exceptions import HomeAssistantError
 
-from .const import FORCE_FLAGS, NO_READBACK_REGISTERS
-from .register_values import force_flag_write
+from .const import (
+    CLOCK_FILE_ADDRESS,
+    CLOCK_FILE_DEVICE,
+    ENABLE_FLAGS_2_AUTO_DLY_RESET,
+    FORCE_FLAGS,
+    NO_READBACK_REGISTERS,
+    REGISTER_MAP,
+)
+from .register_values import (
+    FORCE_FLAG_BITS_LOW_REGISTER,
+    clock_file_payload,
+    force_flag_write,
+)
 
 _LOGGER = logging.getLogger(__name__)
+
 
 async def async_write_setting(
     hass: Any, api: Any, address: int, value: int, label: str
@@ -46,7 +58,9 @@ async def async_store_settings(hass: Any, api: Any, label: str) -> None:
     try:
         result = await hass.async_add_executor_job(api.write_register, register, word)
     except Exception as e:
-        raise HomeAssistantError(f"{label} is active but was not saved to EEPROM: {e}") from e
+        raise HomeAssistantError(
+            f"{label} is active but was not saved to EEPROM: {e}"
+        ) from e
     if result is None or result.isError():
         raise HomeAssistantError(
             f"{label} is active but the Classic did not accept the EEPROM commit"
@@ -71,7 +85,7 @@ async def async_auto_save_if_enabled(hass: Any, coordinator: Any, label: str) ->
     return False
 
 
-def register_value(data: Optional[dict], group: str, address: int) -> Optional[int]:
+def register_value(data: dict | None, group: str, address: int) -> int | None:
     """Return one register from the coordinator data, or None if unread."""
     if not data or "data" not in data:
         return None
@@ -82,7 +96,12 @@ def register_value(data: Optional[dict], group: str, address: int) -> Optional[i
 
 
 async def async_verify_write(
-    hass: Any, api: Any, address: int, value: int, label: str, display,
+    hass: Any,
+    api: Any,
+    address: int,
+    value: int,
+    label: str,
+    display,
     compare=None,
 ) -> None:
     """Read the register back and say so if the Classic kept something else.
@@ -100,9 +119,13 @@ async def async_verify_write(
     if address in NO_READBACK_REGISTERS:
         return
     try:
-        result = await hass.async_add_executor_job(api.read_holding_registers, address, 1)
+        result = await hass.async_add_executor_job(
+            api.read_holding_registers, address, 1
+        )
     except Exception as e:
-        raise HomeAssistantError(f"Wrote {label}, but it could not be read back: {e}") from e
+        raise HomeAssistantError(
+            f"Wrote {label}, but it could not be read back: {e}"
+        ) from e
     if result is None or result.isError() or not result.registers:
         raise HomeAssistantError(
             f"Wrote {label}, but the Classic did not answer the read-back of register {address}"
@@ -126,9 +149,6 @@ async def async_set_clock(hass: Any, api: Any, now) -> None:
     The Classic takes it immediately and needs no EEPROM commit - the app
     sends nothing else.
     """
-    from .const import CLOCK_FILE_ADDRESS, CLOCK_FILE_DEVICE
-    from .register_values import clock_file_payload
-
     payload = clock_file_payload(now)
     _LOGGER.debug("Setting the Classic clock to %s", now)
     try:
@@ -150,9 +170,6 @@ async def async_reboot_classic(hass: Any, api: Any) -> None:
     reboot starts - the app warns the same thing - so the device going
     unavailable afterwards is expected, not an error.
     """
-    from .const import ENABLE_FLAGS_2_AUTO_DLY_RESET, FORCE_FLAGS, REGISTER_MAP
-    from .register_values import FORCE_FLAG_BITS_LOW_REGISTER
-
     enable_register = REGISTER_MAP["ENABLE_FLAGS_2"]
     enable_flags = await _read_one(hass, api, enable_register, "auto-restart flags")
     await async_write_setting(
@@ -162,7 +179,9 @@ async def async_reboot_classic(hass: Any, api: Any) -> None:
         enable_flags | ENABLE_FLAGS_2_AUTO_DLY_RESET,
         "Reboot (enable auto-restart)",
     )
-    force_flags = await _read_one(hass, api, FORCE_FLAG_BITS_LOW_REGISTER, "force flags")
+    force_flags = await _read_one(
+        hass, api, FORCE_FLAG_BITS_LOW_REGISTER, "force flags"
+    )
     await async_write_setting(
         hass,
         api,
@@ -175,7 +194,9 @@ async def async_reboot_classic(hass: Any, api: Any) -> None:
 async def _read_one(hass: Any, api: Any, address: int, label: str) -> int:
     """Read one register or raise; the reboot must not send half a sequence."""
     try:
-        result = await hass.async_add_executor_job(api.read_holding_registers, address, 1)
+        result = await hass.async_add_executor_job(
+            api.read_holding_registers, address, 1
+        )
     except Exception as e:
         raise HomeAssistantError(f"Could not read the Classic's {label}: {e}") from e
     if result is None or result.isError() or not result.registers:

@@ -1,18 +1,15 @@
 """Support for Midnite Solar devices."""
 
+import contextlib
 import logging
 import threading
 import time
-from typing import Optional
 
 from pymodbus.client import ModbusTcpClient
+from pymodbus.pdu import ModbusPDU
 
 from .const import CLOCK_FILE_ADDRESS, REGISTER_MAP
-from .private_pdu import (
-    ReadInternalPDU,
-    WriteInternalPDU,
-    register_private_pdus,
-)
+from .private_pdu import ReadInternalPDU, WriteInternalPDU, register_private_pdus
 from .register_values import unlock_values
 
 _LOGGER = logging.getLogger(__name__)
@@ -78,7 +75,7 @@ class MidniteHub:
         # The Classic ignores writes over Ethernet until the serial number has
         # been written to the unlock registers, and that grant ends as soon as
         # the connection drops, so both are tracked next to the socket.
-        self._serial: Optional[int] = None
+        self._serial: int | None = None
         self._unlocked = False
 
     def _make_client(self) -> ModbusTcpClient:
@@ -104,7 +101,11 @@ class MidniteHub:
         Checks the exception's errno plus any wrapped cause/context, the message,
         and the exception type name, to be robust to how pymodbus surfaces it.
         """
-        for e in (exc, getattr(exc, "__cause__", None), getattr(exc, "__context__", None)):
+        for e in (
+            exc,
+            getattr(exc, "__cause__", None),
+            getattr(exc, "__context__", None),
+        ):
             if e is None:
                 continue
             if getattr(e, "errno", None) in cls._CONN_ERRNOS:
@@ -114,7 +115,12 @@ class MidniteHub:
             if needle in msg:
                 return True
         name = type(exc).__name__
-        for cls_name in ("ConnectionException", "ConnectionReset", "ConnectionAborted", "BrokenPipe"):
+        for cls_name in (
+            "ConnectionException",
+            "ConnectionReset",
+            "ConnectionAborted",
+            "BrokenPipe",
+        ):
             if cls_name in name:
                 return True
         return False
@@ -124,7 +130,7 @@ class MidniteHub:
         with self._lock:
             if self._client.is_socket_open():
                 return True
-            _LOGGER.debug(f"Connecting to {self.host}:{self.port}")
+            _LOGGER.debug("Connecting to %s:%s", self.host, self.port)
             # A new socket is a new session, so any grant from the last one is
             # worth nothing here.
             self._unlocked = False
@@ -144,10 +150,13 @@ class MidniteHub:
             self._unlocked = False
             try:
                 if self._client.is_socket_open():
-                    _LOGGER.debug(f"Disconnecting from {self.host}:{self.port}")
+                    _LOGGER.debug("Disconnecting from %s:%s", self.host, self.port)
                     return self._client.close()
-            except Exception as e:
-                _LOGGER.debug(f"Error during disconnect: {e}")
+            except Exception as e:  # noqa: BLE001
+                # A socket already dying on us is the normal case here; the
+                # grant is cleared either way and the caller asked us to let
+                # go, so nothing this close() throws is worth propagating.
+                _LOGGER.debug("Error during disconnect: %s", e)
             return None
 
     def reset(self):
@@ -158,10 +167,10 @@ class MidniteHub:
         """
         with self._lock:
             _LOGGER.debug("Resetting Modbus client (force close + delay + recreate)")
-            try:
+            with contextlib.suppress(Exception):
+                # Force-close: the socket is already suspected dead, and the
+                # fresh client built below is the point of the reset.
                 self._client.close()
-            except Exception:
-                pass
             # Let the device drop the old session before we open a new one.
             time.sleep(self.RECONNECT_DELAY)
             self._client = self._make_client()
@@ -176,19 +185,19 @@ class MidniteHub:
         """
         with self._lock:
             _LOGGER.debug("Full reconnect: close connection, wait, open fresh")
-            try:
+            with contextlib.suppress(Exception):
+                # Same as reset(): the socket is being discarded, whatever it
+                # says on the way out is noise.
                 self._client.close()
-            except Exception:
-                pass
             # Let the device drop the old session before we open a new one.
             time.sleep(self.RECONNECT_DELAY)
             self._client = self._make_client()
             self._unlocked = False
             ok = self._client.connect()
             if ok:
-                _LOGGER.info(f"Reconnected to {self.host}:{self.port}")
+                _LOGGER.info("Reconnected to %s:%s", self.host, self.port)
             else:
-                _LOGGER.warning(f"Reconnect to {self.host}:{self.port} failed")
+                _LOGGER.warning("Reconnect to %s:%s failed", self.host, self.port)
             return bool(ok)
 
     def _ensure_connected(self) -> bool:
@@ -202,7 +211,7 @@ class MidniteHub:
             return True
         return self._reconnect()
 
-    def set_serial_number(self, serial: Optional[int]) -> None:
+    def set_serial_number(self, serial: int | None) -> None:
         """Provide the serial number that releases the Ethernet write protect.
 
         The serial number is read from registers 28673/28674; the hub does not
@@ -246,26 +255,38 @@ class MidniteHub:
     def write_register(self, address: int, value: int, retries: int = 2):
         """Write a register with retry + reconnect-on-connection-error."""
         with self._lock:
-            last_result = None
+            # The LAST event wins, of either kind: a failed PDU answer or a
+            # raised exception; the tail below raises or returns whichever of
+            # them landed last.
+            last_result: ModbusPDU | Exception | None = None
             for attempt in range(retries):
                 if not self._ensure_connected():
-                    _LOGGER.warning(f"Attempt {attempt + 1}: no connection for write to {address}")
+                    _LOGGER.warning(
+                        "Attempt %s: no connection for write to %s",
+                        attempt + 1,
+                        address,
+                    )
                     if attempt < retries - 1:
                         time.sleep(0.2 * (attempt + 1))
                     continue
                 try:
                     unlocked = self._ensure_unlocked()
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     # The unlock write is a write too, and a socket the device has
                     # already dropped can raise on it. Handle it like a failed
                     # setting write - reconnect and try again - instead of letting
                     # a bare connection error escape to the caller.
                     last_result = e
                     _LOGGER.warning(
-                        f"Attempt {attempt + 1} exception unlocking for write to {address}: {e}"
+                        "Attempt %s exception unlocking for write to %s: %s",
+                        attempt + 1,
+                        address,
+                        e,
                     )
                     if self._is_connection_error(e):
-                        _LOGGER.debug("Connection-level error on unlock; full reconnect")
+                        _LOGGER.debug(
+                            "Connection-level error on unlock; full reconnect"
+                        )
                         self._reconnect()
                     if attempt < retries - 1:
                         time.sleep(0.2 * (attempt + 1))
@@ -283,12 +304,29 @@ class MidniteHub:
                     if result is not None and not result.isError():
                         return result
                     last_result = result
-                    _LOGGER.warning(f"Attempt {attempt + 1} failed for write to {address}: {result}")
-                except Exception as e:
+                    _LOGGER.warning(
+                        "Attempt %s failed for write to %s: %s",
+                        attempt + 1,
+                        address,
+                        result,
+                    )
+                except Exception as e:  # noqa: BLE001
+                    # pymodbus raises a family of its own plus raw OSError here,
+                    # and the NEXT line classifies every one of them
+                    # (_is_connection_error reads errno, message and type);
+                    # naming subsets here would only age badly.
                     last_result = e
-                    _LOGGER.warning(f"Attempt {attempt + 1} exception for write to {address}: {e}")
+                    _LOGGER.warning(
+                        "Attempt %s exception for write to %s: %s",
+                        attempt + 1,
+                        address,
+                        e,
+                    )
                     if self._is_connection_error(e):
-                        _LOGGER.debug(f"Connection-level error on write to {address}; full reconnect")
+                        _LOGGER.debug(
+                            "Connection-level error on write to %s; full reconnect",
+                            address,
+                        )
                         self._reconnect()
                 if attempt < retries - 1:
                     time.sleep(0.2 * (attempt + 1))
@@ -300,11 +338,13 @@ class MidniteHub:
 
     def read_holding_registers(self, address: int, count: int = 1, retries: int = 5):
         """Read holding registers with retry + reconnect-on-connection-error."""
-        _LOGGER.debug(f"Reading unit 1 address {address} count {count}")
+        _LOGGER.debug("Reading unit 1 address %s count %s", address, count)
         with self._lock:
             for attempt in range(retries):
                 if not self._ensure_connected():
-                    _LOGGER.warning(f"Attempt {attempt + 1}: no connection for address {address}")
+                    _LOGGER.warning(
+                        "Attempt %s: no connection for address %s", attempt + 1, address
+                    )
                     if attempt < retries - 1:
                         time.sleep(0.2 * (attempt + 1))
                     continue
@@ -314,23 +354,52 @@ class MidniteHub:
                         count=count,
                     )
                     if result is not None and not result.isError():
-                        _LOGGER.debug(f"Successfully read address {address}: {result.registers}")
+                        _LOGGER.debug(
+                            "Successfully read address %s: %s",
+                            address,
+                            result.registers,
+                        )
                         return result
-                    _LOGGER.warning(f"Attempt {attempt + 1} failed for address {address}: {result}")
-                except Exception as e:
+                    _LOGGER.warning(
+                        "Attempt %s failed for address %s: %s",
+                        attempt + 1,
+                        address,
+                        result,
+                    )
+                except Exception as e:  # noqa: BLE001
+                    # Same family as the write path: pymodbus + raw socket
+                    # errors, classified from errno/message/type right after.
                     error_msg = str(e)
-                    _LOGGER.warning(f"Attempt {attempt + 1} exception for address {address}: {e}")
-                    if "Unable to decode request" in error_msg or "byte_count" in error_msg:
+                    _LOGGER.warning(
+                        "Attempt %s exception for address %s: %s",
+                        attempt + 1,
+                        address,
+                        e,
+                    )
+                    if (
+                        "Unable to decode request" in error_msg
+                        or "byte_count" in error_msg
+                    ):
                         _LOGGER.debug("Modbus protocol error; dropping connection")
                         self.disconnect()
                     if self._is_connection_error(e):
-                        _LOGGER.debug(f"Connection-level error reading {address}; full reconnect")
+                        _LOGGER.debug(
+                            "Connection-level error reading %s; full reconnect", address
+                        )
                         self._reconnect()
                 if attempt < retries - 1:
                     time.sleep(0.2 * (attempt + 1))
-            _LOGGER.error(f"All {retries} attempts failed for address {address}, count={count}")
+            _LOGGER.error(
+                "All %s attempts failed for address %s, count=%s",
+                retries,
+                address,
+                count,
+            )
             return None
-    def write_internal(self, device: int, data, address: int = CLOCK_FILE_ADDRESS, retries: int = 2):
+
+    def write_internal(
+        self, device: int, data, address: int = CLOCK_FILE_ADDRESS, retries: int = 2
+    ):
         """Write an internal file (function 105) with the write protect released.
 
         The clock lives here; like a settings write it goes through the
@@ -341,18 +410,30 @@ class MidniteHub:
         if no attempt succeeds.
         """
         with self._lock:
-            last_result = None
+            # The LAST event wins, of either kind: a failed PDU answer or a
+            # raised exception; the tail below raises or returns whichever of
+            # them landed last.
+            last_result: ModbusPDU | Exception | None = None
             for attempt in range(retries):
                 if not self._ensure_connected():
-                    _LOGGER.warning(f"Attempt {attempt + 1}: no connection for internal write to file {device}")
+                    _LOGGER.warning(
+                        "Attempt %s: no connection for internal write to file %s",
+                        attempt + 1,
+                        device,
+                    )
                     if attempt < retries - 1:
                         time.sleep(0.2 * (attempt + 1))
                     continue
                 try:
                     unlocked = self._ensure_unlocked()
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
+                    # Unlock writes fail like any other write here.
                     last_result = e
-                    _LOGGER.warning(f"Attempt {attempt + 1} exception unlocking for internal write: {e}")
+                    _LOGGER.warning(
+                        "Attempt %s exception unlocking for internal write: %s",
+                        attempt + 1,
+                        e,
+                    )
                     if self._is_connection_error(e):
                         self._reconnect()
                     if attempt < retries - 1:
@@ -365,15 +446,22 @@ class MidniteHub:
                     )
                 try:
                     result = self._client.execute(
-                        False, WriteInternalPDU(device=device, data=data, address=address)
+                        False,
+                        WriteInternalPDU(device=device, data=data, address=address),
                     )
                     if result is not None and not result.isError():
                         return result
                     last_result = result
-                    _LOGGER.warning(f"Attempt {attempt + 1} internal write failed: {result}")
-                except Exception as e:
+                    _LOGGER.warning(
+                        "Attempt %s internal write failed: %s", attempt + 1, result
+                    )
+                except Exception as e:  # noqa: BLE001
+                    # Private-function writes throw the same family as the
+                    # standard ones; _is_connection_error classifies them all.
                     last_result = e
-                    _LOGGER.warning(f"Attempt {attempt + 1} internal write exception: {e}")
+                    _LOGGER.warning(
+                        "Attempt %s internal write exception: %s", attempt + 1, e
+                    )
                     if self._is_connection_error(e):
                         self._reconnect()
                 if attempt < retries - 1:
@@ -384,7 +472,9 @@ class MidniteHub:
                 raise last_result
             return last_result
 
-    def read_internal(self, device: int, length: int, address: int = 0, retries: int = 5):
+    def read_internal(
+        self, device: int, length: int, address: int = 0, retries: int = 5
+    ):
         """Read an internal file (function 104), returning the response PDU.
 
         The Classic answers with the echoed header plus the raw payload bytes,
@@ -400,16 +490,25 @@ class MidniteHub:
                     continue
                 try:
                     result = self._client.execute(
-                        False, ReadInternalPDU(device=device, length=length, address=address)
+                        False,
+                        ReadInternalPDU(device=device, length=length, address=address),
                     )
                     if result is not None and not result.isError():
                         return result
-                    _LOGGER.warning(f"Attempt {attempt + 1} internal read failed: {result}")
-                except Exception as e:
-                    _LOGGER.warning(f"Attempt {attempt + 1} internal read exception: {e}")
+                    _LOGGER.warning(
+                        "Attempt %s internal read failed: %s", attempt + 1, result
+                    )
+                except Exception as e:  # noqa: BLE001
+                    # Private-function reads throw the same family as the
+                    # standard ones; classified right here by _is_connection_error.
+                    _LOGGER.warning(
+                        "Attempt %s internal read exception: %s", attempt + 1, e
+                    )
                     if self._is_connection_error(e):
                         self._reconnect()
                 if attempt < retries - 1:
                     time.sleep(0.2 * (attempt + 1))
-            _LOGGER.error(f"All {retries} attempts failed for internal read of file {device}")
+            _LOGGER.error(
+                "All %s attempts failed for internal read of file %s", retries, device
+            )
             return None

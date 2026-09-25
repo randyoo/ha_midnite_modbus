@@ -20,13 +20,7 @@ from __future__ import annotations
 import asyncio
 import struct
 
-import pytest
 from fakes import FakeApi, FakeCoordinator
-from homeassistant.components.sensor import SensorDeviceClass
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import Hass
-from homeassistant.exceptions import HomeAssistantError
-
 from midnite_solar.button import RebootClassicButton, SetClockButton
 from midnite_solar.const import (
     CLOCK_FILE_ADDRESS,
@@ -36,8 +30,6 @@ from midnite_solar.const import (
     FORCE_FLAGS,
     REGISTER_MAP,
 )
-
-ENABLE_FLAGS_2 = REGISTER_MAP["ENABLE_FLAGS_2"]
 from midnite_solar.entity_writes import async_reboot_classic, async_set_clock
 from midnite_solar.private_pdu import (
     INTERNAL_MARKER,
@@ -46,9 +38,16 @@ from midnite_solar.private_pdu import (
     register_private_pdus,
 )
 from midnite_solar.register_values import clock_file_payload, clock_from_registers
+import pytest
+
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import Hass
+from homeassistant.exceptions import HomeAssistantError
+
+ENABLE_FLAGS_2 = REGISTER_MAP["ENABLE_FLAGS_2"]
 
 # 2026-09-21 14:30:05, the app's own worked example in PROTOCOL.md.
-NOW = dict(year=2026, month=9, day=21, hour=14, minute=30, second=5)
+NOW = {"year": 2026, "month": 9, "day": 21, "hour": 14, "minute": 30, "second": 5}
 
 
 def as_dt(**kw):
@@ -68,13 +67,13 @@ class TestClockPayload:
 
     def test_time_and_date_land_at_offset_9(self):
         payload = clock_file_payload(as_dt(**NOW))
-        assert payload[9] == 14          # hour
-        assert payload[10] == 30         # minute
-        assert payload[11] == 0          # seconds byte: always 0 (see below)
+        assert payload[9] == 14  # hour
+        assert payload[10] == 30  # minute
+        assert payload[11] == 0  # seconds byte: always 0 (see below)
         assert payload[12] == (2026 >> 8) & 0xFF
         assert payload[13] == 2026 & 0xFF
-        assert payload[14] == 9          # month
-        assert payload[15] == 21         # day
+        assert payload[14] == 9  # month
+        assert payload[15] == 21  # day
 
     def test_seconds_byte_is_always_zero(self):
         # TimeToFileWrite's caller passes literal 0, and on the bench unit a
@@ -116,7 +115,7 @@ class TestClockRead:
 
     def test_a_garbage_month_is_rejected_not_invented(self):
         # month nibble 0x0F = 15 is not a month.
-        a, b, day_month, d = self.words()
+        a, b, _day_month, d = self.words()
         assert clock_from_registers(a, b, (15 << 8) | 21, d) is None
 
 
@@ -247,7 +246,6 @@ class TestRebootButton:
 class TestSetClockHelper:
     def test_set_clock_uses_the_internal_file_write(self, entry):
         api = FakeApi()
-        coordinator = FakeCoordinator(Hass(), api, {})
         hass = Hass()
         asyncio.run(async_set_clock(hass, api, as_dt(**NOW)))
         assert api.internal_writes == [

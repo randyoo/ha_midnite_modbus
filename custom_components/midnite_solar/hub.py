@@ -8,7 +8,14 @@ import time
 from pymodbus.client import ModbusTcpClient
 from pymodbus.pdu import ModbusPDU
 
-from .const import CLOCK_FILE_ADDRESS, REGISTER_MAP
+from .const import (
+    CLOCK_FILE_ADDRESS,
+    NETWORK_DHCP_BIT,
+    NETWORK_NETMASK_LOW,
+    NETWORK_SETTINGS_WORD,
+    NETWORK_WRITE_FRAMES,
+    REGISTER_MAP,
+)
 from .private_pdu import ReadInternalPDU, WriteInternalPDU, register_private_pdus
 from .register_values import unlock_values
 
@@ -335,6 +342,146 @@ class MidniteHub:
             if isinstance(last_result, Exception):
                 raise last_result
             return last_result
+
+    def write_network(
+        self, start: int, values: list[int], confirms: int = 20
+    ) -> list[int]:
+        """One ATOMIC Ethernet-card frame plus the FINDINGS 53 choreography.
+
+        The card's settings block applies EVERY write by reprogramming its
+        network - and the apply kills the Modbus connection, sometimes
+        between the words of a careless frame (the bench read back a
+        half-applied DNS of 0.0.88.44). So the doctrine is:
+
+        1. exactly one frame - the caller already passed a
+           NETWORK_WRITE_FRAMES shape; a count-1 word is refused here too,
+           not just at the API door;
+        2. a connection-level raise DURING the frame is survival, not
+           failure - the apply may fire mid-frame while the frame itself
+           landed;
+        3. the READ-BACK is the only verdict: poll the written words (the
+           read path reconnects and _ensure_unlocked re-grants on the fresh
+           socket), and the write exists when the card ANSWERS with the
+           new words - never before;
+        4. going static requires a sane static copy FIRST (the combo
+           carries the IP; the netmask must already read nonzero) - a card
+           that boots 0.0.0.0 cuts itself off, and this hub says no rather
+           than watching it happen.
+
+        Returns the confirmed words. Raises ValueError on a frame the door
+        does not take, WriteLockedError like any write, and OSError when
+        the card never read the words back.
+        """
+        if (start, len(values)) not in NETWORK_WRITE_FRAMES:
+            raise ValueError(
+                f"the network door takes exactly one atomic frame: the "
+                f"3-word [flags, ip-low, ip-high] combo from the settings "
+                f"word, or a 2-word pair from "
+                f"{sorted(start for start, _ in NETWORK_WRITE_FRAMES)}; "
+                f"asked for {len(values)} word(s) from {start}"
+            )
+        if any(not 0 <= v <= 0xFFFF for v in values):
+            raise ValueError("network frame values must be 16-bit integers")
+        with self._lock:
+            if start == NETWORK_SETTINGS_WORD and (values[0] & NETWORK_DHCP_BIT) == 0:
+                # Clearing DHCP: the static copy must be bootable BEFORE
+                # the bit goes away, in this same frame and on the card.
+                if (values[1] | values[2]) == 0:
+                    raise ValueError(
+                        "the frame's static IP reads 0.0.0.0 - going static "
+                        "on that cuts the card off; fill the IP first"
+                    )
+                mask = self.read_holding_registers(NETWORK_NETMASK_LOW, 2)
+                if (mask.registers[0] | mask.registers[1]) == 0:
+                    raise ValueError(
+                        "the card's static netmask reads 0.0.0.0 - going "
+                        "static on that cuts the card off; fill the netmask "
+                        "first"
+                    )
+            refused = False
+            last_result: object = None
+            for attempt in range(2):
+                if not self._ensure_connected():
+                    _LOGGER.warning(
+                        "Attempt %s: no connection for the network frame at %s",
+                        attempt + 1,
+                        start,
+                    )
+                    continue
+                try:
+                    unlocked = self._ensure_unlocked()
+                except Exception as e:
+                    if not self._is_connection_error(e):
+                        raise
+                    last_result = e
+                    self._reconnect()
+                    continue
+                if not unlocked:
+                    raise WriteLockedError(
+                        "the Ethernet card write door needs the serial unlock "
+                        "and it has not landed"
+                    )
+                try:
+                    result = self._client.write_registers(
+                        address=start - 1,  # Modbus addresses are 0-indexed
+                        values=list(values),
+                    )
+                    if result is not None and not result.isError():
+                        break  # frame away; the read-back below is the verdict
+                    # A Modbus EXCEPTION is data (the card answers no such
+                    # registers) - not something to retry blindly.
+                    if result is not None:
+                        refused = True
+                    last_result = result
+                    _LOGGER.warning(
+                        "Attempt %s refused the frame at %s: %s",
+                        attempt + 1,
+                        start,
+                        result,
+                    )
+                    break
+                except Exception as e:
+                    if not self._is_connection_error(e):
+                        raise
+                    # The apply fired mid-frame: the words may still have
+                    # landed - or not. The read-back decides, so a dead
+                    # socket here is a fact, not yet a failure.
+                    last_result = e
+                    _LOGGER.warning(
+                        "Network frame at %s hit a connection drop "
+                        "(the card applies mid-write by design): %s",
+                        start,
+                        e,
+                    )
+                    self._reconnect()
+            if refused:
+                raise OSError(
+                    f"the Ethernet card refused the frame sent to {start}: "
+                    f"{last_result}"
+                )
+            # A connection-level loss is NOT a failure here: the frame may
+            # have landed inside the card (it applies mid-write by design).
+            # The read-back below is the only verdict, either way.
+            for _ in range(confirms):
+                time.sleep(0.6)
+                try:
+                    back = self.read_holding_registers(start, len(values))
+                except Exception as e:  # noqa: BLE001
+                    _LOGGER.debug("network read-back hiccup: %s", e)
+                    continue
+                last = list(back.registers)
+                if last == list(values):
+                    _LOGGER.info(
+                        "Ethernet card reprogrammed; frame at %s reads back %s",
+                        start,
+                        last,
+                    )
+                    return last
+            raise OSError(
+                f"the Ethernet card never read back the frame sent to "
+                f"{start} (last read: {last}) - it may still be "
+                f"reprogramming; check the value in a moment"
+            )
 
     def read_holding_registers(self, address: int, count: int = 1, retries: int = 5):
         """Read holding registers with retry + reconnect-on-connection-error."""

@@ -253,6 +253,7 @@ class TestWritePinGate:
         ("suffix", "body"),
         [
             ("write", {"register": ABSORB, "value": 576}),
+            ("network", {"start": "DNS_1_LOW_WORD", "values": [1, 1]}),
             ("clock", {"time": CLOCK_TEXT_Z}),
             ("reboot", {}),
             ("save", {}),
@@ -266,11 +267,13 @@ class TestWritePinGate:
         response = post(hass, suffix, body, pin=NO_PIN)
         assert response.status == 401
         assert api.writes == [], f"{suffix} must not touch the device without the PIN"
+        assert getattr(api, "network_frames", []) == [], f"{suffix} landed"
 
     @pytest.mark.parametrize(
         ("suffix", "body"),
         [
             ("write", {"register": ABSORB, "value": 576}),
+            ("network", {"start": "DNS_1_LOW_WORD", "values": [1, 1]}),
             ("clock", {"time": CLOCK_TEXT_Z}),
             ("reboot", {}),
             ("save", {}),

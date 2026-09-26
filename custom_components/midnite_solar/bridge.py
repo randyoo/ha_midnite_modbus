@@ -50,6 +50,9 @@ from .const import (
     DEVICE_TYPES,
     DOMAIN,
     FORCE_FLAGS,
+    NETWORK_DHCP_BIT,
+    NETWORK_DOOR_NAMES,
+    NETWORK_SETTINGS_WORD,
     PIN_LENGTH,
     PIN_LOCKOUT_STEPS,
     REGISTER_MAP,
@@ -350,6 +353,58 @@ async def async_bridge_write(
         "value": value,
         "committed": committed,
     }
+
+
+async def async_bridge_network_write(
+    hass: Any, coordinator: Any, start_name: Any, values: Any
+) -> dict[str, Any]:
+    """Reprogram the Ethernet card with ONE atomic frame, read-back verdict.
+
+    This is the controlled door to the block /write keeps sealed (see
+    NETWORK_CHOREOGRAPHY.md and FINDINGS 53): every write to the card's
+    settings makes it reprogram its network and drop the Modbus
+    connection - sometimes between the words - so the door takes only the
+    proven atomic frames and the hub's choreography lets the READ-BACK
+    decide, never the ack. Going static additionally requires a bootable
+    static copy (the hub refuses the frame otherwise - a card that boots
+    0.0.0.0 cuts itself off); going DHCP says out loud that the card may
+    answer a new number afterwards.
+    """
+    if not isinstance(start_name, str) or start_name not in NETWORK_DOOR_NAMES:
+        raise HomeAssistantError(
+            f"the network door speaks these names: "
+            f"{sorted(NETWORK_DOOR_NAMES)}; got {start_name!r}"
+        )
+    if not isinstance(values, list) or not values:
+        raise HomeAssistantError(
+            "the network write needs a list of 16-bit words - one atomic "
+            "frame: 3 from IP_SETTINGS_FLAGS, 2 from a pair start"
+        )
+    if any(
+        isinstance(v, bool) or not isinstance(v, int) or not 0 <= v <= 0xFFFF
+        for v in values
+    ):
+        raise HomeAssistantError(
+            "every frame word must be a 16-bit integer (0 to 65535)"
+        )
+    start = REGISTER_MAP[start_name]
+    try:
+        readback = await hass.async_add_executor_job(
+            coordinator.api.write_network, start, list(values)
+        )
+    except (ValueError, OSError, RuntimeError) as e:
+        # The hub's honest answers - a frame the door does not take, a
+        # card that never read back, a write-protect that has not landed.
+        # They are all operator words; they travel as HomeAssistantError.
+        raise HomeAssistantError(str(e)) from e
+    await coordinator.async_request_refresh()
+    answer: dict[str, Any] = {"ok": True, "start": start_name, "readback": readback}
+    if start == NETWORK_SETTINGS_WORD and (values[0] & NETWORK_DHCP_BIT):
+        answer["note"] = (
+            "DHCP is on: the card may take a NEW address from the router - "
+            "if it drops off this session, find it by its new number"
+        )
+    return answer
 
 
 async def async_bridge_clock(hass: Any, coordinator: Any, when) -> dict[str, Any]:

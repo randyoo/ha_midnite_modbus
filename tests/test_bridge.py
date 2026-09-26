@@ -404,11 +404,11 @@ class TestStartStop:
         hass = Hass()
         assert ensure_bridge_views(hass) is True
         assert (
-            len(hass.http.views) == 10
-        )  # +state +pin +write +clock +reboot +save +datalogger +refresh
+            len(hass.http.views) == 11
+        )  # +state +pin +write +network +clock +reboot +save +datalogger +refresh
         # +recenthistory +recenthistory/refresh
         assert ensure_bridge_views(hass) is False
-        assert len(hass.http.views) == 10
+        assert len(hass.http.views) == 11  # +network door since 2026-09-26
 
     def test_start_advertises_and_remembers_the_bridge_for_the_entry(self):
         hass, coordinator = a_classic()
@@ -493,7 +493,7 @@ class TestStartStop:
         # No advertisement, but the entry's bridge is still stored (so the
         # teardown below has something to undo) and views are up.
         assert hass.data[BRIDGE_ADS_KEY][ENTRY_ID] is not None
-        assert len(hass.http.views) == 10
+        assert len(hass.http.views) == 11  # +network door since 2026-09-26
 
     def test_stop_withdraws_and_is_safe_a_second_time(self):
         hass, coordinator = a_classic()

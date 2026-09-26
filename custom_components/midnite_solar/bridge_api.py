@@ -203,6 +203,44 @@ class MidniteWriteView(MidniteBridgeView):
         return self.json(answer)
 
 
+class MidniteNetworkView(MidniteBridgeView):
+    """POST {"start": name, "values": [words]} - reprogram the Ethernet card.
+
+    The controlled door (NETWORK_CHOREOGRAPHY.md): the PIN gate rides like
+    every mutating call, the frame must be atomic (the hub refuses lone
+    words), and the answer waits for the card's READ-BACK - the ack proves
+    nothing on this block. While the card reprograms, Home Assistant's own
+    connection drops with it and the integration looks briefly offline;
+    that is the truth, and the hub is back on it inside a second.
+    """
+
+    url = f"{BRIDGE_URL_PREFIX}/network"
+    name = "api:midnite:network"
+
+    async def post(self, request: Any, entry_id: str):
+        """Send one atomic frame through the PIN gate and the read-back."""
+        coordinator = self.coordinator_for(request, entry_id)
+        if coordinator is None:
+            return self.missing_entry(entry_id)
+        refused = self.pin_gate(request, coordinator)
+        if refused is not None:
+            return refused
+        try:
+            body = await self.body(request)
+        except _BodyError as bad:
+            return bad.answer
+        try:
+            answer = await bridge.async_bridge_network_write(
+                request.app["hass"],
+                coordinator,
+                body.get("start"),
+                body.get("values"),
+            )
+        except HomeAssistantError as e:
+            return self.refused(e)
+        return self.json(answer)
+
+
 class MidniteClockView(MidniteBridgeView):
     """POST {"time": ISO 8601} - set the Classic's clock the app's way."""
 
@@ -404,6 +442,7 @@ BRIDGE_VIEWS = (
     MidniteStateView,
     MidnitePinView,
     MidniteWriteView,
+    MidniteNetworkView,
     MidniteClockView,
     MidniteRebootView,
     MidniteEepromSaveView,

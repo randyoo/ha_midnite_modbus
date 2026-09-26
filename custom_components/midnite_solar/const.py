@@ -34,7 +34,7 @@ DEFAULT_BRIDGE_ENABLED = False
 # Version 4 adds /recenthistory and /recenthistory/refresh (the device-6
 # recent-history log; FINDINGS section 52). Version 3 dated from the day the
 # datalogger cache grew its background collector.
-BRIDGE_API_VERSION = 4
+BRIDGE_API_VERSION = 5
 
 # The gate on WRITES - the whole write path, now the bridge carries no token.
 # The entry's options hold the PIN; the desktop app asks for it the moment its
@@ -299,9 +299,53 @@ BRIDGE_FORBIDDEN_WRITES = frozenset(
     # address the Classic answers on and drop the very connection the client
     # is using (the app's own "Classic will disconnect" alert). Not a casual
     # LAN-API target; keep it in the integration where the consequence is
-    # understood.
-    | set(range(20481, 20492))
+    # understood. FOREVER on this single-word path: the bench (FINDINGS 53)
+    # showed EVERY write to this block makes the card reprogram and drop
+    # the connection mid-choreography, so one lone word is a guaranteed
+    # half-frame waiting to happen. The controlled door is /network, with
+    # atomic frames and a read-back verdict - see NETWORK_WRITE_FRAMES
+    # below and NETWORK_CHOREOGRAPHY.md.
+    | set(range(20481, 20491 + 1))
 )
+
+# The Ethernet card's settings block, as the /network door takes it. Bench
+# ground truth is FINDINGS 53: every write to this block makes the card
+# REPROGRAM, and it kills the Modbus connection doing it - the ack proves
+# nothing, only the read-back confirms. The door therefore accepts exactly
+# these atomic shapes (a count-1 write here is always refused - a half
+# frame caught between words produced the real register value 0.0.88.44):
+# the settings word only rides its 3-word [flags, ip-low, ip-high] COMBO
+# (the static IP lands in the same atomic write that turns DHCP off, so
+# the address cannot move under you), and every other value is exactly one
+# count-2 pair at its even start.
+NETWORK_SETTINGS_WORD = REGISTER_MAP["IP_SETTINGS_FLAGS"]
+NETWORK_DHCP_BIT = 0x0001
+# Bit 1 of the settings word (the card's own web UI) was verified
+# READ-ONLY over Modbus on the bench - every apply rewrote the word
+# without it. Nothing may offer it or promise it back.
+NETWORK_WRITE_FRAMES = frozenset(
+    {
+        (NETWORK_SETTINGS_WORD, 3),  # flags + static IP, the round-4 combo
+        (REGISTER_MAP["IP_ADDRESS_LOW_WORD"], 2),
+        (REGISTER_MAP["GATEWAY_ADDRESS_LOW_WORD"], 2),
+        (REGISTER_MAP["SUBNET_MASK_LOW_WORD"], 2),
+        (REGISTER_MAP["DNS_1_LOW_WORD"], 2),
+        (REGISTER_MAP["DNS_2_LOW_WORD"], 2),
+    }
+)
+# The names the /network body may speak: the low word (or settings word)
+# of each writable value, as the snapshot publishes them.
+NETWORK_DOOR_NAMES = frozenset(
+    {
+        "IP_SETTINGS_FLAGS",
+        "IP_ADDRESS_LOW_WORD",
+        "GATEWAY_ADDRESS_LOW_WORD",
+        "SUBNET_MASK_LOW_WORD",
+        "DNS_1_LOW_WORD",
+        "DNS_2_LOW_WORD",
+    }
+)
+NETWORK_NETMASK_LOW = REGISTER_MAP["SUBNET_MASK_LOW_WORD"]
 
 # The private "internal file" commands the AIR app uses on the same port.
 # See private_pdu.py and air-app-reverse/PROTOCOL.md for the frame.

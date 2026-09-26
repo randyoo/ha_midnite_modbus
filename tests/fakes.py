@@ -41,6 +41,12 @@ class FakeApi:
         self.read_values = read_values or {}
         self.writes: list[tuple[int, int]] = []
         self.reads: list[int] = []
+        # The /network door: (start, frame) per accepted atomic frame; the
+        # fake CONFIRMS by default (the read-back answers the new words,
+        # like a card that reprogrammed fine) unless network_never_lands.
+        self.network_frames: list[tuple[int, list[int]]] = []
+        self.network_error: Exception | None = None
+        self.network_never_lands = False
         # Private function 104/105 "internal file" calls (the clock), recorded
         # the same way so the clock feature is testable without a Classic.
         self.internal_writes: list[tuple[int, list[int], int]] = []
@@ -75,6 +81,33 @@ class FakeApi:
         if not self.stale_read and not self.unreadable:
             self.read_values[address] = value
         return ModbusResult(error=self.error_writes)
+
+    def write_network(
+        self, start: int, values: list[int], confirms: int = 20
+    ) -> list[int]:
+        """Record one atomic Ethernet-card frame; the read-back is the verdict.
+
+        Mirrors MidniteHub.write_network's CONTRACT (not its socket
+        choreography - that has its own scripted double in
+        test_network_writes): frame-shaped work, then confirmation by
+        read-back. network_error models the hub's honest refusals (a
+        misshapen frame, a dead static copy, a card that never read
+        back) surfacing to the bridge layer as an exception.
+        """
+        self.network_frames.append((start, list(values)))
+        if self.network_error is not None:
+            raise self.network_error
+        if self.network_never_lands:
+            # Faithful to the hub: the read-back never matched, and the hub
+            # FAILS rather than dressing an echo up as confirmation.
+            raise OSError(
+                f"the Ethernet card never read back the frame sent to {start}"
+            )
+        for i, value in enumerate(values):
+            self.read_values[start + i] = value
+        # Return what the card now ANSWERS, not an echo of what was sent:
+        # a read-back assertion must be able to fail, or it asserts nothing.
+        return [self.read_values.get(start + i, 0) for i in range(len(values))]
 
     def read_holding_registers(self, address: int, count: int = 1, retries: int = 5):
         self.reads.append(address)

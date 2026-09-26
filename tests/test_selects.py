@@ -25,6 +25,7 @@ from midnite_solar.select import (
     Aux1StateSelect,
     Aux2FunctionSelector,
     Aux2StateSelect,
+    ChargeModeSelector,
     MPPTModeSelector,
 )
 import pytest
@@ -471,3 +472,48 @@ class TestOptionsAreRealOptions:
             )
             == []
         )
+
+
+class TestChargeModeStageCodes:
+    """The force-mode selector reads the stage-code SETS of FINDINGS 50.
+
+    The old code compared 4120's MSB against 5, 4 and 7 alone, so a forced
+    Equalize in its seek phase (EQ MPPT 18) - what the bench actually sat
+    in - showed as no current option while the Classic was visibly
+    equalizing. Each mode answers with its regulating code AND its MPPT
+    seek code; the selector must light on all of them.
+    """
+
+    @pytest.mark.parametrize(
+        ("code", "expected"),
+        [
+            (4, "Bulk"),
+            (5, "Float"),
+            (6, "Float"),  # FloatMppt: the seek phase the bench observed
+            (7, "Equalize"),
+            (18, "Equalize"),  # EQ MPPT: the bench's forced-Equalize answer
+        ],
+    )
+    def test_every_proving_stage_code_lights_its_mode(self, entry, code, expected):
+        selector_obj, _ = selector(
+            ChargeModeSelector, entry, {4120: code << 8}, group="status"
+        )
+        assert selector_obj.current_option == expected
+
+    @pytest.mark.parametrize("code", [0, 3, 10, 8, 255])
+    def test_stages_that_answer_no_force_read_as_none(self, entry, code):
+        selector_obj, _ = selector(
+            ChargeModeSelector, entry, {4120: code << 8}, group="status"
+        )
+        assert selector_obj.current_option == "None"
+
+    def test_the_low_byte_never_leaks_into_the_stage(self, entry):
+        selector_obj, _ = selector(
+            ChargeModeSelector, entry, {4120: (18 << 8) | 0xFF}, group="status"
+        )
+        assert selector_obj.current_option == "Equalize"
+
+    def test_no_data_honestly_says_none(self, entry):
+        api = FakeApi()
+        coordinator = FakeCoordinator(Hass(), api, {})
+        assert ChargeModeSelector(coordinator, entry).current_option == "None"

@@ -88,6 +88,22 @@ class MidniteSolarSelect(
 class ChargeModeSelector(MidniteSolarSelect):
     """Selector for force charge mode control."""
 
+    # Each force mode is ANSWERED with a SET of stage codes, bench-proven
+    # in FINDINGS 50: Table 4120-1 lists an MPPT seek phase beside each
+    # regulating code, and the firmware lives in both. A forced Equalize
+    # answers EQ MPPT 18 while the bank seeks the equalize set point, and
+    # Float answers FloatMppt 6 as well as Float 5. Comparing against the
+    # regulating codes alone showed a Classic visibly equalizing as "None"
+    # - the blind spot FINDINGS 50 left open for THIS file. Mirrors the
+    # companion app's forcedStageCodes; Bulk has its one code only.
+    _FORCED_MODE_AT = {
+        4: "Bulk",
+        5: "Float",
+        6: "Float",
+        7: "Equalize",
+        18: "Equalize",
+    }
+
     def __init__(self, coordinator: MidniteSolarUpdateCoordinator, entry: Any):
         """Initialize the selector."""
         super().__init__(coordinator, entry)
@@ -98,22 +114,17 @@ class ChargeModeSelector(MidniteSolarSelect):
     @property
     def current_option(self) -> str | None:
         """Return the currently selected option."""
-        # Check which force flag is active by reading the charge stage
+        # Check which force charge stage the Classic is answering with
         if self.coordinator.data and "data" in self.coordinator.data:
             status_data = self.coordinator.data["data"].get("status")
             if status_data:
                 raw_value = status_data.get(REGISTER_MAP["COMBO_CHARGE_STAGE"])
                 if raw_value is not None:
-                    # Extract MSB (high byte) for charge stage
+                    # Extract MSB (high byte) for the charge stage code
                     charge_stage_value = (raw_value >> 8) & 0xFF
-
-                    # Map charge stages to mode names
-                    if charge_stage_value == 5:  # Float
-                        return "Float"
-                    if charge_stage_value == 4:  # BulkMPPT
-                        return "Bulk"
-                    if charge_stage_value == 7:  # Equalize
-                        return "Equalize"
+                    mode = self._FORCED_MODE_AT.get(charge_stage_value)
+                    if mode is not None:
+                        return mode
 
         return "None"
 
